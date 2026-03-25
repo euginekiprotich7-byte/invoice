@@ -48,6 +48,7 @@
         <div><label>CPP</label><input type="number" id="cpp" value="300"></div>
         <div><label>Payable</label><input type="number" id="preview" readonly style="background:#f9f9f9"></div>
         <button class="btn btn-add" onclick="saveTask()">Register Order</button>
+		<button class="btn" style="background:#f39c12" onclick="saveAdjustment()">Add Adjustment</button>
     </div>
 
     <table id="invoiceTable">
@@ -72,6 +73,21 @@
     const SUPABASE_URL = 'https://xzxpwbkjhazvsaxxgqws.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6eHB3YmtqaGF6dnNheHhncXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgzMjEsImV4cCI6MjA5MDAyNDMyMX0.RDfNx5pUUhm6dZKf_F1Ada3rH6-rVxdPnrYXcrwyZi0';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+	
+	// 1. SET YOUR PASSWORD HERE
+const MASTER_PASSWORD = "EHA1"; 
+
+// 2. CHECK PASSWORD ON LOAD
+function checkPass() {
+    const entered = prompt("Enter System Password:");
+    if (entered !== MASTER_PASSWORD) {
+        alert("Access Denied");
+        document.body.innerHTML = "<h1>Unauthorized</h1>";
+    } else {
+        fetchTasks();
+    }
+}
+window.onload = checkPass;
 
     let allTasks = [];
 
@@ -125,6 +141,23 @@
             document.getElementById('detail').value = '';
         }
     }
+	
+	async function saveAdjustment() {
+    const desc = prompt("Enter Description (e.g., Advance, Refund):");
+    const amt = prompt("Enter Amount (use minus sign for deductions, e.g., -3500):");
+    
+    if (desc && amt) {
+        const adj = {
+            client_name: 'FINANCE',
+            task_detail: desc,
+            task_type: 'Adjustment',
+            payable: parseFloat(amt),
+            status: 'Done'
+        };
+        const { error } = await supabaseClient.from('tasks').insert([adj]);
+        if (!error) fetchTasks();
+    }
+}
 
     async function fetchTasks() {
         const { data, error } = await supabaseClient.from('tasks').select('*').order('deadline', { ascending: true });
@@ -149,7 +182,25 @@
             acc[key].push(obj);
             return acc;
         }, {});
+		
 
+		let totalWork = 0;
+		let totalAdjustments = 0;
+
+		allTasks.forEach(t => {
+			if (t.status !== 'Cancelled') {
+				if (t.task_type === 'Adjustment') {
+					totalAdjustments += t.payable;
+				} else {
+					totalWork += t.payable;
+				}
+			}
+		});
+
+		const finalPayable = totalWork + totalAdjustments;
+		document.getElementById('grandTotal').innerText = finalPayable;
+		document.getElementById('savingsPlan').innerText = (finalPayable * 0.2).toFixed(2);
+		
         for (let client in grouped) {
             body.innerHTML += `<tr class="client-header"><td colspan="6">${client}</td></tr>`;
             grouped[client].forEach(t => {
@@ -162,10 +213,15 @@
                         <td>${t.payable}</td>
                         <td class="status-${t.status.toLowerCase()}">${t.status}</td>
                         <td>${t.status === 'Pending' ? `<button class="btn btn-done" onclick="markAsDone('${t.id}')">Mark Done</button>` : '✅'}</td>
+						<td>
+						<button class="btn btn-done" onclick="updateStatus('${t.id}', 'Done')">Done</button>
+						<button class="btn btn-cancel" onclick="updateStatus('${t.id}', 'Cancelled')" style="background:#e74c3c">Cancel</button>
+					</td>`
                     </tr>`;
             });
         }
     }
+
 
     window.onload = fetchTasks;
 
@@ -224,6 +280,10 @@ async function getSavingsPerformance() {
     // This data will drive your "Compare Performance" dashboard
 }
 
+async function updateStatus(id, newStatus) {
+    const { error } = await supabaseClient.from('tasks').update({ status: newStatus }).eq('id', id);
+    if (!error) fetchTasks();
+}
 </script>
 
 </body>
