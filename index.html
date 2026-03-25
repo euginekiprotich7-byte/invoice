@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice Manager: Orders & Deadlines</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #2c3e50; --success: #27ae60; --warning: #f39c12; --bg: #f4f7f6; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 20px; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        
+        /* Input Grid Updates */
+        .controls-grid { display: grid; grid-template-columns: 1fr 1.5fr 1fr 0.8fr 0.8fr 1fr 1fr auto; gap: 10px; margin-bottom: 20px; background: #eee; padding: 15px; border-radius: 4px; align-items: end; }
+        label { display: block; font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #555; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        
+        /* Table Status Colors */
+        .status-pending { color: var(--warning); font-weight: bold; }
+        .status-done { color: var(--success); font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background: var(--primary); color: white; padding: 12px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; }
+        .client-header { background: #dfe6e9; font-weight: bold; }
+
+        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; }
+        .btn-add { background: var(--success); }
+        .btn-done { background: #3498db; font-size: 10px; padding: 5px 8px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Task Order & Deadline Tracker</h2>
+
+    <div class="controls-grid">
+        <div><label>Client</label><input type="text" id="client" placeholder="e.g. Iva"></div>
+        <div><label>Task Detail</label><input type="text" id="detail" placeholder="e.g. Case Study"></div>
+        <div><label>Type</label>
+            <select id="type" onchange="adjustInputs()">
+                <option value="Pages">Pages</option>
+                <option value="Quiz">Quiz</option>
+                <option value="Midterm">Midterm</option>
+                <option value="Adjustment">Adjustment</option>
+            </select>
+        </div>
+        <div><label>Deadline</label><input type="datetime-local" id="deadline"></div>
+        <div><label id="unitLabel">Pages</label><input type="number" id="unit" value="1" step="0.1"></div>
+        <div><label>CPP</label><input type="number" id="cpp" value="300"></div>
+        <div><label>Payable</label><input type="number" id="preview" readonly style="background:#f9f9f9"></div>
+        <button class="btn btn-add" onclick="saveTask()">Register Order</button>
+    </div>
+
+    <table id="invoiceTable">
+        <thead>
+            <tr>
+                <th>CLIENT</th>
+                <th>DETAILS</th>
+                <th>DEADLINE</th>
+                <th>PAYABLE</th>
+                <th>STATUS</th>
+                <th>ACTION</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+
+    <button class="btn" style="background:var(--primary); margin-top:20px; width:100%" onclick="exportToWord()">Generate Invoice for 'Done' Tasks</button>
+</div>
+
+<script>
+    // 1. CONFIGURATION
+    const SUPABASE_URL = 'https://xzxpwbkjhazvsaxxgqws.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6eHB3YmtqaGF6dnNheHhncXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgzMjEsImV4cCI6MjA5MDAyNDMyMX0.RDfNx5pUUhm6dZKf_F1Ada3rH6-rVxdPnrYXcrwyZi0';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let allTasks = [];
+
+    // Logic for Quizzes (800/1000) and Midterms (1500)
+    function adjustInputs() {
+        const type = document.getElementById('type').value;
+        const uLabel = document.getElementById('unitLabel');
+        const uInput = document.getElementById('unit');
+        const cppInput = document.getElementById('cpp');
+
+        if (type === 'Quiz') {
+            uLabel.innerText = "Rate";
+            uInput.value = 800;
+            cppInput.disabled = true;
+        } else if (type === 'Midterm') {
+            uLabel.innerText = "Essay? (1=Y)";
+            uInput.value = 1;
+            cppInput.disabled = true;
+        } else {
+            uLabel.innerText = "Pages";
+            cppInput.disabled = false;
+        }
+        updatePreview();
+    }
+
+    function updatePreview() {
+        const type = document.getElementById('type').value;
+        const unit = parseFloat(document.getElementById('unit').value) || 0;
+        const cpp = parseFloat(document.getElementById('cpp').value) || 0;
+        let pay = (type === 'Quiz' || type === 'Adjustment') ? unit : (type === 'Midterm' ? (unit === 1 ? 1500 : 1200) : unit * cpp);
+        document.getElementById('preview').value = pay;
+    }
+    document.addEventListener('input', updatePreview);
+
+    async function saveTask() {
+        const task = {
+            client_name: document.getElementById('client').value,
+            task_detail: document.getElementById('detail').value,
+            task_type: document.getElementById('type').value,
+            deadline: document.getElementById('deadline').value,
+            units: parseFloat(document.getElementById('unit').value),
+            cpp: parseFloat(document.getElementById('cpp').value),
+            payable: parseFloat(document.getElementById('preview').value),
+            status: 'Pending'
+        };
+
+        const { data, error } = await supabaseClient.from('tasks').insert([task]).select();
+        if (error) alert(error.message);
+        else {
+            fetchTasks(); // Refresh list from Supabase
+            document.getElementById('detail').value = '';
+        }
+    }
+
+    async function fetchTasks() {
+        const { data, error } = await supabaseClient.from('tasks').select('*').order('deadline', { ascending: true });
+        if (!error) {
+            allTasks = data;
+            renderTable();
+        }
+    }
+
+    async function markAsDone(id) {
+        const { error } = await supabaseClient.from('tasks').update({ status: 'Done' }).eq('id', id);
+        if (!error) fetchTasks();
+    }
+
+    function renderTable() {
+        const body = document.getElementById('tableBody');
+        body.innerHTML = '';
+        
+        const grouped = allTasks.reduce((acc, obj) => {
+            const key = obj.client_name;
+            if (!acc[key]) acc[key] = [];
+            acc[key].push(obj);
+            return acc;
+        }, {});
+
+        for (let client in grouped) {
+            body.innerHTML += `<tr class="client-header"><td colspan="6">${client}</td></tr>`;
+            grouped[client].forEach(t => {
+                const dateStr = t.deadline ? new Date(t.deadline).toLocaleString() : 'No Deadline';
+                body.innerHTML += `
+                    <tr>
+                        <td></td>
+                        <td>${t.task_detail}</td>
+                        <td>${dateStr}</td>
+                        <td>${t.payable}</td>
+                        <td class="status-${t.status.toLowerCase()}">${t.status}</td>
+                        <td>${t.status === 'Pending' ? `<button class="btn btn-done" onclick="markAsDone('${t.id}')">Mark Done</button>` : '✅'}</td>
+                    </tr>`;
+            });
+        }
+    }
+
+    window.onload = fetchTasks;
+
+    function exportToWord() {
+        // Only export tasks marked as "Done"
+        const doneTasks = allTasks.filter(t => t.status === 'Done');
+        if(doneTasks.length === 0) return alert("No 'Done' tasks to invoice!");
+        
+        let html = "<h2>INVOICE</h2><table border='1' style='width:100%; border-collapse:collapse;'>";
+        html += "<tr><th>DETAILS</th><th>PAYABLE</th></tr>";
+        doneTasks.forEach(t => {
+            html += `<tr><td>${t.task_detail}</td><td>${t.payable}</td></tr>`;
+        });
+        html += "</table>";
+
+        let blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+        let url = URL.createObjectURL(blob);
+        let link = document.createElement('a');
+        link.href = url;
+        link.download = 'Invoice_Submission.doc';
+        link.click();
+    }
+
+    function exportToWord() {
+        let table = document.getElementById('invoiceTable').cloneNode(true);
+        // Remove the action/empty column if any
+        let header = "<h2 style='text-align:center'>INVOICE REPORT</h2>";
+        let blob = new Blob(['\ufeff', header + table.outerHTML], { type: 'application/msword' });
+        let url = URL.createObjectURL(blob);
+        let link = document.createElement('a');
+        link.href = url;
+        link.download = `Invoice_${new Date().toISOString().split('T')[0]}.doc`;
+        link.click();
+    }
+	
+	async function pushTaskToSupabase(taskObj) {
+    const { data, error } = await supabase
+        .from('tasks')
+        .insert([
+            { 
+                client_name: taskObj.client, 
+                task_detail: taskObj.detail, 
+                task_type: taskObj.type,
+                units: taskObj.unit,
+                cpp: taskObj.cpp,
+                payable: taskObj.payable
+            }
+        ]);
+}
+
+async function getSavingsPerformance() {
+    const { data } = await supabase
+        .from('performance_history')
+        .select('total_gross, savings_amount')
+        .order('submission_date', { ascending: false });
+    // This data will drive your "Compare Performance" dashboard
+}
+
+</script>
+
+</body>
+</html>
