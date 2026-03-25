@@ -8,31 +8,22 @@
         :root { --primary: #2c3e50; --success: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 20px; }
         .container { max-width: 1200px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        
-        /* Tabs Styling */
         .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
-        .tab { padding: 10px 20px; cursor: pointer; background: #eee; border-radius: 8px 8px 0 0; font-weight: bold; transition: 0.3s; }
+        .tab { padding: 10px 20px; cursor: pointer; background: #eee; border-radius: 8px 8px 0 0; font-weight: bold; }
         .tab.active { background: var(--primary); color: white; }
-        .tab:hover:not(.active) { background: #ddd; }
-
+        
+        /* The Input Grid with CPP and Type */
         .controls-grid { display: grid; grid-template-columns: 1fr 1.5fr 1fr 0.8fr 0.8fr 1.2fr auto; gap: 10px; background: #eee; padding: 15px; border-radius: 4px; align-items: end; }
         label { display: block; font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #555; }
         input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th { background: var(--primary); color: white; padding: 12px; text-align: left; }
-        td { padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; }
-        .client-header { background: #dfe6e9; font-weight: bold; color: #2c3e50; }
-
-        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; }
-        .btn:hover { opacity: 0.8; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        .client-header { background: #dfe6e9; font-weight: bold; }
+        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; }
         .btn-add { background: var(--success); }
-        .btn-action { font-size: 10px; padding: 5px 8px; margin-right: 2px; }
-        
         #historySection { display: none; }
-        .status-cancelled { color: var(--danger); font-weight: bold; text-decoration: line-through; }
-        .status-done { color: var(--success); font-weight: bold; }
-        .status-pending { color: var(--warning); font-weight: bold; }
     </style>
 </head>
 <body style="display:none;" id="mainBody">
@@ -45,8 +36,8 @@
 
     <div id="activeSection">
         <div class="controls-grid">
-            <div><label>Client</label><input type="text" id="client" placeholder="e.g. Emelia"></div>
-            <div><label>Task Detail</label><input type="text" id="detail" placeholder="Task Name"></div>
+            <div><label>Client</label><input type="text" id="client" placeholder="Client Name"></div>
+            <div><label>Task Detail</label><input type="text" id="detail" placeholder="e.g. name_communication"></div>
             <div><label>Type</label>
                 <select id="type" onchange="adjustInputs()">
                     <option value="Pages">Pages</option>
@@ -55,10 +46,10 @@
                     <option value="Adjustment">Adjustment (Advance/Refund)</option>
                 </select>
             </div>
-            <div><label id="unitLabel">Pages</label><input type="number" id="unit" value="1" step="0.1"></div>
+            <div><label id="unitLabel">Units</label><input type="number" id="unit" value="1" step="0.1"></div>
             <div><label>CPP</label><input type="number" id="cpp" value="300"></div>
-            <div><label>Deadline / Date</label><input type="datetime-local" id="deadline"></div>
-            <button class="btn btn-add" onclick="saveTask()">Register Order</button>
+            <div><label>Deadline</label><input type="datetime-local" id="deadline"></div>
+            <button class="btn btn-add" onclick="saveTask()">Register Entry</button>
         </div>
 
         <table id="invoiceTable">
@@ -68,20 +59,17 @@
             <tbody id="tableBody"></tbody>
             <tfoot>
                 <tr style="font-weight:bold; background:#f9f9f9;"><td colspan="3" align="right">SUBTOTAL:</td><td id="subTotal">0</td><td colspan="2"></td></tr>
-                <tr style="font-weight:bold; color:var(--danger);"><td colspan="3" align="right">ADJUSTMENTS (Advances/Refunds):</td><td id="adjTotal">0</td><td colspan="2"></td></tr>
-                <tr style="font-weight:bold; background:#eee; font-size:1.1em;"><td colspan="3" align="right">FINAL PAYABLE:</td><td id="grandTotal">0</td><td colspan="2"></td></tr>
-                <tr style="font-weight:bold; color:var(--success);"><td colspan="3" align="right">SAVINGS GOAL (20%):</td><td id="savingsPlan">0</td><td colspan="2"></td></tr>
+                <tr style="font-weight:bold; color:var(--danger);"><td colspan="3" align="right">ADVANCES / REFUNDS:</td><td id="adjTotal">0</td><td colspan="2"></td></tr>
+                <tr style="font-weight:bold; background:#eee; font-size:1.1em;"><td colspan="3" align="right">GRAND TOTAL:</td><td id="grandTotal">0</td><td colspan="2"></td></tr>
             </tfoot>
         </table>
-        <button class="btn" style="background:var(--primary); margin-top:20px; width:100%" onclick="generateAndClear()">Generate Invoice & Clear for New Orders</button>
+        <button class="btn" style="background:var(--primary); margin-top:20px; width:100%" onclick="generateAndClear()">Generate Invoice & Archive</button>
     </div>
 
     <div id="historySection">
-        <h3>Archived Performance History</h3>
+        <h3>Archived Records</h3>
         <table id="historyTable">
-            <thead>
-                <tr><th>INVOICE DATE</th><th>CLIENT</th><th>DETAILS</th><th>AMOUNT</th><th>TYPE</th></tr>
-            </thead>
+            <thead><tr><th>DATE</th><th>CLIENT</th><th>DETAILS</th><th>AMOUNT</th></tr></thead>
             <tbody id="historyBody"></tbody>
         </table>
     </div>
@@ -91,61 +79,49 @@
     const SUPABASE_URL = 'https://xzxpwbkjhazvsaxxgqws.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6eHB3YmtqaGF6dnNheHhncXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgzMjEsImV4cCI6MjA5MDAyNDMyMX0.RDfNx5pUUhm6dZKf_F1Ada3rH6-rVxdPnrYXcrwyZi0';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    const MASTER_PASSWORD = "EHA1";
 
-    function checkPass() {
-        const entered = prompt("Enter System Password:");
-        if (entered === MASTER_PASSWORD) { document.getElementById('mainBody').style.display = 'block'; fetchTasks(); }
-        else { alert("Denied"); document.body.innerHTML = "<h1 style='text-align:center;'>Unauthorized</h1>"; }
+    async function checkPass() {
+        if (prompt("Password:") === "EHA1") { document.getElementById('mainBody').style.display = 'block'; fetchTasks(); }
+        else { document.body.innerHTML = "Access Denied"; }
     }
     window.onload = checkPass;
 
-    function showTab(tabName) {
-        document.getElementById('activeSection').style.display = tabName === 'active' ? 'block' : 'none';
-        document.getElementById('historySection').style.display = tabName === 'history' ? 'block' : 'none';
-        document.getElementById('tabActive').classList.toggle('active', tabName === 'active');
-        document.getElementById('tabHistory').classList.toggle('active', tabName === 'history');
+    function showTab(t) {
+        document.getElementById('activeSection').style.display = t === 'active' ? 'block' : 'none';
+        document.getElementById('historySection').style.display = t === 'history' ? 'block' : 'none';
+        document.getElementById('tabActive').classList.toggle('active', t === 'active');
+        document.getElementById('tabHistory').classList.toggle('active', t === 'history');
     }
 
     function adjustInputs() {
         const type = document.getElementById('type').value;
         const uLabel = document.getElementById('unitLabel');
         const cppInput = document.getElementById('cpp');
-        if (type === 'Quiz') { uLabel.innerText = "Rate"; cppInput.disabled = true; }
-        else if (type === 'Midterm') { uLabel.innerText = "Essay? (1=Y)"; cppInput.disabled = true; }
-        else if (type === 'Adjustment') { uLabel.innerText = "Amount"; cppInput.disabled = true; }
-        else { uLabel.innerText = "Pages"; cppInput.disabled = false; }
+        if (type === 'Adjustment') { uLabel.innerText = "Amount (- for Advance)"; cppInput.value = 0; cppInput.disabled = true; }
+        else { uLabel.innerText = "Units"; cppInput.disabled = false; }
     }
 
     async function saveTask() {
         const type = document.getElementById('type').value;
         const unit = parseFloat(document.getElementById('unit').value) || 0;
         const cppValue = parseFloat(document.getElementById('cpp').value) || 0;
-        let pay = 0;
-        
-        if (type === 'Quiz' || type === 'Adjustment') pay = unit;
-        else if (type === 'Midterm') pay = (unit === 1) ? 1500 : 1200;
-        else pay = unit * cppValue;
+        let pay = (type === 'Adjustment' || type === 'Quiz') ? unit : (type === 'Midterm' ? (unit === 1 ? 1500 : 1200) : unit * cppValue);
 
-        const task = {
+        const { error } = await supabaseClient.from('tasks').insert([{
             client_name: document.getElementById('client').value || 'Unknown',
             task_detail: document.getElementById('detail').value || 'Task',
             task_type: type,
-            units: unit,
-            cpp: cppValue,
-            deadline: document.getElementById('deadline').value || null,
+            units: unit, // Fixed null constraint
+            cpp: cppValue, // Fixed null constraint
             payable: pay,
             status: 'Pending'
-        };
-
-        const { error } = await supabaseClient.from('tasks').insert([task]);
-        if (error) alert(error.message);
-        else { fetchTasks(); document.getElementById('detail').value = ''; }
+        }]);
+        
+        if (error) alert(error.message); else { fetchTasks(); document.getElementById('detail').value = ''; }
     }
 
     async function fetchTasks() {
-        const { data, error } = await supabaseClient.from('tasks').select('*').order('deadline', { ascending: true });
-        if (error) return;
+        const { data } = await supabaseClient.from('tasks').select('*').order('created_at', { ascending: false });
         renderActive(data.filter(t => t.status !== 'Invoiced'));
         renderHistory(data.filter(t => t.status === 'Invoiced'));
     }
@@ -163,41 +139,38 @@
                     else sub += t.payable;
                 }
                 body.innerHTML += `<tr><td></td><td>${t.task_detail}</td><td>${t.deadline || '-'}</td><td>${t.payable}</td>
-                <td class="status-${t.status.toLowerCase()}">${t.status}</td>
-                <td><button class="btn btn-action" style="background:#3498db" onclick="updateStatus('${t.id}','Done')">Done</button>
-                <button class="btn btn-action" style="background:red" onclick="updateStatus('${t.id}','Cancelled')">Cancel</button></td></tr>`;
+                <td style="color:${t.status === 'Cancelled' ? 'red' : 'green'}">${t.status}</td>
+                <td><button onclick="updateStatus('${t.id}','Done')">Done</button>
+                <button onclick="updateStatus('${t.id}','Cancelled')">Cancel</button></td></tr>`;
             });
         }
         document.getElementById('subTotal').innerText = sub;
         document.getElementById('adjTotal').innerText = adj;
         document.getElementById('grandTotal').innerText = sub + adj;
-        document.getElementById('savingsPlan').innerText = ((sub + adj) * 0.2).toFixed(2);
     }
 
     function renderHistory(tasks) {
         const hBody = document.getElementById('historyBody'); hBody.innerHTML = '';
-        tasks.forEach(t => {
-            hBody.innerHTML += `<tr><td>${new Date(t.created_at).toLocaleDateString()}</td><td>${t.client_name}</td><td>${t.task_detail}</td><td>${t.payable}</td><td>${t.task_type}</td></tr>`;
-        });
+        tasks.forEach(t => hBody.innerHTML += `<tr><td>${new Date(t.created_at).toLocaleDateString()}</td><td>${t.client_name}</td><td>${t.task_detail}</td><td>${t.payable}</td></tr>`);
     }
 
     async function updateStatus(id, s) { await supabaseClient.from('tasks').update({ status: s }).eq('id', id); fetchTasks(); }
 
     async function generateAndClear() {
-        const { data: currentTasks } = await supabaseClient.from('tasks').select('*').not('status', 'eq', 'Invoiced').not('status', 'eq', 'Pending');
-        if (!currentTasks || currentTasks.length === 0) return alert("Mark tasks as 'Done' first!");
+        const { data } = await supabaseClient.from('tasks').select('*').not('status', 'eq', 'Invoiced').not('status', 'eq', 'Pending');
+        if (!data || data.length === 0) return alert("Nothing to clear!");
 
-        let html = "<h2>INVOICE REPORT</h2><table border='1' style='width:100%; border-collapse:collapse;'><tr><th>CLIENT</th><th>DETAIL</th><th>AMOUNT</th></tr>";
-        currentTasks.forEach(t => { if(t.status === 'Done' || t.task_type === 'Adjustment') html += `<tr><td>${t.client_name}</td><td>${t.task_detail}</td><td>${t.payable}</td></tr>`; });
-        html += `<tr><td colspan='2' align='right'><b>TOTAL PAYABLE:</b></td><td><b>${document.getElementById('grandTotal').innerText}</b></td></tr></table>`;
-
+        // Export logic
+        let html = "<h2>INVOICE</h2><table border='1'><tr><th>Detail</th><th>Amount</th></tr>";
+        data.forEach(t => { if(t.status === 'Done' || t.task_type === 'Adjustment') html += `<tr><td>${t.task_detail}</td><td>${t.payable}</td></tr>`; });
+        html += `<tr><td><b>TOTAL:</b></td><td><b>${document.getElementById('grandTotal').innerText}</b></td></tr></table>`;
         let link = document.createElement('a');
         link.href = URL.createObjectURL(new Blob(['\ufeff', html], { type: 'application/msword' }));
         link.download = `Invoice_${Date.now()}.doc`; link.click();
 
-        await supabaseClient.from('tasks').update({ status: 'Invoiced' }).in('id', currentTasks.map(t => t.id));
+        // Archive logic
+        await supabaseClient.from('tasks').update({ status: 'Invoiced' }).in('id', data.map(t => t.id));
         fetchTasks();
-        alert("Invoice generated! List cleared to History.");
     }
 </script>
 </body>
