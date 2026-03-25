@@ -2,91 +2,111 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Invoice Manager: Orders & Deadlines</title>
+    <title>Ultimate Invoice & Performance System</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --primary: #2c3e50; --success: #27ae60; --warning: #f39c12; --danger: #e74c3c; --bg: #f4f7f6; }
+        :root { --primary: #2c3e50; --success: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 20px; }
         .container { max-width: 1200px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         
-        .controls-grid { display: grid; grid-template-columns: 1fr 1.5fr 1fr 0.8fr 0.8fr 1fr 1fr auto; gap: 10px; margin-bottom: 20px; background: #eee; padding: 15px; border-radius: 4px; align-items: end; }
+        /* Tabs Styling */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
+        .tab { padding: 10px 20px; cursor: pointer; background: #eee; border-radius: 8px 8px 0 0; font-weight: bold; transition: 0.3s; }
+        .tab.active { background: var(--primary); color: white; }
+        .tab:hover:not(.active) { background: #ddd; }
+
+        .controls-grid { display: grid; grid-template-columns: 1fr 1.5fr 1fr 1fr 1.5fr auto; gap: 10px; background: #eee; padding: 15px; border-radius: 4px; align-items: end; }
         label { display: block; font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #555; }
         input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th { background: var(--primary); color: white; padding: 12px; text-align: left; }
         td { padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; }
-        .status-pending { color: var(--warning); font-weight: bold; }
-        .status-done { color: var(--success); font-weight: bold; }
-        .status-cancelled { color: var(--danger); font-weight: bold; text-decoration: line-through; }
-        .client-header { background: #dfe6e9; font-weight: bold; }
+        .client-header { background: #dfe6e9; font-weight: bold; color: #2c3e50; }
 
-        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; }
+        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; }
+        .btn:hover { opacity: 0.8; }
         .btn-add { background: var(--success); }
-        .btn-done { background: #3498db; font-size: 10px; padding: 5px 8px; margin-right: 5px; }
-        .btn-cancel { background: var(--danger); font-size: 10px; padding: 5px 8px; }
+        .btn-action { font-size: 10px; padding: 5px 8px; margin-right: 2px; }
+        
+        #historySection { display: none; }
+        .status-cancelled { color: var(--danger); font-weight: bold; text-decoration: line-through; }
+        .status-done { color: var(--success); font-weight: bold; }
+        .status-pending { color: var(--warning); font-weight: bold; }
     </style>
 </head>
 <body style="display:none;" id="mainBody">
 
 <div class="container">
-    <h2>Task Order & Deadline Tracker</h2>
-
-    <div class="controls-grid">
-        <div><label>Client</label><input type="text" id="client" placeholder="e.g. Iva"></div>
-        <div><label>Task Detail</label><input type="text" id="detail" placeholder="e.g. Case Study"></div>
-        <div><label>Type</label>
-            <select id="type" onchange="adjustInputs()">
-                <option value="Pages">Pages</option>
-                <option value="Quiz">Quiz</option>
-                <option value="Midterm">Midterm</option>
-                <option value="Adjustment">Adjustment</option>
-            </select>
-        </div>
-        <div><label>Deadline</label><input type="datetime-local" id="deadline"></div>
-        <div><label id="unitLabel">Pages</label><input type="number" id="unit" value="1" step="0.1"></div>
-        <div><label>CPP</label><input type="number" id="cpp" value="300"></div>
-        <div><label>Payable</label><input type="number" id="preview" readonly style="background:#f9f9f9"></div>
-        <button class="btn btn-add" onclick="saveTask()">Register Order</button>
-        <button class="btn" style="background:#f39c12" onclick="saveAdjustment()">Add Adjustment</button>
+    <div class="tabs">
+        <div id="tabActive" class="tab active" onclick="showTab('active')">Active Orders</div>
+        <div id="tabHistory" class="tab" onclick="showTab('history')">History / Performance</div>
     </div>
 
-    <table id="invoiceTable">
-        <thead>
-            <tr>
-                <th>CLIENT</th>
-                <th>DETAILS</th>
-                <th>DEADLINE</th>
-                <th>PAYABLE</th>
-                <th>STATUS</th>
-                <th>ACTION</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-        <tfoot>
-            <tr style="font-weight:bold; background:#eee;">
-                <td colspan="3" style="text-align:right">Total Payable:</td>
-                <td id="grandTotal">0</td>
-                <td colspan="2"></td>
-            </tr>
-            <tr style="font-weight:bold; color:var(--success);">
-                <td colspan="3" style="text-align:right">20% Savings Plan:</td>
-                <td id="savingsPlan">0</td>
-                <td colspan="2"></td>
-            </tr>
-        </tfoot>
-    </table>
+    <div id="activeSection">
+        <div class="controls-grid">
+            <div><label>Client</label><input type="text" id="client" placeholder="e.g. Emelia"></div>
+            <div><label>Task Detail</label><input type="text" id="detail" placeholder="Task Name"></div>
+            <div><label>Type</label>
+                <select id="type" onchange="adjustInputs()">
+                    <option value="Pages">Pages</option>
+                    <option value="Quiz">Quiz</option>
+                    <option value="Midterm">Midterm</option>
+                    <option value="Adjustment">Adjustment (Advance/Refund)</option>
+                </select>
+            </div>
+            <div id="unitBox"><label id="unitLabel">Pages</label><input type="number" id="unit" value="1" step="0.1"></div>
+            <div><label>Deadline / Date</label><input type="datetime-local" id="deadline"></div>
+            <button class="btn btn-add" onclick="saveTask()">Register Order</button>
+        </div>
 
-    <button class="btn" style="background:var(--primary); margin-top:20px; width:100%" onclick="exportToWord()">Generate Organized Word Invoice</button>
+        <table id="invoiceTable">
+            <thead>
+                <tr>
+                    <th>CLIENT</th>
+                    <th>DETAILS</th>
+                    <th>DEADLINE</th>
+                    <th>PAYABLE</th>
+                    <th>STATUS</th>
+                    <th>ACTIONS</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+            <tfoot>
+                <tr style="font-weight:bold; background:#f9f9f9;"><td colspan="3" align="right">SUBTOTAL:</td><td id="subTotal">0</td><td colspan="2"></td></tr>
+                <tr style="font-weight:bold; color:var(--danger);"><td colspan="3" align="right">ADJUSTMENTS (Advances/Refunds):</td><td id="adjTotal">0</td><td colspan="2"></td></tr>
+                <tr style="font-weight:bold; background:#eee; font-size:1.1em;"><td colspan="3" align="right">FINAL PAYABLE:</td><td id="grandTotal">0</td><td colspan="2"></td></tr>
+                <tr style="font-weight:bold; color:var(--success);"><td colspan="3" align="right">SAVINGS GOAL (20%):</td><td id="savingsPlan">0</td><td colspan="2"></td></tr>
+            </tfoot>
+        </table>
+        <button class="btn" style="background:var(--primary); margin-top:20px; width:100%" onclick="generateAndClear()">Generate Invoice & Clear for New Orders</button>
+    </div>
+
+    <div id="historySection">
+        <h3>Archived Performance History</h3>
+        <table id="historyTable">
+            <thead>
+                <tr>
+                    <th>INVOICE DATE</th>
+                    <th>CLIENT</th>
+                    <th>DETAILS</th>
+                    <th>AMOUNT</th>
+                    <th>FINAL STATUS</th>
+                </tr>
+            </thead>
+            <tbody id="historyBody"></tbody>
+        </table>
+    </div>
 </div>
 
 <script>
+    // Configuration
     const SUPABASE_URL = 'https://xzxpwbkjhazvsaxxgqws.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6eHB3YmtqaGF6dnNheHhncXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgzMjEsImV4cCI6MjA5MDAyNDMyMX0.RDfNx5pUUhm6dZKf_F1Ada3rH6-rVxdPnrYXcrwyZi0';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    
     const MASTER_PASSWORD = "EHA1";
 
+    // 1. Password Gateway
     function checkPass() {
         const entered = prompt("Enter System Password:");
         if (entered === MASTER_PASSWORD) {
@@ -99,50 +119,49 @@
     }
     window.onload = checkPass;
 
-    let allTasks = [];
+    // 2. Tab Logic
+    function showTab(tabName) {
+        if (tabName === 'active') {
+            document.getElementById('activeSection').style.display = 'block';
+            document.getElementById('historySection').style.display = 'none';
+            document.getElementById('tabActive').classList.add('active');
+            document.getElementById('tabHistory').classList.remove('active');
+        } else {
+            document.getElementById('activeSection').style.display = 'none';
+            document.getElementById('historySection').style.display = 'block';
+            document.getElementById('tabActive').classList.remove('active');
+            document.getElementById('tabHistory').classList.add('active');
+        }
+    }
 
+    // 3. Dynamic Inputs
     function adjustInputs() {
         const type = document.getElementById('type').value;
         const uLabel = document.getElementById('unitLabel');
         const uInput = document.getElementById('unit');
-        const cppInput = document.getElementById('cpp');
-
-        if (type === 'Quiz') {
-            uLabel.innerText = "Rate";
-            uInput.value = 800;
-            cppInput.disabled = true;
-        } else if (type === 'Midterm') {
-            uLabel.innerText = "Essay? (1=Y)";
-            uInput.value = 1;
-            cppInput.disabled = true;
-        } else if (type === 'Adjustment') {
-            uLabel.innerText = "Amount";
-            cppInput.disabled = true;
-        } else {
-            uLabel.innerText = "Pages";
-            cppInput.disabled = false;
-        }
-        updatePreview();
+        if (type === 'Quiz') { uLabel.innerText = "Rate (800/1000)"; uInput.value = 800; }
+        else if (type === 'Midterm') { uLabel.innerText = "Essay? (1=Y)"; uInput.value = 1; }
+        else if (type === 'Adjustment') { uLabel.innerText = "Amount (use - for advance)"; uInput.value = 0; }
+        else { uLabel.innerText = "Pages"; uInput.value = 1; }
     }
 
-    function updatePreview() {
-        const type = document.getElementById('type').value;
-        const unit = parseFloat(document.getElementById('unit').value) || 0;
-        const cpp = parseFloat(document.getElementById('cpp').value) || 0;
-        let pay = (type === 'Quiz' || type === 'Adjustment') ? unit : (type === 'Midterm' ? (unit === 1 ? 1500 : 1200) : unit * cpp);
-        document.getElementById('preview').value = pay;
-    }
-    document.addEventListener('input', updatePreview);
-
+    // 4. Data Operations
     async function saveTask() {
+        const type = document.getElementById('type').value;
+        const unit = parseFloat(document.getElementById('unit').value);
+        let pay = 0;
+        
+        // Calculate based on business rules
+        if (type === 'Quiz' || type === 'Adjustment') pay = unit;
+        else if (type === 'Midterm') pay = (unit === 1) ? 1500 : 1200;
+        else pay = unit * 300; // Standard Pages
+
         const task = {
-            client_name: document.getElementById('client').value,
-            task_detail: document.getElementById('detail').value,
-            task_type: document.getElementById('type').value,
+            client_name: document.getElementById('client').value || 'Unknown',
+            task_detail: document.getElementById('detail').value || 'Task',
+            task_type: type,
             deadline: document.getElementById('deadline').value || null,
-            units: parseFloat(document.getElementById('unit').value),
-            cpp: parseFloat(document.getElementById('cpp').value),
-            payable: parseFloat(document.getElementById('preview').value),
+            payable: pay,
             status: 'Pending'
         };
 
@@ -154,94 +173,123 @@
         }
     }
 
-    async function saveAdjustment() {
-        const desc = prompt("Enter Description (e.g., Advance, Refund):");
-        const amt = prompt("Enter Amount (use minus for deductions, e.g., -3500):");
-        if (desc && amt) {
-            const adj = {
-                client_name: 'FINANCE',
-                task_detail: desc,
-                task_type: 'Adjustment',
-                payable: parseFloat(amt),
-                status: 'Done'
-            };
-            const { error } = await supabaseClient.from('tasks').insert([adj]);
-            if (!error) fetchTasks();
-        }
-    }
-
     async function fetchTasks() {
         const { data, error } = await supabaseClient.from('tasks').select('*').order('deadline', { ascending: true });
-        if (!error) {
-            allTasks = data;
-            renderTable();
-        }
+        if (error) return;
+        
+        const activeTasks = data.filter(t => t.status !== 'Invoiced');
+        const historyTasks = data.filter(t => t.status === 'Invoiced');
+        
+        renderActive(activeTasks);
+        renderHistory(historyTasks);
     }
 
-    async function updateStatus(id, newStatus) {
-        const { error } = await supabaseClient.from('tasks').update({ status: newStatus }).eq('id', id);
-        if (!error) fetchTasks();
-    }
-
-    function renderTable() {
+    function renderActive(tasks) {
         const body = document.getElementById('tableBody');
         body.innerHTML = '';
+        let sub = 0, adj = 0;
         
-        const grouped = allTasks.reduce((acc, obj) => {
-            const key = obj.client_name;
-            if (!acc[key]) acc[key] = [];
-            acc[key].push(obj);
+        // Group by Client
+        const grouped = tasks.reduce((acc, t) => {
+            (acc[t.client_name] = acc[t.client_name] || []).push(t);
             return acc;
         }, {});
 
-        let totalWork = 0;
-        let totalAdjustments = 0;
-
-        allTasks.forEach(t => {
-            if (t.status !== 'Cancelled') {
-                if (t.task_type === 'Adjustment') totalAdjustments += t.payable;
-                else totalWork += t.payable;
-            }
-        });
-
-        const finalPayable = totalWork + totalAdjustments;
-        document.getElementById('grandTotal').innerText = finalPayable;
-        document.getElementById('savingsPlan').innerText = (finalPayable * 0.2).toFixed(2);
-
         for (let client in grouped) {
-            body.innerHTML += `<tr class="client-header"><td colspan="6">${client}</td></tr>`;
+            body.innerHTML += `<tr class="client-header"><td colspan="6">${client.toUpperCase()}</td></tr>`;
             grouped[client].forEach(t => {
-                const dateStr = t.deadline ? new Date(t.deadline).toLocaleString() : 'No Deadline';
+                // Calculation Logic: Skip cancelled for totals
+                if (t.status !== 'Cancelled') {
+                    if (t.task_type === 'Adjustment') adj += t.payable;
+                    else sub += t.payable;
+                }
+
+                const deadlineDisplay = t.deadline ? new Date(t.deadline).toLocaleString() : '-';
                 body.innerHTML += `
                     <tr>
                         <td></td>
                         <td>${t.task_detail}</td>
-                        <td>${dateStr}</td>
+                        <td>${deadlineDisplay}</td>
                         <td>${t.payable}</td>
                         <td class="status-${t.status.toLowerCase()}">${t.status}</td>
                         <td>
-                            <button class="btn btn-done" onclick="updateStatus('${t.id}', 'Done')">Done</button>
-                            <button class="btn btn-cancel" onclick="updateStatus('${t.id}', 'Cancelled')">Cancel</button>
+                            <button class="btn btn-action" style="background:#3498db" onclick="updateStatus('${t.id}','Done')">Done</button>
+                            <button class="btn btn-action" style="background:red" onclick="updateStatus('${t.id}','Cancelled')">Cancel</button>
                         </td>
                     </tr>`;
             });
         }
+        
+        // Update Totals
+        document.getElementById('subTotal').innerText = sub;
+        document.getElementById('adjTotal').innerText = adj;
+        document.getElementById('grandTotal').innerText = sub + adj;
+        document.getElementById('savingsPlan').innerText = ((sub + adj) * 0.2).toFixed(2);
     }
 
-    function exportToWord() {
-        let tableClone = document.getElementById('invoiceTable').cloneNode(true);
-        const rows = tableClone.querySelectorAll('tr');
-        rows.forEach(row => {
-            if (row.lastElementChild) row.lastElementChild.remove();
+    function renderHistory(tasks) {
+        const hBody = document.getElementById('historyBody');
+        hBody.innerHTML = '';
+        tasks.forEach(t => {
+            hBody.innerHTML += `
+                <tr>
+                    <td>${new Date(t.created_at).toLocaleDateString()}</td>
+                    <td>${t.client_name}</td>
+                    <td>${t.task_detail}</td>
+                    <td>${t.payable}</td>
+                    <td>${t.task_type === 'Adjustment' ? 'Financial' : 'Paid'}</td>
+                </tr>`;
         });
+    }
 
-        let header = "<h2 style='text-align:center'>INVOICE REPORT</h2>";
-        let blob = new Blob(['\ufeff', header + tableClone.outerHTML], { type: 'application/msword' });
-        let url = URL.createObjectURL(blob);
+    async function updateStatus(id, s) {
+        await supabaseClient.from('tasks').update({ status: s }).eq('id', id);
+        fetchTasks();
+    }
+
+    // 5. THE CLEAR & INVOICE FUNCTION
+    async function generateAndClear() {
+        // Fetch all current tasks that are 'Done' or 'Cancelled' (active list)
+        const { data: currentTasks } = await supabaseClient.from('tasks')
+            .select('*')
+            .not('status', 'eq', 'Invoiced')
+            .not('status', 'eq', 'Pending');
+
+        if (!currentTasks || currentTasks.length === 0) {
+            return alert("No finished tasks to invoice! Mark them as 'Done' first.");
+        }
+
+        // Create the Word Table Content
+        let html = `<h2>OFFICIAL INVOICE - ${new Date().toLocaleDateString()}</h2>`;
+        html += "<table border='1' style='width:100%; border-collapse:collapse;'>";
+        html += "<tr style='background:#eee;'><th>CLIENT</th><th>DETAIL</th><th>AMOUNT</th></tr>";
+        
+        currentTasks.forEach(t => {
+            if(t.status === 'Done' || (t.status === 'Cancelled' && t.task_type === 'Adjustment')) {
+                html += `<tr><td>${t.client_name}</td><td>${t.task_detail}</td><td>${t.payable}</td></tr>`;
+            }
+        });
+        
+        const finalAmount = document.getElementById('grandTotal').innerText;
+        html += `<tr style='font-weight:bold;'><td colspan='2' align='right'>TOTAL PAYABLE:</td><td>${finalAmount}</td></tr>`;
+        html += "</table>";
+
+        // Download Word File
         let link = document.createElement('a');
-        link.href = url;
-        link.download = `Invoice_${new Date().toISOString().split('T')[0]}.doc`;
+        link.href = URL.createObjectURL(new Blob(['\ufeff', html], { type: 'application/msword' }));
+        link.download = `Invoice_Report_${Date.now()}.doc`;
         link.click();
+
+        // CLEAR: Move these tasks to 'Invoiced' status so they move to the History Tab
+        const idsToClear = currentTasks.map(t => t.id);
+        const { error } = await supabaseClient.from('tasks')
+            .update({ status: 'Invoiced' })
+            .in('id', idsToClear);
+
+        if (!error) {
+            fetchTasks();
+            alert("Invoice generated and active list cleared to History!");
+        }
     }
 </script>
 </body>
