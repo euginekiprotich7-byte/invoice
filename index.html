@@ -45,14 +45,20 @@
             <div><label>Client</label><input type="text" id="client" placeholder="Client Name"></div>
             <div><label>Task Detail</label><input type="text" id="detail" placeholder="Task Detail"></div>
             <div><label>Type</label>
-                <select id="type">
-                    <option value="Pages">Pages</option>
-                    <option value="Quiz">Quiz</option>
-                    <option value="Midterm">Midterm</option>
-                </select>
+			<select id="type" onchange="adjustInputs()">
+				<option value="Pages">Pages</option>
+				<option value="Quiz">Quiz</option>
+				<option value="Midterm">Midterm</option>
+				<option value="PPT">PPT (PowerPoint)</option>
+			</select>
             </div>
             <div><label>Units</label><input type="number" id="unit" value="1" step="0.1"></div>
-            <div><label>CPP</label><input type="number" id="cpp" value="300"></div>
+            <div>
+			<label>CPP / Rate</label>
+			<div id="cppContainer">
+				<input type="number" id="cpp" value="300">
+			</div>
+		</div>
             <div><label>Deadline</label><input type="datetime-local" id="deadline"></div>
             <button class="btn btn-add" onclick="saveTask('Regular')">Register Order</button>
         </div>
@@ -127,9 +133,17 @@
             };
         } else {
             const type = document.getElementById('type').value;
-            const unit = parseFloat(document.getElementById('unit').value) || 0;
-            const cpp = parseFloat(document.getElementById('cpp').value) || 0;
-            let pay = (type === 'Quiz') ? 1000 : (type === 'Midterm' ? (unit === 1 ? 1500 : 1200) : unit * cpp);
+			const unit = parseFloat(document.getElementById('unit').value) || 0;
+			const cpp = parseFloat(document.getElementById('cpp').value) || 0;
+
+			let pay;
+			if (type === 'Adjustment') {
+				pay = unit; // Units field acts as the flat amount for adjustments
+			} else if (type === 'Quiz' || type === 'Midterm') {
+				pay = cpp; // Quizzes and Midterms use the flat rate selected
+			} else {
+				pay = unit * cpp; // Pages and PPTs multiply units by the rate
+			}
             
             task = {
                 client_name: document.getElementById('client').value || 'Unknown',
@@ -153,26 +167,49 @@
     }
 
     function renderActive(tasks) {
-        const body = document.getElementById('tableBody'); body.innerHTML = '';
-        let gross = 0, advances = 0;
-        const grouped = tasks.reduce((acc, t) => { (acc[t.client_name] = acc[t.client_name] || []).push(t); return acc; }, {});
+    const body = document.getElementById('tableBody');
+    body.innerHTML = '';
+    let gross = 0, advances = 0;
 
-        for (let client in grouped) {
-            body.innerHTML += `<tr class="client-header"><td colspan="6">${client}</td></tr>`;
-            grouped[client].forEach(t => {
-                if (t.status !== 'Cancelled') {
-                    if (t.task_type === 'Adjustment') advances += t.payable;
-                    else gross += t.payable;
-                }
-                body.innerHTML += `<tr><td>${t.task_detail}</td><td>${t.task_type === 'Adjustment' ? '-' : t.units}</td><td>${t.cpp}</td><td>${t.payable}</td><td>${t.status}</td>
-                <td><button onclick="updateStatus('${t.id}','Done')">Done</button>
-                <button onclick="updateStatus('${t.id}','Cancelled')">X</button></td></tr>`;
-            });
-        }
-        document.getElementById('subTotal').innerText = gross;
-        document.getElementById('adjTotal').innerText = advances;
-        document.getElementById('grandTotal').innerText = gross + advances;
+    // 1. Group tasks by client name
+    const grouped = tasks.reduce((acc, t) => {
+        const client = t.client_name || 'Unassigned';
+        if (!acc[client]) acc[client] = [];
+        acc[client].push(t);
+        return acc;
+    }, {});
+
+    // 2. Loop through each client group
+    for (let client in grouped) {
+        // Add a stylized header for each client
+        body.innerHTML += `<tr class="client-header"><td colspan="6" style="background:#dfe6e9; font-weight:bold;">${client.toUpperCase()}</td></tr>`;
+        
+        grouped[client].forEach(t => {
+            if (t.status !== 'Cancelled') {
+                if (t.task_type === 'Adjustment') advances += t.payable;
+                else gross += t.payable;
+            }
+
+            // Display row with specific column order from your Word doc
+            body.innerHTML += `
+                <tr>
+                    <td>${t.task_detail}</td>
+                    <td>${t.task_type === 'Adjustment' ? '-' : (t.task_type === 'Quiz' ? 'quiz' : t.units)}</td>
+                    <td>${t.cpp}</td>
+                    <td>${t.payable}</td>
+                    <td>${t.status}</td>
+                    <td>
+                        <button onclick="updateStatus('${t.id}','Done')">Done</button>
+                        <button onclick="updateStatus('${t.id}','Cancelled')">X</button>
+                    </td>
+                </tr>`;
+        });
     }
+
+    document.getElementById('subTotal').innerText = gross;
+    document.getElementById('adjTotal').innerText = advances;
+    document.getElementById('grandTotal').innerText = gross + advances;
+}
 
     function renderHistory(tasks) {
         const hBody = document.getElementById('historyBody'); hBody.innerHTML = '';
@@ -182,42 +219,61 @@
     async function updateStatus(id, s) { await supabaseClient.from('tasks').update({ status: s }).eq('id', id); fetchTasks(); }
 
     async function generateAndClear() {
-        const { data } = await supabaseClient.from('tasks').select('*').not('status', 'eq', 'Invoiced').not('status', 'eq', 'Pending');
-        if (!data || data.length === 0) return alert("Nothing to archive!");
+    const { data } = await supabaseClient.from('tasks')
+        .select('*')
+        .not('status', 'eq', 'Invoiced')
+        .not('status', 'eq', 'Pending');
 
-        // Word Layout logic matching "invoice E F.docx"
-        let html = "<table border='1' style='width:100%; border-collapse:collapse; font-family:Arial;'>";
-        html += "<tr style='background:#eee;'><th>DETAILS</th><th>PAGES</th><th>CPP</th><th>PAYABLE</th></tr>";
-        
-        let clientTasks = data.filter(t => t.task_type !== 'Adjustment');
-        clientTasks.forEach(t => {
-            html += `<tr><td>${t.task_detail}</td><td>${t.units}</td><td>${t.cpp}</td><td>${t.payable}</td></tr>`;
+    if (!data || data.length === 0) return alert("No 'Done' tasks to invoice!");
+
+    // Start building the Word-compatible HTML string
+    let html = `
+        <h2 style="text-align:center; font-family:Arial;">INVOICE - ${new Date().toLocaleDateString()}</h2>
+        <table border="1" style="width:100%; border-collapse:collapse; font-family:Arial;">
+            <tr style="background:#eeeeee;">
+                <th>DETAILS</th><th>PAGES</th><th>CPP</th><th>PAYABLE</th>
+            </tr>`;
+
+    // Grouping logic for the Word document
+    const grouped = data.reduce((acc, t) => {
+        const client = t.client_name || 'General';
+        if (!acc[client]) acc[client] = [];
+        acc[client].push(t);
+        return acc;
+    }, {});
+
+    for (let client in grouped) {
+        html += `<tr style="background:#f2f2f2;"><td colspan="4"><b>${client}</b></td></tr>`;
+        grouped[client].forEach(t => {
+            html += `
+                <tr>
+                    <td>${t.task_detail}</td>
+                    <td>${t.task_type === 'Adjustment' ? '' : (t.task_type === 'Quiz' ? 'quiz' : t.units)}</td>
+                    <td>${t.cpp || ''}</td>
+                    <td>${t.payable}</td>
+                </tr>`;
         });
-
-        const adjTasks = data.filter(t => t.task_type === 'Adjustment');
-        adjTasks.forEach(a => {
-            html += `<tr><td>${a.task_detail}</td><td></td><td></td><td>${a.payable}</td></tr>`;
-        });
-
-        html += `<tr style='font-weight:bold;'><td colspan='3' align='right'>TOTAL:</td><td>${document.getElementById('subTotal').innerText}</td></tr>`;
-        html += `<tr style='font-weight:bold;'><td colspan='3' align='right'>PAYABLE:</td><td>${document.getElementById('grandTotal').innerText}</td></tr></table>`;
-
-		const gross = parseFloat(document.getElementById('subTotal').innerText);
-		const final = parseFloat(document.getElementById('grandTotal').innerText);
-
-		await supabaseClient.from('performance_history').insert([{
-			total_gross: gross,
-			final_payable: final,
-			savings_amount: gross * 0.2
-		}]);
-
-        let link = document.createElement('a');
-        link.href = URL.createObjectURL(new Blob(['\ufeff', html], { type: 'application/msword' }));
-        link.download = `Invoice_Export.doc`; link.click();
-
-        await supabaseClient.from('tasks').update({ status: 'Invoiced' }).in('id', data.map(t => t.id));
-        fetchTasks();
     }
+
+    // Add Summary Totals (Matching your Advance + Refund logic)
+    const total = document.getElementById('subTotal').innerText;
+    const final = document.getElementById('grandTotal').innerText;
+    
+    html += `
+        <tr><td colspan="3" align="right"><b>TOTAL</b></td><td><b>${total}</b></td></tr>
+        <tr><td colspan="3" align="right"><b>PAYABLE</b></td><td><b>${final}</b></td></tr>
+        </table>`;
+
+    // Trigger Download
+    let link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob(['\ufeff', html], { type: 'application/msword' }));
+    link.download = `Invoice_${Date.now()}.doc`;
+    link.click();
+
+    // Archive handled after download
+    await supabaseClient.from('tasks').update({ status: 'Invoiced' }).in('id', data.map(t => t.id));
+    fetchTasks();
+}
 	
 	let myChart;
 
@@ -253,6 +309,35 @@ async function updatePerformanceGraph() {
     myChart.data.datasets[1].data = data.map(d => d.final_payable);
     myChart.data.datasets[2].data = data.map(d => d.savings_amount);
     myChart.update();
+}
+
+function adjustInputs() {
+    const type = document.getElementById('type').value;
+    const cppContainer = document.getElementById('cppContainer');
+    const unitLabel = document.getElementById('unitLabel') || document.querySelector('label[for="unit"]');
+
+    if (type === 'Quiz') {
+        cppContainer.innerHTML = `
+            <select id="cpp">
+                <option value="800">800 (Standard)</option>
+                <option value="1000">1000 (Complex)</option>
+            </select>`;
+    } else if (type === 'Midterm') {
+        cppContainer.innerHTML = `
+            <select id="cpp">
+                <option value="1000">1000 (Standard)</option>
+                <option value="1500">1500 (With Essay)</option>
+            </select>`;
+    } else if (type === 'PPT') {
+        cppContainer.innerHTML = `
+            <select id="cpp">
+                <option value="150">150 (Per Slide)</option>
+                <option value="200">200 (Design Heavy)</option>
+            </select>`;
+    } else {
+        // Back to normal for regular "Pages"
+        cppContainer.innerHTML = `<input type="number" id="cpp" value="300">`;
+    }
 }
 
 </script>
