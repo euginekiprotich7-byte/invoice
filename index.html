@@ -29,18 +29,18 @@
         .btn-add { background: var(--success); }
         .btn-adj { background: var(--danger); }
         
-        #historySection { display: none; }
-		/* This targets the status cell and adds the highlight automatically */
+        /* This makes the text red and bold */
 		.status-pending {
-			background-color: #ffeaa7; /* Soft yellow highlight */
-			color: #d63031; /* Red text for visibility */
+			color: #e74c3c !important;
 			font-weight: bold;
+			background-color: #fdf2f2;
+			padding: 2px 6px;
 			border-radius: 4px;
-			padding: 2px 5px;
 		}
 
+		/* This adds the emoji at the end of the text */
 		.status-pending::after {
-			content: " 🚨"; /* This adds the emoji visually without changing the data */
+			content: " 🚨";
 		}
     </style>
 </head>
@@ -203,7 +203,8 @@
             }
 
             // Display row with specific column order from your Word doc
-            const statusClass = t.status === 'Pending' ? 'status-pending' : 'status-done';
+            const displayStatus = t.status;
+			const statusClass = (displayStatus === 'Pending') ? 'status-pending' : '';
 
 			body.innerHTML += `
 				<tr>
@@ -211,7 +212,8 @@
 					<td>${t.units}</td>
 					<td>${t.cpp}</td>
 					<td>${t.payable}</td>
-					<td class="${statusClass}">${t.status}</td> <td>
+					<td class="${statusClass}">${displayStatus}</td> 
+					<td>
 						<button onclick="updateStatus('${t.id}','Done')">Done</button>
 						<button onclick="updateStatus('${t.id}','Cancelled')">X</button>
 					</td>
