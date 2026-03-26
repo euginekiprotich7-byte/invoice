@@ -30,6 +30,18 @@
         .btn-adj { background: var(--danger); }
         
         #historySection { display: none; }
+		/* This targets the status cell and adds the highlight automatically */
+		.status-pending {
+			background-color: #ffeaa7; /* Soft yellow highlight */
+			color: #d63031; /* Red text for visibility */
+			font-weight: bold;
+			border-radius: 4px;
+			padding: 2px 5px;
+		}
+
+		.status-pending::after {
+			content: " 🚨"; /* This adds the emoji visually without changing the data */
+		}
     </style>
 </head>
 <body style="display:none;" id="mainBody">
