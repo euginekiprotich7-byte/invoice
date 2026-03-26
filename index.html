@@ -203,18 +203,19 @@
             }
 
             // Display row with specific column order from your Word doc
-            body.innerHTML += `
-                <tr>
-                    <td>${t.task_detail}</td>
-                    <td>${t.task_type === 'Adjustment' ? '-' : (t.task_type === 'Quiz' ? 'quiz' : t.units)}</td>
-                    <td>${t.cpp}</td>
-                    <td>${t.payable}</td>
-                    <td>${t.status}</td>
-                    <td>
-                        <button onclick="updateStatus('${t.id}','Done')">Done</button>
-                        <button onclick="updateStatus('${t.id}','Cancelled')">X</button>
-                    </td>
-                </tr>`;
+            const statusClass = t.status === 'Pending' ? 'status-pending' : 'status-done';
+
+			body.innerHTML += `
+				<tr>
+					<td>${t.task_detail}</td>
+					<td>${t.units}</td>
+					<td>${t.cpp}</td>
+					<td>${t.payable}</td>
+					<td class="${statusClass}">${t.status}</td> <td>
+						<button onclick="updateStatus('${t.id}','Done')">Done</button>
+						<button onclick="updateStatus('${t.id}','Cancelled')">X</button>
+					</td>
+				</tr>`;
         });
     }
 
