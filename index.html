@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Ultimate Invoice & Performance System</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --primary: #2c3e50; --success: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 20px; }
@@ -77,6 +78,9 @@
     </div>
 
     <div id="historySection">
+		<div style="margin-bottom: 30px; padding: 20px; background: #fff; border: 1px solid #ddd; border-radius: 8px;">
+		<canvas id="performanceChart" style="max-height: 400px;"></canvas>
+		</div>
         <h3>Archived Records</h3>
         <table id="historyTable">
             <thead><tr><th>DATE</th><th>CLIENT</th><th>DETAILS</th><th>AMOUNT</th></tr></thead>
@@ -103,7 +107,12 @@
         document.getElementById('historySection').style.display = t === 'history' ? 'block' : 'none';
         document.getElementById('tabActive').classList.toggle('active', t === 'active');
         document.getElementById('tabHistory').classList.toggle('active', t === 'history');
+    
+    if (t === 'history') {
+        if (!myChart) initChart();
+        updatePerformanceGraph();
     }
+}
 
     async function saveTask(mode) {
         let task = {};
@@ -193,6 +202,15 @@
         html += `<tr style='font-weight:bold;'><td colspan='3' align='right'>TOTAL:</td><td>${document.getElementById('subTotal').innerText}</td></tr>`;
         html += `<tr style='font-weight:bold;'><td colspan='3' align='right'>PAYABLE:</td><td>${document.getElementById('grandTotal').innerText}</td></tr></table>`;
 
+		const gross = parseFloat(document.getElementById('subTotal').innerText);
+		const final = parseFloat(document.getElementById('grandTotal').innerText);
+
+		await supabaseClient.from('performance_history').insert([{
+			total_gross: gross,
+			final_payable: final,
+			savings_amount: gross * 0.2
+		}]);
+
         let link = document.createElement('a');
         link.href = URL.createObjectURL(new Blob(['\ufeff', html], { type: 'application/msword' }));
         link.download = `Invoice_Export.doc`; link.click();
@@ -200,6 +218,43 @@
         await supabaseClient.from('tasks').update({ status: 'Invoiced' }).in('id', data.map(t => t.id));
         fetchTasks();
     }
+	
+	let myChart;
+
+// 1. Initialize the chart when the page loads
+function initChart() {
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [], 
+            datasets: [
+                { label: 'Gross Total', data: [], borderColor: '#27ae60', tension: 0.1, fill: false },
+                { label: 'Final Payable', data: [], borderColor: '#2c3e50', tension: 0.1, fill: false },
+                { label: '20% Savings Goal', data: [], borderColor: '#f39c12', borderDash: [5, 5], fill: false }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+}
+
+// 2. Fetch data from your performance_history table
+async function updatePerformanceGraph() {
+    const { data, error } = await supabaseClient
+        .from('performance_history')
+        .select('*')
+        .order('submission_date', { ascending: true });
+
+    if (error) return console.error(error);
+
+    // Map data to the chart
+    myChart.data.labels = data.map((d, i) => `Inv #${i + 1}`);
+    myChart.data.datasets[0].data = data.map(d => d.total_gross);
+    myChart.data.datasets[1].data = data.map(d => d.final_payable);
+    myChart.data.datasets[2].data = data.map(d => d.savings_amount);
+    myChart.update();
+}
+
 </script>
 </body>
 </html>
