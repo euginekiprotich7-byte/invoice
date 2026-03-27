@@ -83,8 +83,15 @@
 
         <table id="invoiceTable">
             <thead>
-                <tr><th>DETAILS</th><th>PAGES/TYPE</th><th>CPP</th><th>PAYABLE</th><th>STATUS</th><th>ACTIONS</th></tr>
-            </thead>
+		<tr>
+			<th>DETAILS</th>
+			<th>PAGES/TYPE</th>
+			<th>CPP</th>
+			<th>PAYABLE</th>
+			<th>TIME LEFT</th> <th>STATUS</th>
+			<th>ACTIONS</th>
+		</tr>
+	</thead>
             <tbody id="tableBody"></tbody>
             <tfoot>
                 <tr style="font-weight:bold; background:#f9f9f9;"><td colspan="3" align="right">TOTAL:</td><td id="subTotal">0</td><td colspan="2"></td></tr>
@@ -173,10 +180,18 @@
     }
 
     async function fetchTasks() {
-        const { data } = await supabaseClient.from('tasks').select('*').order('created_at', { ascending: true });
-        renderActive(data.filter(t => t.status !== 'Invoiced'));
-        renderHistory(data.filter(t => t.status === 'Invoiced'));
-    }
+    const { data, error } = await supabaseClient
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+    if (error) return console.error(error);
+
+    renderActive(data.filter(t => t.status !== 'Invoiced'));
+    renderHistory(data.filter(t => t.status === 'Invoiced'));
+    
+    checkDeadlines(data); 
+}
 
     function renderActive(tasks) {
     const body = document.getElementById('tableBody');
@@ -197,28 +212,30 @@
         body.innerHTML += `<tr class="client-header"><td colspan="6" style="background:#dfe6e9; font-weight:bold;">${client.toUpperCase()}</td></tr>`;
         
         grouped[client].forEach(t => {
-            if (t.status !== 'Cancelled') {
+		if (t.status !== 'Cancelled') {
                 if (t.task_type === 'Adjustment') advances += t.payable;
                 else gross += t.payable;
             }
+		const timeLeft = getRemainingTime(t.deadline);
+		const isUrgent = timeLeft !== "No Deadline" && timeLeft !== "OVERDUE" && parseInt(timeLeft) < 24;
+		
+		// Status and Time styling
+		const statusClass = t.status === 'Pending' ? 'status-pending' : '';
+		const timeStyle = isUrgent ? 'color: #e74c3c; font-weight: bold;' : '';
 
-            // Display row with specific column order from your Word doc
-            const displayStatus = t.status;
-			const statusClass = (displayStatus === 'Pending') ? 'status-pending' : '';
-
-			body.innerHTML += `
-				<tr>
-					<td>${t.task_detail}</td>
-					<td>${t.units}</td>
-					<td>${t.cpp}</td>
-					<td>${t.payable}</td>
-					<td class="${statusClass}">${displayStatus}</td> 
-					<td>
-						<button onclick="updateStatus('${t.id}','Done')">Done</button>
-						<button onclick="updateStatus('${t.id}','Cancelled')">X</button>
-					</td>
-				</tr>`;
-        });
+		body.innerHTML += `
+			<tr>
+				<td>${t.task_detail}</td>
+				<td>${t.task_type === 'Adjustment' ? '-' : t.units}</td>
+				<td>${t.cpp}</td>
+				<td>${t.payable}</td>
+				<td style="${timeStyle}">${timeLeft}</td> <td class="${statusClass}">${t.status}</td>
+				<td>
+					<button onclick="updateStatus('${t.id}','Done')">Done</button>
+					<button onclick="updateStatus('${t.id}','Cancelled')">X</button>
+				</td>
+			</tr>`;
+	});
     }
 
     document.getElementById('subTotal').innerText = gross;
@@ -355,6 +372,83 @@ function adjustInputs() {
     }
 }
 
+let alarmInterval;
+
+function checkDeadlines(tasks) {
+    const now = new Date();
+    const oneDayInMs = 24 * 60 * 60 * 1000;
+    let hasUrgentTask = false;
+
+    tasks.forEach(t => {
+        if (t.status === 'Pending' && t.deadline) {
+            const deadlineDate = new Date(t.deadline);
+            const timeLeft = deadlineDate - now;
+
+            // If deadline is within 24 hours AND has not passed yet
+            if (timeLeft > 0 && timeLeft <= oneDayInMs) {
+                hasUrgentTask = true;
+            }
+        }
+    });
+
+    if (hasUrgentTask) {
+        triggerAlarm();
+    }
+}
+
+function triggerAlarm() {
+    const alarm = document.getElementById('dueAlarm');
+    const banner = document.getElementById('alarmBanner');
+    
+    banner.style.display = 'block';
+    
+    // Play sound every 5 seconds until stopped
+    if (!alarmInterval) {
+        alarm.play();
+        alarmInterval = setInterval(() => {
+            alarm.play();
+        }, 5000);
+    }
+}
+
+function stopAlarm() {
+    const alarm = document.getElementById('dueAlarm');
+    const banner = document.getElementById('alarmBanner');
+    
+    clearInterval(alarmInterval);
+    alarmInterval = null;
+    alarm.pause();
+    alarm.currentTime = 0;
+    banner.style.display = 'none';
+}
+
+function getRemainingTime(deadline) {
+    if (!deadline) return "No Deadline";
+    
+    const now = new Date();
+    const target = new Date(deadline);
+    const diff = target - now;
+
+    if (diff <= 0) return "OVERDUE";
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    return `${hours}h ${minutes}m`;
+}
+
+// Refresh the display every 60 seconds to update countdowns
+	setInterval(() => {
+		fetchTasks();
+	}, 60000);
 </script>
+
+<audio id="dueAlarm" src="https://www.soundjay.com/buttons/sounds/alarm-clock-elapsed-01.mp3" preload="auto"></audio>
+
+<div id="alarmBanner" style="display:none; background: #e74c3c; color: white; padding: 15px; text-align: center; font-weight: bold; position: sticky; top: 0; z-index: 9999;">
+    ⚠️ URGENT: YOU HAVE ORDERS DUE WITHIN 24 HOURS! 
+    <button onclick="stopAlarm()" style="margin-left:20px; padding: 5px 10px; cursor:pointer;">Stop Alarm</button>
+	
+</div>
 </body>
 </html>
