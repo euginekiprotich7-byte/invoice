@@ -49,18 +49,6 @@
 <div class="container">
     <div class="tabs">
         <div id="tabActive" class="tab active" onclick="showTab('active')">Active Orders</div>
-		<h2>Pending Payment (Invoiced)</h2>
-	<table id="pendingPaymentTable">
-		<thead>
-			<tr>
-				<th>INV #</th>
-				<th>CLIENT</th>
-				<th>PAYABLE</th>
-				<th>ACTION</th>
-			</tr>
-		</thead>
-		<tbody id="pendingPaymentBody"></tbody>
-	</table>
         <div id="tabHistory" class="tab" onclick="showTab('history')">History / Performance</div>
     </div>
 
@@ -116,6 +104,18 @@
             </tfoot>
         </table>
         <button class="btn" style="background:var(--primary); margin-top:20px; width:100%" onclick="generateAndClear()">Generate Word Invoice & Clear</button>
+		<h2>Pending Payment (Invoiced)</h2>
+	<table id="pendingPaymentTable">
+		<thead>
+			<tr>
+				<th>INV #</th>
+				<th>CLIENT</th>
+				<th>PAYABLE</th>
+				<th>ACTION</th>
+			</tr>
+		</thead>
+		<tbody id="pendingPaymentBody"></tbody>
+	</table>
     </div>
 
     <div id="historySection">
@@ -180,30 +180,30 @@ window.onload = checkPass;
             };
         } else {
             const type = document.getElementById('type').value;
-			const unit = parseFloat(document.getElementById('unit').value) || 0;
-			const cpp = parseFloat(document.getElementById('cpp').value) || 0;
+            const unit = parseFloat(document.getElementById('unit').value) || 0;
+            const cpp = parseFloat(document.getElementById('cpp').value) || 0;
 
-			let pay;
-			if (type === 'Adjustment') {
-				pay = unit; // Units field acts as the flat amount for adjustments
-			} else if (type === 'Quiz' || type === 'Midterm') {
-				pay = cpp; // Quizzes and Midterms use the flat rate selected
-			} else {
-				pay = unit * cpp; // Pages and PPTs multiply units by the rate
-			}
+            let pay;
+            if (type === 'Adjustment') {
+                pay = unit;
+            } else if (type === 'Quiz' || type === 'Midterm') {
+                pay = cpp; 
+            } else {
+                pay = unit * cpp; 
+            }
             
+            // CORRECTED OBJECT STRUCTURE BELOW:
             task = {
                 client_name: document.getElementById('client').value || 'Unknown',
                 task_detail: document.getElementById('detail').value || 'New Task',
                 task_type: type,
-                units: unit, cpp: cpp,
+                units: unit, 
+                cpp: cpp,
                 deadline: document.getElementById('deadline').value || null,
+                alert_lead_hours: parseFloat(document.getElementById('alertLeadTime').value) || 1,
                 payable: pay,
                 status: 'Pending'
-				deadline: document.getElementById('deadline').value || null,
-				alert_lead_hours: parseFloat(document.getElementById('alertLeadTime').value) || 1,
-				status: 'Pending'
-			};
+            };
         }
 
         const { error } = await supabaseClient.from('tasks').insert([task]);
