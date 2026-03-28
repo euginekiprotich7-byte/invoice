@@ -200,7 +200,7 @@ window.onload = checkPass;
                 deadline: document.getElementById('deadline').value || null,
                 payable: pay,
                 status: 'Pending'
-				deadline: document.getElementById('deadline').value,
+				deadline: document.getElementById('deadline').value || null,
 				alert_lead_hours: parseFloat(document.getElementById('alertLeadTime').value) || 1,
 				status: 'Pending'
 			};
