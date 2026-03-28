@@ -49,6 +49,18 @@
 <div class="container">
     <div class="tabs">
         <div id="tabActive" class="tab active" onclick="showTab('active')">Active Orders</div>
+		<h2>Pending Payment (Invoiced)</h2>
+	<table id="pendingPaymentTable">
+		<thead>
+			<tr>
+				<th>INV #</th>
+				<th>CLIENT</th>
+				<th>PAYABLE</th>
+				<th>ACTION</th>
+			</tr>
+		</thead>
+		<tbody id="pendingPaymentBody"></tbody>
+	</table>
         <div id="tabHistory" class="tab" onclick="showTab('history')">History / Performance</div>
     </div>
 
@@ -73,6 +85,10 @@
 		</div>
             <div><label>Deadline</label><input type="datetime-local" id="deadline"></div>
             <button class="btn btn-add" onclick="saveTask('Regular')">Register Order</button>
+			<div>
+			<label>Alert Me Before (Hours)</label>
+			<input type="number" id="alertLeadTime" value="1" step="0.5" placeholder="e.g. 2">
+		</div>
         </div>
 
         <div class="adjustment-bar">
@@ -120,12 +136,24 @@
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     async function checkPass() {
-        if (prompt("Enter System Password:") === "E") { 
-            document.getElementById('mainBody').style.display = 'block'; 
-            fetchTasks(); 
-        } else { document.body.innerHTML = "Unauthorized"; }
+    // 1. Password Protection
+    if (prompt("Enter System Password:") === "E") { 
+        document.getElementById('mainBody').style.display = 'block'; 
+        
+        // 2. Request Notification Permission AFTER successful login
+        // This counts as a 'user gesture' in most browsers
+        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            await Notification.requestPermission();
+        }
+
+        fetchTasks(); 
+    } else { 
+        document.body.innerHTML = "<h1 style='color:red; text-align:center;'>Unauthorized Access</h1>"; 
     }
-    window.onload = checkPass;
+}
+
+// Ensure the function runs when the window finishes loading
+window.onload = checkPass;
 
     function showTab(t) {
         document.getElementById('activeSection').style.display = t === 'active' ? 'block' : 'none';
@@ -172,14 +200,17 @@
                 deadline: document.getElementById('deadline').value || null,
                 payable: pay,
                 status: 'Pending'
-            };
+				deadline: document.getElementById('deadline').value,
+				alert_lead_hours: parseFloat(document.getElementById('alertLeadTime').value) || 1,
+				status: 'Pending'
+			};
         }
 
         const { error } = await supabaseClient.from('tasks').insert([task]);
         if (error) alert(error.message); else { fetchTasks(); }
     }
 
-    async function fetchTasks() {
+    aasync function fetchTasks() {
     const { data, error } = await supabaseClient
         .from('tasks')
         .select('*')
@@ -187,13 +218,20 @@
 
     if (error) return console.error(error);
 
-    renderActive(data.filter(t => t.status !== 'Invoiced'));
-    renderHistory(data.filter(t => t.status === 'Invoiced'));
+    // Section 1: Active Work (Pending or Done)
+    renderActive(data.filter(t => t.status === 'Pending' || t.status === 'Done'));
+
+    // Section 2: Pending Payment (Invoiced but not yet Paid)
+    renderPendingPayment(data.filter(t => t.status === 'Invoiced'));
+
+    // Section 3: Completed History (Paid)
+    renderHistory(data.filter(t => t.status === 'Paid'));
     
+    // Check deadlines for the alarm/notification system
     checkDeadlines(data); 
 }
 
-    function renderActive(tasks) {
+function renderActive(tasks) {
     const body = document.getElementById('tableBody');
     body.innerHTML = '';
     let gross = 0, advances = 0;
@@ -208,39 +246,61 @@
 
     // 2. Loop through each client group
     for (let client in grouped) {
-        // Add a stylized header for each client
-        body.innerHTML += `<tr class="client-header"><td colspan="6" style="background:#dfe6e9; font-weight:bold;">${client.toUpperCase()}</td></tr>`;
+        body.innerHTML += `<tr class="client-header"><td colspan="7" style="background:#dfe6e9; font-weight:bold;">${client.toUpperCase()}</td></tr>`;
         
         grouped[client].forEach(t => {
-		if (t.status !== 'Cancelled') {
+            if (t.status !== 'Cancelled') {
                 if (t.task_type === 'Adjustment') advances += t.payable;
                 else gross += t.payable;
             }
-		const timeLeft = getRemainingTime(t.deadline);
-		const isUrgent = timeLeft !== "No Deadline" && timeLeft !== "OVERDUE" && parseInt(timeLeft) < 24;
-		
-		// Status and Time styling
-		const statusClass = t.status === 'Pending' ? 'status-pending' : '';
-		const timeStyle = isUrgent ? 'color: #e74c3c; font-weight: bold;' : '';
+            
+            const timeLeft = getRemainingTime(t.deadline);
+            // Check if due in less than the manual lead time set in database
+            const isUrgent = timeLeft !== "No Deadline" && timeLeft !== "OVERDUE" && parseInt(timeLeft) < (t.alert_lead_hours || 24);
+            
+            const statusClass = t.status === 'Pending' ? 'status-pending' : '';
+            const timeStyle = isUrgent ? 'color: #e74c3c; font-weight: bold;' : '';
 
-		body.innerHTML += `
-			<tr>
-				<td>${t.task_detail}</td>
-				<td>${t.task_type === 'Adjustment' ? '-' : t.units}</td>
-				<td>${t.cpp}</td>
-				<td>${t.payable}</td>
-				<td style="${timeStyle}">${timeLeft}</td> <td class="${statusClass}">${t.status}</td>
-				<td>
-					<button onclick="updateStatus('${t.id}','Done')">Done</button>
-					<button onclick="updateStatus('${t.id}','Cancelled')">X</button>
-				</td>
-			</tr>`;
-	});
+            body.innerHTML += `
+                <tr>
+                    <td>${t.task_detail}</td>
+                    <td>${t.task_type === 'Adjustment' ? '-' : (t.task_type === 'Quiz' ? 'quiz' : t.units)}</td>
+                    <td>${t.cpp}</td>
+                    <td>${t.payable}</td>
+                    <td style="${timeStyle}">${timeLeft}</td> 
+                    <td class="${statusClass}">${t.status}</td>
+                    <td>
+                        <button onclick="updateStatus('${t.id}','Done')">Done</button>
+                        <button onclick="updateStatus('${t.id}','Cancelled')">X</button>
+                    </td>
+                </tr>`;
+        });
     }
 
     document.getElementById('subTotal').innerText = gross;
     document.getElementById('adjTotal').innerText = advances;
     document.getElementById('grandTotal').innerText = gross + advances;
+}
+
+function renderPendingPayment(tasks) {
+    const body = document.getElementById('pendingPaymentBody');
+    if (!body) return; // Safety check
+    body.innerHTML = '';
+
+    tasks.forEach(t => {
+        body.innerHTML += `
+            <tr>
+                <td>${t.invoice_no || 'N/A'}</td>
+                <td>${t.client_name}</td>
+                <td>${t.task_detail}</td>
+                <td>${t.payable}</td>
+                <td>
+                    <button onclick="updateStatus('${t.id}', 'Paid')" style="background: #27ae60; color:white; border:none; padding:5px; cursor:pointer; border-radius:3px;">
+                        Confirm Payment
+                    </button>
+                </td>
+            </tr>`;
+    });
 }
 
     function renderHistory(tasks) {
@@ -251,22 +311,25 @@
     async function updateStatus(id, s) { await supabaseClient.from('tasks').update({ status: s }).eq('id', id); fetchTasks(); }
 
     async function generateAndClear() {
+    // 1. Fetch only 'Done' tasks (avoiding Pending or already Invoiced)
     const { data } = await supabaseClient.from('tasks')
         .select('*')
-        .not('status', 'eq', 'Invoiced')
-        .not('status', 'eq', 'Pending');
+        .eq('status', 'Done');
 
     if (!data || data.length === 0) return alert("No 'Done' tasks to invoice!");
 
-    // Start building the Word-compatible HTML string
+    // 2. Generate unique Invoice Number (e.g., INV-123456)
+    const invNo = "INV-" + Date.now().toString().slice(-6);
+
+    // 3. Build the Word document HTML
     let html = `
-        <h2 style="text-align:center; font-family:Arial;">INVOICE - ${new Date().toLocaleDateString()}</h2>
+        <h2 style="text-align:center; font-family:Arial;">INVOICE: ${invNo}</h2>
+        <p style="text-align:center; font-family:Arial;">Date: ${new Date().toLocaleDateString()}</p>
         <table border="1" style="width:100%; border-collapse:collapse; font-family:Arial;">
             <tr style="background:#eeeeee;">
                 <th>DETAILS</th><th>PAGES</th><th>CPP</th><th>PAYABLE</th>
             </tr>`;
 
-    // Grouping logic for the Word document
     const grouped = data.reduce((acc, t) => {
         const client = t.client_name || 'General';
         if (!acc[client]) acc[client] = [];
@@ -287,7 +350,6 @@
         });
     }
 
-    // Add Summary Totals (Matching your Advance + Refund logic)
     const total = document.getElementById('subTotal').innerText;
     const final = document.getElementById('grandTotal').innerText;
     
@@ -296,14 +358,22 @@
         <tr><td colspan="3" align="right"><b>PAYABLE</b></td><td><b>${final}</b></td></tr>
         </table>`;
 
-    // Trigger Download
+    // 4. Trigger Download
     let link = document.createElement('a');
     link.href = URL.createObjectURL(new Blob(['\ufeff', html], { type: 'application/msword' }));
-    link.download = `Invoice_${Date.now()}.doc`;
+    link.download = `Invoice_${invNo}.doc`;
     link.click();
 
-    // Archive handled after download
-    await supabaseClient.from('tasks').update({ status: 'Invoiced' }).in('id', data.map(t => t.id));
+    // 5. Update Database: Move to 'Invoiced' (Pending Payment) and store the INV #
+    const ids = data.map(t => t.id);
+    await supabaseClient.from('tasks')
+        .update({ 
+            status: 'Invoiced', 
+            invoice_no: invNo 
+        })
+        .in('id', ids);
+
+    // Refresh UI to show the new "Pending Payment" section
     fetchTasks();
 }
 	
@@ -375,24 +445,34 @@ function adjustInputs() {
 let alarmInterval;
 
 function checkDeadlines(tasks) {
-    const now = new Date();
-    const oneDayInMs = 24 * 60 * 60 * 1000;
-    let hasUrgentTask = false;
+    if (window.isSnoozed) return; // Don't trigger if snooze is active
 
+    const now = new Date();
     tasks.forEach(t => {
         if (t.status === 'Pending' && t.deadline) {
             const deadlineDate = new Date(t.deadline);
-            const timeLeft = deadlineDate - now;
+            const leadTimeMs = (t.alert_lead_hours || 1) * 60 * 60 * 1000;
+            const alertTriggerTime = new Date(deadlineDate.getTime() - leadTimeMs);
 
-            // If deadline is within 24 hours AND has not passed yet
-            if (timeLeft > 0 && timeLeft <= oneDayInMs) {
-                hasUrgentTask = true;
+            if (now >= alertTriggerTime && now < deadlineDate) {
+                triggerAlarm();
+                sendDesktopNotification(t);
             }
         }
     });
+}
 
-    if (hasUrgentTask) {
-        triggerAlarm();
+function sendDesktopNotification(task) {
+    if (Notification.permission === "granted") {
+        const notification = new Notification("Order Due Soon! ??", {
+            body: `Task: ${task.task_detail}\nClient: ${task.client_name}\nDue in: ${getRemainingTime(task.deadline)}`,
+            icon: "https://cdn-icons-png.flaticon.com/512/1827/1827347.png" // Alarm icon
+        });
+
+        notification.onclick = () => {
+            window.focus();
+            notification.close();
+        };
     }
 }
 
@@ -437,6 +517,24 @@ function getRemainingTime(deadline) {
     return `${hours}h ${minutes}m`;
 }
 
+let snoozedTasks = {}; // Stores IDs of tasks that are currently snoozed
+
+function snoozeAlarm() {
+    // Stop current audio/visuals
+    stopAlarm();
+    
+    // In a real scenario, we'd identify the specific task ID. 
+    // For now, let's global-snooze all alerts for 15 minutes.
+    const snoozeDuration = 15 * 60 * 1000; // 15 minutes
+    window.isSnoozed = true;
+    
+    console.log("Alarm snoozed for 15 minutes.");
+    
+    setTimeout(() => {
+        window.isSnoozed = false;
+    }, snoozeDuration);
+}
+
 // Refresh the display every 60 seconds to update countdowns
 	setInterval(() => {
 		fetchTasks();
@@ -445,10 +543,10 @@ function getRemainingTime(deadline) {
 
 <audio id="dueAlarm" src="https://www.soundjay.com/buttons/sounds/alarm-clock-elapsed-01.mp3" preload="auto"></audio>
 
-<div id="alarmBanner" style="display:none; background: #e74c3c; color: white; padding: 15px; text-align: center; font-weight: bold; position: sticky; top: 0; z-index: 9999;">
-    ⚠️ URGENT: YOU HAVE ORDERS DUE WITHIN 24 HOURS! 
-    <button onclick="stopAlarm()" style="margin-left:20px; padding: 5px 10px; cursor:pointer;">Stop Alarm</button>
-	
+<div id="alarmBanner" style="display:none; background: #e74c3c; color: white; padding: 15px; text-align: center; font-weight: bold; position: sticky; top: 0; z-index: 9999; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+    ?? URGENT: ORDER DUE SOON! 
+    <button onclick="snoozeAlarm()" style="margin-left:20px; padding: 8px 12px; cursor:pointer; background: #f39c12; border:none; color:white; border-radius:4px;">Snooze (15m)</button>
+    <button onclick="stopAlarm()" style="margin-left:10px; padding: 8px 12px; cursor:pointer; background: #2c3e50; border:none; color:white; border-radius:4px;">Dismiss</button>
 </div>
 </body>
 </html>
