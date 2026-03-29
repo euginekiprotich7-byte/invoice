@@ -45,7 +45,7 @@
     </style>
 </head>
 <body style="display:none;" id="mainBody">
-<audio id="dueAlarm" src="https://www.soundjay.com/buttons/sounds/alarm-clock-elapsed-01.mp3" preload="auto"></audio>
+<audio id="dueAlarm" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" preload="auto"></audio>
 <div id="alarmBanner" style="display:none; background: #e74c3c; color: white; padding: 15px; text-align: center; font-weight: bold; position: fixed; top: 0; left: 0; width: 100%; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
     🚨 URGENT: ORDER DUE SOON! 
     <button onclick="snoozeAlarm()" style="margin-left:20px; padding: 8px 12px; cursor:pointer; background: #f39c12; border:none; color:white; border-radius:4px;">Snooze (15m)</button>
@@ -474,15 +474,14 @@ function checkDeadlines(tasks) {
 
 function sendDesktopNotification(task) {
     if (Notification.permission === "granted") {
-        const notification = new Notification("Order Due Soon! ??", {
-            body: `Task: ${task.task_detail}\nClient: ${task.client_name}\nDue in: ${getRemainingTime(task.deadline)}`,
-            icon: "https://cdn-icons-png.flaticon.com/512/1827/1827347.png" // Alarm icon
-        });
+        // Trigger the audio alarm manually here to ensure it rings with the popup
+        triggerAlarm(); 
 
-        notification.onclick = () => {
-            window.focus();
-            notification.close();
-        };
+        const notification = new Notification("Order Due Soon! 🚨", {
+            body: `Task: ${task.task_detail}\nDue in: ${getRemainingTime(task.deadline)}`,
+            icon: "https://cdn-icons-png.flaticon.com/512/1827/1827347.png",
+            silent: false // Some browsers respect this to allow a system beep
+        });
     }
 }
 
