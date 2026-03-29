@@ -29,8 +29,8 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('show-notification', (event) => {
     const options = {
         body: event.data.body,
-        icon: './https://cdn-icons-png.flaticon.com/512/1827/1827347.png',
-        badge: './https://cdn-icons-png.flaticon.com/512/1827/1827347.png',
+        icon: './https://cdn-icons-png.flaticon.com/512/2821/2821637.png',
+        badge: './https://cdn-icons-png.flaticon.com/512/2821/2821637.png',
         vibrate: [200, 100, 200],
         tag: 'deadline-alert',
         renotify: true,
@@ -52,20 +52,20 @@ self.addEventListener('notificationclick', (event) => {
 
 // This listener runs even if the app is closed
 self.addEventListener('push', function(event) {
-    const data = event.data ? event.data.json() : { title: 'Order Due!', body: 'Check your tasks now.' };
-    
     const options = {
-        body: data.body,
-        icon: 'https://cdn-icons-png.flaticon.com/512/1827/1827347.png',
-        badge: 'https://cdn-icons-png.flaticon.com/512/1827/1827347.png',
-        vibrate: [500, 110, 500, 110, 450, 110, 200, 110, 170, 40, 450, 110, 200, 110, 170, 40],
-        tag: 'urgent-deadline',
-        requireInteraction: true, // Keeps the notification on screen until you dismiss it
-        data: { url: '/' }
+        body: 'Urgent: A deadline has been reached!',
+        icon: 'https://cdn-icons-png.flaticon.com/512/2821/2821637.png', // New lighter icon
+        vibrate: [500, 110, 500, 110, 450, 110, 200, 110, 170, 40],
+        tag: 'deadline-alert',
+        renew: true,
+        requireInteraction: true, // Keeps it on screen until you act
+        actions: [
+            { action: 'open', title: 'Open App' }
+        ]
     };
 
     event.waitUntil(
-        self.registration.showNotification(data.title, options)
+        self.registration.showNotification('Invoice Manager Alert 🚨', options)
     );
 });
 

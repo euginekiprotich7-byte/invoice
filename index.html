@@ -8,13 +8,54 @@
 	<link rel="manifest" href="manifest.json">
 	<meta name="apple-mobile-web-app-capable" content="yes">
 	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-	<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1827/1827347.png">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2821/2821637.png">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta charset="UTF-8">
     <title>Ultimate Invoice & Performance System</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+	/* Tablet and Phone Styles */
+@media (max-width: 768px) {
+    .container { margin: 10px; padding: 15px; }
+    
+    .controls-grid {
+        grid-template-columns: 1fr 1fr; /* Two columns instead of seven */
+        gap: 8px;
+    }
+    
+    /* Make the Detail and Button take full width */
+    .controls-grid div:nth-child(2), 
+    .controls-grid button { 
+        grid-column: span 2; 
+    }
+
+    .adjustment-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    /* Make table scrollable horizontally so it doesn't break the layout */
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    
+    .btn {
+        width: 100%;
+        padding: 12px; /* Bigger tap targets for fingers */
+    }
+}
+td, th {
+    padding: 8px 4px;
+    font-size: 13px; /* Slightly smaller text for mobile */
+}
+
+.client-header td {
+    font-size: 12px;
+    padding: 5px;
+}
         :root { --primary: #2c3e50; --success: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 20px; }
         .container { max-width: 1200px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
@@ -28,6 +69,11 @@
         
         label { display: block; font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #555; }
         input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+		
+		input, select {
+			height: 44px; /* Recommended minimum height for mobile touch */
+			font-size: 16px !important; /* Prevents iOS from auto-zooming when typing */
+		}
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th { background: var(--primary); color: white; padding: 12px; text-align: left; }
@@ -645,6 +691,17 @@ async function requestNotificationPermission() {
         alert("Please enable notifications in your phone settings to receive alarms while the app is closed.");
     }
 }
+
+async function enableBackgroundAlarms() {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+        console.log("Background alarms enabled");
+    } else {
+        alert("Please enable notifications to receive alarms while the app is closed.");
+    }
+}
+// Call this when the app loads
+enableBackgroundAlarms();
 
 async function syncOfflineData() {
     const offlineTasks = JSON.parse(localStorage.getItem('offlineTasks') || "[]");
