@@ -1,0 +1,15 @@
+{
+  "name": "SmartsourcingKe ERP",
+  "short_name": "ERP",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#2c3e50",
+  "theme_color": "#2c3e50",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1827/1827347.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

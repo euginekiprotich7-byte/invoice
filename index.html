@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+	<link rel="manifest" href="manifest.json">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
     <title>Ultimate Invoice & Performance System</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -42,9 +44,22 @@
 		.status-pending::after {
 			content: " 🚨";
 		}
+		#statusIndicator {
+			position: fixed;
+			bottom: 20px;
+			right: 20px;
+			padding: 10px;
+			border-radius: 50px;
+			font-size: 12px;
+			font-weight: bold;
+			z-index: 1000;
+		}
+		.online { background: #27ae60; color: white; }
+		.offline { background: #e74c3c; color: white; }
     </style>
 </head>
 <body style="display:none;" id="mainBody">
+<div id="statusIndicator" class="online">ONLINE</div>
 <audio id="dueAlarm" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" preload="auto"></audio>
 <div id="alarmBanner" style="display:none; background: #e74c3c; color: white; padding: 15px; text-align: center; font-weight: bold; position: fixed; top: 0; left: 0; width: 100%; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
     🚨 URGENT: ORDER DUE SOON! 
@@ -141,6 +156,10 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6eHB3YmtqaGF6dnNheHhncXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgzMjEsImV4cCI6MjA5MDAyNDMyMX0.RDfNx5pUUhm6dZKf_F1Ada3rH6-rVxdPnrYXcrwyZi0';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+	if ('serviceWorker' in navigator) {
+		navigator.serviceWorker.register('sw.js');
+	}
+
 	async function checkPass() {
     if (prompt("Enter System Password:") === "E") { 
         document.getElementById('mainBody').style.display = 'block'; 
@@ -177,67 +196,48 @@ window.onload = checkPass;
 }
 
     async function saveTask(mode) {
-        let task = {};
-        if (mode === 'Adjustment') {
-            task = {
-                client_name: document.getElementById('client').value || 'General',
-                task_detail: document.getElementById('adjDetail').value || 'Adjustment',
-                task_type: 'Adjustment',
-                units: 0, cpp: 0,
-                payable: parseFloat(document.getElementById('adjAmount').value) || 0,
-                status: 'Done'
-            };
-        } else {
-            const type = document.getElementById('type').value;
-            const unit = parseFloat(document.getElementById('unit').value) || 0;
-            const cpp = parseFloat(document.getElementById('cpp').value) || 0;
-
-            let pay;
-            if (type === 'Adjustment') {
-                pay = unit;
-            } else if (type === 'Quiz' || type === 'Midterm') {
-                pay = cpp; 
-            } else {
-                pay = unit * cpp; 
-            }
-            
-            // CORRECTED OBJECT STRUCTURE BELOW:
-            task = {
-                client_name: document.getElementById('client').value || 'Unknown',
-                task_detail: document.getElementById('detail').value || 'New Task',
-                task_type: type,
-                units: unit, 
-                cpp: cpp,
-                deadline: document.getElementById('deadline').value || null,
-                alert_lead_hours: parseFloat(document.getElementById('alertLeadTime').value) || 1,
-                payable: pay,
-                status: 'Pending'
-            };
-        }
-
-        const { error } = await supabaseClient.from('tasks').insert([task]);
-        if (error) alert(error.message); else { fetchTasks(); }
+    let task = {};
+    if (mode === 'Adjustment') {
+        task = {
+            client_name: document.getElementById('client').value || 'General',
+            task_detail: document.getElementById('adjDetail').value || 'Adjustment',
+            task_type: 'Adjustment',
+            units: 0, cpp: 0,
+            payable: parseFloat(document.getElementById('adjAmount').value) || 0,
+            status: 'Done'
+        };
+    } else {
+        const type = document.getElementById('type').value;
+        const unit = parseFloat(document.getElementById('unit').value) || 0;
+        const cpp = parseFloat(document.getElementById('cpp').value) || 0;
+        let pay = (type === 'Quiz' || type === 'Midterm') ? cpp : unit * cpp;
+        
+        task = {
+            client_name: document.getElementById('client').value || 'Unknown',
+            task_detail: document.getElementById('detail').value || 'New Task',
+            task_type: type,
+            units: unit, 
+            cpp: cpp,
+            deadline: document.getElementById('deadline').value || null,
+            alert_lead_hours: parseFloat(document.getElementById('alertLeadTime').value) || 1,
+            payable: pay,
+            status: 'Pending'
+        };
     }
 
-    async function fetchTasks() {
-    const { data, error } = await supabaseClient
-        .from('tasks')
-        .select('*')
-        .order('created_at', { ascending: true });
-
-    if (error) return console.error(error);
-
-    // Section 1: Active Work (Pending or Done)
-    renderActive(data.filter(t => t.status === 'Pending' || t.status === 'Done'));
-
-    // Section 2: Pending Payment (Invoiced but not yet Paid)
-    renderPendingPayment(data.filter(t => t.status === 'Invoiced'));
-
-    // Section 3: Completed History (Paid)
-    renderHistory(data.filter(t => t.status === 'Paid'));
-    
-    // Check deadlines for the alarm/notification system
-    checkDeadlines(data); 
+    // CHECK CONNECTION STATUS
+    if (navigator.onLine) {
+        const { error } = await supabaseClient.from('tasks').insert([task]);
+        if (error) alert(error.message); else { fetchTasks(); }
+    } else {
+        // SAVE LOCALLY IF OFFLINE
+        let offlineTasks = JSON.parse(localStorage.getItem('offlineTasks') || "[]");
+        offlineTasks.push(task);
+        localStorage.setItem('offlineTasks', JSON.stringify(offlineTasks));
+        
+        alert("Offline: Task saved to browser storage. It will sync automatically when internet returns.");
+        // Optional: Refresh local table view if you've built an offline renderer
+    }
 }
 
 function renderActive(tasks) {
@@ -565,6 +565,49 @@ function testSystem() {
         stopAlarm();
     }, 5000);
 }
+
+async function syncOfflineData() {
+    const offlineTasks = JSON.parse(localStorage.getItem('offlineTasks') || "[]");
+    
+    if (offlineTasks.length === 0) return;
+
+    console.log(`Connection restored. Syncing ${offlineTasks.length} tasks...`);
+
+    const { error } = await supabaseClient.from('tasks').insert(offlineTasks);
+
+    if (!error) {
+        localStorage.removeItem('offlineTasks'); // Clear local storage on success
+        console.log("Sync successful.");
+        fetchTasks(); // Refresh your dashboard
+        
+        if (Notification.permission === "granted") {
+            new Notification("Data Synced ✅", {
+                body: "Your offline orders have been backed up to the database.",
+                icon: "https://cdn-icons-png.flaticon.com/512/1827/1827347.png"
+            });
+        }
+    } else {
+        console.error("Sync failed:", error.message);
+    }
+}
+
+// Automatically trigger sync when browser goes online
+window.addEventListener('online', syncOfflineData);
+
+		window.addEventListener('online', () => {
+			const el = document.getElementById('statusIndicator');
+			el.innerText = "ONLINE";
+			el.className = "online";
+		});
+
+		window.addEventListener('offline', () => {
+			const el = document.getElementById('statusIndicator');
+			el.innerText = "OFFLINE - Saving Locally";
+			el.className = "offline";
+		});
+
+// Listen for the moment the internet connection is restored
+window.addEventListener('online', syncOfflineData);
 
 // Refresh the display every 60 seconds to update countdowns
 	setInterval(() => {
