@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 	<link rel="manifest" href="manifest.json">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+	<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1827/1827347.png">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
     <title>Ultimate Invoice & Performance System</title>
@@ -60,7 +63,7 @@
 </head>
 <body style="display:none;" id="mainBody">
 <div id="statusIndicator" class="online">ONLINE</div>
-<audio id="dueAlarm" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" preload="auto"></audio>
+<audio id="dueAlarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
 <div id="alarmBanner" style="display:none; background: #e74c3c; color: white; padding: 15px; text-align: center; font-weight: bold; position: fixed; top: 0; left: 0; width: 100%; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
     🚨 URGENT: ORDER DUE SOON! 
     <button onclick="snoozeAlarm()" style="margin-left:20px; padding: 8px 12px; cursor:pointer; background: #f39c12; border:none; color:white; border-radius:4px;">Snooze (15m)</button>
@@ -74,6 +77,10 @@
 
     <div id="activeSection">
         <div class="controls-grid">
+		<div style="background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 4px; grid-column: span 2;">
+		<label>🔔 Alarm Volume</label>
+		<input type="range" id="volSlider" min="0" max="1" step="0.1" value="1" oninput="updateVolume(this.value)">
+		</div>
             <div><label>Client</label><input type="text" id="client" placeholder="Client Name"></div>
             <div><label>Task Detail</label><input type="text" id="detail" placeholder="Task Detail"></div>
             <div><label>Type</label>
@@ -93,10 +100,15 @@
 		</div>
             <div><label>Deadline</label><input type="datetime-local" id="deadline"></div>
             <button class="btn btn-add" onclick="saveTask('Regular')">Register Order</button>
-			<button class="btn" style="background: var(--warning);" onclick="testSystem()">Test Alarm & Pop-up</button>
 			<div>
 			<label>Alert Me Before (Hours)</label>
 			<input type="number" id="alertLeadTime" value="1" step="0.5" placeholder="e.g. 2">
+		</div>
+		<button class="btn" style="background: var(--warning);" onclick="testSystem()">Test Alarm & Pop-up</button>
+		<div style="margin-top: 10px; background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+		<label>Test Alarm Volume:</label>
+		<input type="range" id="volSlider" min="0" max="1" step="0.1" value="1" oninput="updateVolume(this.value)">
+		<button class="btn" style="background:var(--primary); margin-top:5px;" onclick="testSystem()">Test Sound Level</button>
 		</div>
         </div>
 
@@ -523,14 +535,18 @@ function sendDesktopNotification(task) {
 function triggerAlarm() {
     const alarm = document.getElementById('dueAlarm');
     const banner = document.getElementById('alarmBanner');
+    const vol = document.getElementById('volSlider').value; // Get slider value
     
     banner.style.display = 'block';
+    flashTitle(); // Start taskbar pulsing
     
-    // Only start if not already running
     if (!alarmInterval) {
-        alarm.muted = false; // Ensure not muted
+        alarm.muted = false; 
+        alarm.volume = vol; // Apply slider volume
         alarm.play().catch(e => console.error("Playback failed:", e));
+        
         alarmInterval = setInterval(() => {
+            alarm.currentTime = 0;
             alarm.play();
         }, 5000);
     }
@@ -542,6 +558,8 @@ function stopAlarm() {
     
     clearInterval(alarmInterval);
     alarmInterval = null;
+    stopFlashing(); // Stop taskbar pulsing
+    
     alarm.pause();
     alarm.currentTime = 0;
     banner.style.display = 'none';
@@ -625,6 +643,30 @@ async function syncOfflineData() {
         console.error("Sync failed:", error.message);
     }
 }
+
+// 1. Update volume in real-time
+		function updateVolume(val) {
+			const alarm = document.getElementById('dueAlarm');
+			alarm.volume = val;
+		}
+
+		// 2. Global variable to handle the flashing title
+		let titleInterval;
+
+		function flashTitle() {
+			let originalTitle = document.title;
+			if (!titleInterval) {
+				titleInterval = setInterval(() => {
+					document.title = (document.title === "🚨 URGENT!") ? originalTitle : "🚨 URGENT!";
+				}, 1000);
+			}
+		}
+
+		function stopFlashing() {
+			clearInterval(titleInterval);
+			titleInterval = null;
+			document.title = "Ultimate Invoice & Performance System";
+		}
 
 // Automatically trigger sync when browser goes online
 window.addEventListener('online', syncOfflineData);
