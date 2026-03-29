@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+	<title>Order Manager</title>
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-title" content="InvoiceMgr">
+	<meta name="application-name" content="Order Manager">
 	<link rel="manifest" href="manifest.json">
 	<meta name="apple-mobile-web-app-capable" content="yes">
 	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -66,6 +70,7 @@
 <audio id="dueAlarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
 <div id="alarmBanner" style="display:none; background: #e74c3c; color: white; padding: 15px; text-align: center; font-weight: bold; position: fixed; top: 0; left: 0; width: 100%; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
     🚨 URGENT: ORDER DUE SOON! 
+    <span id="snoozeCountdown" style="margin-left: 10px; font-weight: normal;"></span>
     <button onclick="snoozeAlarm()" style="margin-left:20px; padding: 8px 12px; cursor:pointer; background: #f39c12; border:none; color:white; border-radius:4px;">Snooze (15m)</button>
     <button onclick="stopAlarm()" style="margin-left:10px; padding: 8px 12px; cursor:pointer; background: #2c3e50; border:none; color:white; border-radius:4px;">Dismiss</button>
 </div>
@@ -77,6 +82,9 @@
 
     <div id="activeSection">
         <div class="controls-grid">
+		<button id="installBtn" class="btn" style="background: #3498db; display: none;">
+    Install App
+	</button>
 		<div style="background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 4px; grid-column: span 2;">
 		<label>🔔 Alarm Volume</label>
 		<input type="range" id="volSlider" min="0" max="1" step="0.1" value="1" oninput="updateVolume(this.value)">
@@ -582,20 +590,30 @@ function getRemainingTime(deadline) {
 
 let snoozedTasks = {}; // Stores IDs of tasks that are currently snoozed
 
+let snoozeTimer;
+
 function snoozeAlarm() {
-    // Stop current audio/visuals
-    stopAlarm();
+    stopAlarm(); // Hide banner and stop audio
     
-    // In a real scenario, we'd identify the specific task ID. 
-    // For now, let's global-snooze all alerts for 15 minutes.
-    const snoozeDuration = 15 * 60 * 1000; // 15 minutes
     window.isSnoozed = true;
+    let secondsLeft = 15 * 60; // 15 minutes in seconds
+    const display = document.getElementById('snoozeCountdown');
     
-    console.log("Alarm snoozed for 15 minutes.");
+    display.innerText = `Snoozed: 15:00`;
     
-    setTimeout(() => {
-        window.isSnoozed = false;
-    }, snoozeDuration);
+    snoozeTimer = setInterval(() => {
+        secondsLeft--;
+        let mins = Math.floor(secondsLeft / 60);
+        let secs = secondsLeft % 60;
+        display.innerText = `Snoozed: ${mins}:${secs < 10 ? '0'+secs : secs}`;
+        
+        if (secondsLeft <= 0) {
+            clearInterval(snoozeTimer);
+            window.isSnoozed = false;
+            display.innerText = "";
+            console.log("Snooze ended, alarm re-enabled.");
+        }
+    }, 1000);
 }
 
 function testSystem() {
@@ -667,6 +685,31 @@ async function syncOfflineData() {
 			titleInterval = null;
 			document.title = "Ultimate Invoice & Performance System";
 		}
+		
+		let deferredPrompt;
+const installBtn = document.getElementById('installBtn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent the browser from showing the default install prompt
+    e.preventDefault();
+    // Stash the event so it can be triggered later
+    deferredPrompt = e;
+    // Show the button in your app
+    installBtn.style.display = 'block';
+});
+
+installBtn.addEventListener('click', async () => {
+    if (deferredPrompt) {
+        // Trigger the native installation prompt
+        deferredPrompt.prompt();
+        // Wait for the user to respond to the prompt
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        // We've used the prompt, and can't use it again, throw it away
+        deferredPrompt = null;
+        installBtn.style.display = 'none';
+    }
+});
 
 // Automatically trigger sync when browser goes online
 window.addEventListener('online', syncOfflineData);
