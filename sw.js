@@ -49,3 +49,30 @@ self.addEventListener('notificationclick', (event) => {
         clients.openWindow(event.notification.data.url)
     );
 });
+
+// This listener runs even if the app is closed
+self.addEventListener('push', function(event) {
+    const data = event.data ? event.data.json() : { title: 'Order Due!', body: 'Check your tasks now.' };
+    
+    const options = {
+        body: data.body,
+        icon: 'https://cdn-icons-png.flaticon.com/512/1827/1827347.png',
+        badge: 'https://cdn-icons-png.flaticon.com/512/1827/1827347.png',
+        vibrate: [500, 110, 500, 110, 450, 110, 200, 110, 170, 40, 450, 110, 200, 110, 170, 40],
+        tag: 'urgent-deadline',
+        requireInteraction: true, // Keeps the notification on screen until you dismiss it
+        data: { url: '/' }
+    };
+
+    event.waitUntil(
+        self.registration.showNotification(data.title, options)
+    );
+});
+
+// When you tap the notification, it re-opens your app
+self.addEventListener('notificationclick', function(event) {
+    event.notification.close();
+    event.waitUntil(
+        clients.openWindow('/')
+    );
+});

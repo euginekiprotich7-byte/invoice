@@ -637,6 +637,15 @@ function testSystem() {
     }, 5000);
 }
 
+async function requestNotificationPermission() {
+    const permission = await Notification.requestPermission();
+    if (permission === "granted") {
+        console.log("Background alerts enabled.");
+    } else {
+        alert("Please enable notifications in your phone settings to receive alarms while the app is closed.");
+    }
+}
+
 async function syncOfflineData() {
     const offlineTasks = JSON.parse(localStorage.getItem('offlineTasks') || "[]");
     
