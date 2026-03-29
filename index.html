@@ -78,6 +78,7 @@
 		</div>
             <div><label>Deadline</label><input type="datetime-local" id="deadline"></div>
             <button class="btn btn-add" onclick="saveTask('Regular')">Register Order</button>
+			<button class="btn" style="background: var(--warning);" onclick="testSystem()">Test Alarm & Pop-up</button>
 			<div>
 			<label>Alert Me Before (Hours)</label>
 			<input type="number" id="alertLeadTime" value="1" step="0.5" placeholder="e.g. 2">
@@ -144,12 +145,12 @@
     if (prompt("Enter System Password:") === "E") { 
         document.getElementById('mainBody').style.display = 'block'; 
         
-        // This "unlocks" the audio for the browser
+        // Wake up the audio element
         const alarm = document.getElementById('dueAlarm');
         alarm.play().then(() => {
-            alarm.pause(); // Play and immediately pause to 'prime' it
+            alarm.pause(); 
             alarm.currentTime = 0;
-        }).catch(e => console.log("Audio waiting for interaction"));
+        }).catch(() => console.log("Audio waiting for user click"));
 
         if (Notification.permission !== "granted") {
             await Notification.requestPermission();
@@ -543,6 +544,27 @@ function snoozeAlarm() {
     setTimeout(() => {
         window.isSnoozed = false;
     }, snoozeDuration);
+}
+
+function testSystem() {
+    // 1. Test the Banner and Sound
+    alert("Testing Alarm... Click OK to trigger.");
+    triggerAlarm();
+
+    // 2. Test the Desktop Notification
+    if (Notification.permission === "granted") {
+        new Notification("System Test ✅", {
+            body: "If you see this, your Gmail-style notifications are working perfectly!",
+            icon: "https://cdn-icons-png.flaticon.com/512/1827/1827347.png"
+        });
+    } else {
+        alert("Notification permission is not granted. Please refresh and allow notifications.");
+    }
+    
+    // 3. Auto-stop after 5 seconds so it doesn't annoy you
+    setTimeout(() => {
+        stopAlarm();
+    }, 5000);
 }
 
 // Refresh the display every 60 seconds to update countdowns
