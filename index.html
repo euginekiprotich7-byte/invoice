@@ -240,6 +240,41 @@ window.onload = checkPass;
     }
 }
 
+async function fetchTasks() {
+    // 1. Safety check for connection
+    if (!navigator.onLine) {
+        console.log("Offline mode: Skipping cloud fetch.");
+        return; 
+    }
+
+    // 2. Pull all tasks from Supabase
+    const { data, error } = await supabaseClient
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching tasks:", error.message);
+        return;
+    }
+
+    // 3. Distribute the data to the correct UI sections
+    // Active Section: Tasks that are 'Pending' (with alarm) or 'Done' (waiting for invoice)
+    const activeTasks = data.filter(t => t.status === 'Pending' || t.status === 'Done');
+    renderActive(activeTasks);
+
+    // Pending Payment: Tasks that have been 'Invoiced' but not yet 'Paid'
+    const pendingPaymentTasks = data.filter(t => t.status === 'Invoiced');
+    renderPendingPayment(pendingPaymentTasks);
+
+    // History: Tasks that are fully 'Paid'
+    const historyTasks = data.filter(t => t.status === 'Paid');
+    renderHistory(historyTasks);
+
+    // 4. Run the alarm check now that we have fresh data
+    checkDeadlines(data);
+}
+
 function renderActive(tasks) {
     const body = document.getElementById('tableBody');
     body.innerHTML = '';
