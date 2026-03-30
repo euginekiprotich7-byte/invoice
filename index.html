@@ -752,6 +752,66 @@ async function syncOfflineData() {
 			document.title = "Ultimate Invoice & Performance System";
 		}
 		
+		async function addOrder() {
+			const detail = document.getElementById('detail').value;
+			const deadline = document.getElementById('deadline').value; // e.g., "2026-03-30T14:00"
+			
+			const newOrder = {
+				detail: detail,
+				deadline: deadline,
+				status: 'pending',
+				created_at: new Date().toISOString()
+			};
+
+			try {
+				// 1. Save to Supabase (The Cloud)
+				const { data, error } = await _supabase
+					.from('orders')
+					.insert([newOrder])
+					.select();
+
+				if (error) throw error;
+
+				// 2. Save to Phone Storage (The Local Alarm)
+				// We include the Supabase ID so the phone can sync later
+				saveOrderToPhone({ ...newOrder, id: data[0].id });
+
+				alert("Order saved to Cloud and Phone!");
+				fetchOrders(); // Refresh your table
+			} catch (err) {
+				console.warn("Cloud save failed, saving locally only:", err.message);
+				// If no internet, create a temporary unique ID
+				const tempOrder = { ...newOrder, id: 'temp-' + Date.now() };
+				saveOrderToPhone(tempOrder);
+				alert("Saved to phone only (Offline). Will sync to cloud later.");
+			}
+		}
+		
+		// This saves your orders to the phone's "Internal Memory"
+		function saveOrderToPhone(order) {
+			const request = indexedDB.open("OrdersDB", 1);
+			
+			request.onupgradeneeded = (e) => {
+				const db = e.target.result;
+				if (!db.objectStoreNames.contains("orders")) {
+					db.createObjectStore("orders", { keyPath: "id" }); // Use Supabase ID as key
+				}
+			};
+
+			request.onsuccess = (e) => {
+				const db = e.target.result;
+				const transaction = db.transaction("orders", "readwrite");
+				const store = transaction.objectStore("orders");
+				
+				// Use .put() instead of .add() - it will update if exists, or add if new
+				store.put(order); 
+				
+				transaction.oncomplete = () => {
+					console.log("Local alarm data synced to phone storage.");
+				};
+			};
+		}
+		
 		let deferredPrompt;
 const installBtn = document.getElementById('installBtn');
 

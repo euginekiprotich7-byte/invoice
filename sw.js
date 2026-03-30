@@ -7,7 +7,7 @@ const ASSETS = [
   'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 
-// Install: Cache the basic UI
+
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
@@ -25,7 +25,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Listen for background push events or scheduled alerts
+
 self.addEventListener('show-notification', (event) => {
     const options = {
         body: event.data.body,
@@ -42,7 +42,7 @@ self.addEventListener('show-notification', (event) => {
     );
 });
 
-// Open the app when you tap the notification
+
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
     event.waitUntil(
@@ -50,15 +50,14 @@ self.addEventListener('notificationclick', (event) => {
     );
 });
 
-// This listener runs even if the app is closed
 self.addEventListener('push', function(event) {
     const options = {
         body: 'Urgent: A deadline has been reached!',
-        icon: 'https://cdn-icons-png.flaticon.com/512/2821/2821637.png', // New lighter icon
+        icon: 'https://cdn-icons-png.flaticon.com/512/2821/2821637.png', 
         vibrate: [500, 110, 500, 110, 450, 110, 200, 110, 170, 40],
         tag: 'deadline-alert',
         renew: true,
-        requireInteraction: true, // Keeps it on screen until you act
+        requireInteraction: true, 
         actions: [
             { action: 'open', title: 'Open App' }
         ]
@@ -69,10 +68,64 @@ self.addEventListener('push', function(event) {
     );
 });
 
-// When you tap the notification, it re-opens your app
 self.addEventListener('notificationclick', function(event) {
     event.notification.close();
     event.waitUntil(
         clients.openWindow('/')
     );
 });
+
+self.addEventListener('periodicsync', (event) => {
+    if (event.tag === 'check-deadlines') {
+        event.waitUntil(checkDeadlinesAndNotify());
+    }
+});
+
+async function checkDeadlinesAndNotify() {
+    
+    const db = await openDB(); 
+    const orders = await getAllOrders(db);
+    const now = new Date();
+
+    orders.forEach(order => {
+        const deadline = new Date(order.deadline);
+        
+        if (deadline <= now && !order.notified) {
+            self.registration.showNotification("ORDER OVERDUE! 🚨", {
+                body: `Order ${order.detail} is due now!`,
+                icon: "https://cdn-icons-png.flaticon.com/512/2821/2821637.png",
+                vibrate: [200, 100, 200],
+                requireInteraction: true 
+            });
+            markAsNotified(order.id);
+        }
+    });
+}
+
+self.addEventListener('sync', (event) => {
+    if (event.tag === 'check-deadlines') {
+        event.waitUntil(checkAndNotify());
+    }
+});
+
+async function checkAndNotify() {
+    
+    const db = await openDatabase(); 
+    const orders = await getAllOrders(db);
+    const now = new Date().getTime();
+
+    orders.forEach(order => {
+        const deadline = new Date(order.deadline).getTime();
+        
+        
+        if (now >= deadline && !order.notified) {
+            self.registration.showNotification("🚨 DEADLINE REACHED", {
+                body: `Order: ${order.detail}`,
+                icon: 'https://cdn-icons-png.flaticon.com/512/2821/2821637.png',
+                vibrate: [200, 100, 200, 100, 200],
+                tag: 'order-alert-' + order.id
+            });
+            
+        }
+    });
+}
