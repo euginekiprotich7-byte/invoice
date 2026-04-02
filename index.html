@@ -910,7 +910,7 @@ let currentEmployerId = null;
 
 // This runs when the app starts to show your bosses
 async function loadEmployers() {
-    // USE supabaseClient here, not _supabase
+    // 1. Get the list of bosses from Supabase
     const { data: employers, error } = await supabaseClient
         .from('employers')
         .select('*');
@@ -921,35 +921,43 @@ async function loadEmployers() {
     }
 
     const tabContainer = document.getElementById('employer-tabs');
-    tabContainer.innerHTML = ''; 
+    tabContainer.innerHTML = ''; // Clear old buttons
 
+    // 2. Create a button for each employer
     employers.forEach(emp => {
         const btn = document.createElement('button');
-        // Matches your existing .btn style
         btn.className = 'btn';
         btn.style.marginRight = '5px';
         btn.style.background = '#34495e';
-        btn.innerText = emp.employer_name;
+        btn.innerText = emp.employer_name; // This is the boss's name
         btn.onclick = () => switchToEmployer(emp);
         tabContainer.appendChild(btn);
     });
 
+    // 3. Automatically pick the first boss if you have any
     if (employers.length > 0) {
         switchToEmployer(employers[0]);
     }
 }
 
-// This "Swaps" your entire view to a specific boss
-async function switchToEmployer(employer) {
+function switchToEmployer(employer) {
+    // Save the ID so new orders go to THIS boss
     currentEmployerId = employer.id;
+    
+    // Visually highlight the active tab
+    document.querySelectorAll('#employer-tabs button').forEach(b => {
+        b.style.background = (b.innerText === employer.employer_name) ? '#3498db' : '#34495e';
+    });
 
-    // 1. Update UI Selection (Visual feedback)
-    document.querySelectorAll('#employer-tabs .tab').forEach(t => t.classList.remove('active'));
-    const activeTab = document.getElementById(`emp-tab-${employer.id}`);
-    if (activeTab) activeTab.classList.add('active');
-
-    // 2. Fetch ONLY the tasks for THIS employer
+    // Refresh the table to show ONLY this boss's work
     fetchTasksByEmployer(employer.id);
+}
+
+function checkPass() {
+    if (prompt("Enter System Password:") === "E") { 
+        document.getElementById('mainBody').style.display = 'block'; 
+        loadEmployers(); // <--- THIS line makes the section appear!
+    }
 }
 
 async function fetchTasksByEmployer(empId) {
