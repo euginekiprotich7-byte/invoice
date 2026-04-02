@@ -881,7 +881,8 @@ async function syncOfflineData() {
     }
 
     try {
-        const { data, error } = await _supabase
+        // CHANGED: Use supabaseClient instead of _supabase
+        const { data, error } = await supabaseClient
             .from('employers')
             .insert([{ 
                 employer_name: name, 
@@ -891,7 +892,6 @@ async function syncOfflineData() {
 
         if (error) throw error;
 
-        // Clear the inputs
         nameInput.value = '';
         rateInput.value = '';
 
@@ -902,7 +902,7 @@ async function syncOfflineData() {
         
     } catch (err) {
         console.error("Error saving employer:", err.message);
-        alert("Failed to save employer. Check your connection.");
+        alert("Failed to save employer: " + err.message);
     }
 }
 
