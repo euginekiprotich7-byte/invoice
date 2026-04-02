@@ -136,8 +136,8 @@ td, th {
                 </div>
             </div>
 
-            <div id="employer-tabs" style="display: flex; gap: 5px; overflow-x: auto; padding-bottom: 10px; margin-top: 10px;">
-                </div>
+            <div id="employer-tabs" style="display: flex; gap: 5px; overflow-x: auto; padding-bottom: 10px; margin-top:10px;">
+    </div>
         </div>
 
         <div id="activeSection">
@@ -910,6 +910,7 @@ let currentEmployerId = null;
 
 // This runs when the app starts to show your bosses
 async function loadEmployers() {
+    // USE supabaseClient here, not _supabase
     const { data: employers, error } = await supabaseClient
         .from('employers')
         .select('*');
@@ -920,18 +921,19 @@ async function loadEmployers() {
     }
 
     const tabContainer = document.getElementById('employer-tabs');
-    tabContainer.innerHTML = ''; // Clear the "Employer A/B" placeholders
+    tabContainer.innerHTML = ''; 
 
     employers.forEach(emp => {
-        const btn = document.createElement('div');
-        btn.className = 'tab'; // Using your existing .tab CSS class
+        const btn = document.createElement('button');
+        // Matches your existing .btn style
+        btn.className = 'btn';
+        btn.style.marginRight = '5px';
+        btn.style.background = '#34495e';
         btn.innerText = emp.employer_name;
-        btn.id = `emp-tab-${emp.id}`;
         btn.onclick = () => switchToEmployer(emp);
         tabContainer.appendChild(btn);
     });
 
-    // Automatically select the first one if available
     if (employers.length > 0) {
         switchToEmployer(employers[0]);
     }
