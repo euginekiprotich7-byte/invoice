@@ -109,124 +109,173 @@ td, th {
 		}
 		.online { background: #27ae60; color: white; }
 		.offline { background: #e74c3c; color: white; }
+		:root {
+    --primary: #3498db;
+    --dark: #2c3e50;
+    --bg: #f4f7f6;
+    --success: #27ae60;
+    --danger: #e74c3c;
+}
+
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; padding: 0; }
+
+.top-bar { background: var(--dark); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
+.app-logo { font-weight: bold; font-size: 1.2em; letter-spacing: 1px; }
+
+.container { max-width: 1000px; margin: 20px auto; padding: 0 15px; }
+
+.card { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 20px; margin-bottom: 25px; border: 1px solid #e0e0e0; }
+
+/* Workspace Tabs */
+.employer-scroll { display: flex; gap: 12px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }
+.employer-scroll .tab { 
+    background: #e0e0e0; color: #666; padding: 10px 22px; border-radius: 25px; 
+    cursor: pointer; font-weight: 600; white-space: nowrap; transition: 0.3s;
+}
+.employer-scroll .tab.active { background: var(--primary); color: white; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(52, 152, 219, 0.4); }
+
+/* Main Navigation */
+.main-tabs { display: flex; margin-bottom: 20px; background: #ddd; border-radius: 8px; padding: 5px; }
+.tab-link { flex: 1; border: none; padding: 12px; background: transparent; cursor: pointer; font-weight: bold; color: #555; border-radius: 6px; }
+.tab-link.active { background: white; color: var(--dark); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+/* Form Design */
+.controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; }
+.field label { display: block; font-size: 12px; font-weight: bold; color: #7f8c8d; margin-bottom: 5px; }
+.field input, .field select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+
+.form-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px; }
+.btn-main-add { background: var(--success); color: white; border: none; padding: 12px 30px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+
+/* Table Styling */
+table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+th { text-align: left; background: #f8f9fa; color: #7f8c8d; font-size: 11px; text-transform: uppercase; padding: 12px; }
+td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+
+.summary-footer { margin-top: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; }
+.sum-row { display: flex; justify-content: space-between; padding: 5px 0; font-weight: 600; }
+.sum-row.total { border-top: 2px solid #ddd; margin-top: 10px; padding-top: 10px; font-size: 1.2em; color: var(--dark); }
+
+.btn-invoice { width: 100%; background: var(--dark); color: white; border: none; padding: 15px; border-radius: 8px; font-weight: bold; margin-top: 15px; cursor: pointer; font-size: 1em; }
     </style>
 </head>
 <body style="display:none;" id="mainBody">
-<div id="statusIndicator" class="online">ONLINE</div>
-<audio id="dueAlarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
-<div id="alarmBanner" style="display:none; background: #e74c3c; color: white; padding: 15px; text-align: center; font-weight: bold; position: fixed; top: 0; left: 0; width: 100%; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
-    🚨 URGENT: ORDER DUE SOON! 
-    <span id="snoozeCountdown" style="margin-left: 10px; font-weight: normal;"></span>
-    <button onclick="snoozeAlarm()" style="margin-left:20px; padding: 8px 12px; cursor:pointer; background: #f39c12; border:none; color:white; border-radius:4px;">Snooze (15m)</button>
-    <button onclick="stopAlarm()" style="margin-left:10px; padding: 8px 12px; cursor:pointer; background: #2c3e50; border:none; color:white; border-radius:4px;">Dismiss</button>
-</div>
-<div class="container">
-    <div class="tabs">
-        <div id="tabActive" class="tab active" onclick="showTab('active')">Active Orders</div>
-        <div id="tabHistory" class="tab" onclick="showTab('history')">History / Performance</div>
-		<div id="setup-section" style="background: #34495e; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-    <h3 style="color: white; margin-top: 0;">Register New Employer</h3>
-    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <input type="text" id="newEmployerName" placeholder="e.g. SmartSourcing Ltd" style="flex: 2;">
-        <input type="number" id="employerRate" placeholder="Rate (e.g. 500)" style="flex: 1;">
-        <button onclick="saveEmployer()" class="btn" style="background: #27ae60;">Add Employer</button>
-    </div>
-</div>
-
-<div id="employer-tabs" style="display: flex; gap: 5px; overflow-x: auto; padding-bottom: 10px;">
-    </div>
+    <div class="top-bar">
+        <div id="statusIndicator" class="online">ONLINE</div>
+        <div class="app-logo">SmartsourcingKe <span style="font-weight:normal; color:#3498db;">ERP</span></div>
+        <button onclick="toggleSettings()" class="settings-btn">⚙️ Config</button>
     </div>
 
-    <div id="activeSection">
-        <div class="controls-grid">
-		<button id="installBtn" class="btn" style="background: #3498db; display: none;">
-    Install App
-	</button>
-		<div style="background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 4px; grid-column: span 2;">
-		<label>🔔 Alarm Volume</label>
-		<input type="range" id="volSlider" min="0" max="1" step="0.1" value="1" oninput="updateVolume(this.value)">
-		</div>
-            <div><label>Client</label><input type="text" id="client" placeholder="Client Name"></div>
-            <div><label>Task Detail</label><input type="text" id="detail" placeholder="Task Detail"></div>
-            <div><label>Type</label>
-			<select id="type" onchange="adjustInputs()">
-				<option value="Pages">Pages</option>
-				<option value="Quiz">Quiz</option>
-				<option value="Midterm">Midterm</option>
-				<option value="PPT">PPT (PowerPoint)</option>
-			</select>
+    <div id="alarmBanner" style="display:none;">
+        <div class="alarm-content">
+            🚨 <span id="alarmText">URGENT: ORDER DUE!</span>
+            <div class="alarm-actions">
+                <button onclick="snoozeAlarm()" class="btn-snooze">Snooze (15m)</button>
+                <button onclick="stopAlarm()" class="btn-dismiss">Dismiss</button>
             </div>
-            <div><label>Units</label><input type="number" id="unit" value="1" step="0.1"></div>
-            <div>
-			<label>CPP / Rate</label>
-			<div id="cppContainer">
-				<input type="number" id="cpp" value="300">
-			</div>
-		</div>
-            <div><label>Deadline</label><input type="datetime-local" id="deadline"></div>
-            <button class="btn btn-add" onclick="addOrder()">Register Order</button>
-			<div>
-			<label>Alert Me Before (Hours)</label>
-			<input type="number" id="alertLeadTime" value="1" step="0.5" placeholder="e.g. 2">
-		</div>
-		<button class="btn" style="background: var(--warning);" onclick="testSystem()">Test Alarm & Pop-up</button>
-		<div style="margin-top: 10px; background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-		<label>Test Alarm Volume:</label>
-		<input type="range" id="volSlider" min="0" max="1" step="0.1" value="1" oninput="updateVolume(this.value)">
-		<button class="btn" style="background:var(--primary); margin-top:5px;" onclick="testSystem()">Test Sound Level</button>
-		</div>
         </div>
-
-        <div class="adjustment-bar">
-            <div style="flex:2"><label>Adjustment Description</label><input type="text" id="adjDetail" placeholder="e.g. Advance + refund (from previous invoice)"></div>
-            <div style="flex:1"><label>Amount (Use - for Advances)</label><input type="number" id="adjAmount" placeholder="e.g. -1000"></div>
-            <button class="btn btn-adj" onclick="saveTask('Adjustment')">Add Adjustment</button>
-        </div>
-
-        <table id="invoiceTable">
-            <thead>
-		<tr>
-			<th>DETAILS</th>
-			<th>PAGES/TYPE</th>
-			<th>CPP</th>
-			<th>PAYABLE</th>
-			<th>TIME LEFT</th> <th>STATUS</th>
-			<th>ACTIONS</th>
-		</tr>
-	</thead>
-            <tbody id="tableBody"></tbody>
-            <tfoot>
-                <tr style="font-weight:bold; background:#f9f9f9;"><td colspan="3" align="right">TOTAL:</td><td id="subTotal">0</td><td colspan="2"></td></tr>
-                <tr style="font-weight:bold; color:var(--danger);"><td colspan="3" align="right">ADJUSTMENTS (Advances):</td><td id="adjTotal">0</td><td colspan="2"></td></tr>
-                <tr style="font-weight:bold; background:#eee; font-size:1.1em;"><td colspan="3" align="right">FINAL PAYABLE:</td><td id="grandTotal">0</td><td colspan="2"></td></tr>
-            </tfoot>
-        </table>
-        <button class="btn" style="background:var(--primary); margin-top:20px; width:100%" onclick="generateAndClear()">Generate Word Invoice & Clear</button>
-		<h2>Pending Payment (Invoiced)</h2>
-	<table id="pendingPaymentTable">
-		<thead>
-			<tr>
-				<th>INV #</th>
-				<th>CLIENT</th>
-				<th>PAYABLE</th>
-				<th>ACTION</th>
-			</tr>
-		</thead>
-		<tbody id="pendingPaymentBody"></tbody>
-	</table>
     </div>
 
-    <div id="historySection">
-		<div style="margin-bottom: 30px; padding: 20px; background: #fff; border: 1px solid #ddd; border-radius: 8px;">
-		<canvas id="performanceChart" style="max-height: 400px;"></canvas>
-		</div>
-        <h3>Archived Records</h3>
-        <table id="historyTable">
-            <thead><tr><th>DATE</th><th>CLIENT</th><th>DETAILS</th><th>AMOUNT</th></tr></thead>
-            <tbody id="historyBody"></tbody>
-        </table>
+    <div class="container">
+        
+        <div class="workspace-section">
+            <h4 class="section-label">Select Workspace</h4>
+            <div id="employer-tabs" class="employer-scroll">
+                </div>
+        </div>
+
+        <div id="settingsSection" class="config-panel" style="display:none;">
+            <h3>Employer & System Settings</h3>
+            <div class="config-grid">
+                <div class="input-group">
+                    <label>New Employer Name</label>
+                    <input type="text" id="newEmployerName" placeholder="e.g. SmartSourcing Ltd">
+                </div>
+                <div class="input-group">
+                    <label>Default Rate (KSh)</label>
+                    <input type="number" id="employerRate" placeholder="e.g. 500">
+                </div>
+                <button onclick="saveEmployer()" class="btn-save-emp">Add Employer</button>
+            </div>
+            <hr>
+            <div class="volume-control">
+                <label>🔔 Alarm Volume</label>
+                <input type="range" id="volSlider" min="0" max="1" step="0.1" value="1" oninput="updateVolume(this.value)">
+                <button class="btn-test" onclick="testSystem()">🔊 Test Sound</button>
+            </div>
+        </div>
+
+        <div class="main-tabs">
+            <button id="tabActive" class="tab-link active" onclick="showTab('active')">Current Orders</button>
+            <button id="tabHistory" class="tab-link" onclick="showTab('history')">Earnings & History</button>
+        </div>
+
+        <div id="activeSection">
+            <div class="card form-card">
+                <div class="controls-grid">
+                    <div class="field"><label>Client</label><input type="text" id="client"></div>
+                    <div class="field"><label>Task Detail</label><input type="text" id="detail"></div>
+                    <div class="field">
+                        <label>Type</label>
+                        <select id="type" onchange="adjustInputs()">
+                            <option value="Pages">Pages</option>
+                            <option value="Quiz">Quiz</option>
+                            <option value="Midterm">Midterm</option>
+                            <option value="PPT">PPT</option>
+                        </select>
+                    </div>
+                    <div class="field"><label>Units</label><input type="number" id="unit" value="1"></div>
+                    <div class="field"><label>CPP / Rate</label><input type="number" id="cpp" value="300"></div>
+                    <div class="field"><label>Deadline</label><input type="datetime-local" id="deadline"></div>
+                </div>
+                <div class="form-footer">
+                    <div class="field" style="max-width: 150px;">
+                        <label>Alert (Hrs before)</label>
+                        <input type="number" id="alertLeadTime" value="1">
+                    </div>
+                    <button class="btn-main-add" onclick="addOrder()">Register Order</button>
+                </div>
+            </div>
+
+            <div class="card table-card">
+                <table id="invoiceTable">
+                    <thead>
+                        <tr>
+                            <th>DETAILS</th>
+                            <th>UNITS</th>
+                            <th>CPP</th>
+                            <th>PAYABLE</th>
+                            <th>TIME</th>
+                            <th>STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+                
+                <div class="summary-footer">
+                    <div class="sum-row">Sub-Total: <span id="subTotal">0</span></div>
+                    <div class="sum-row text-danger">Advances: <span id="adjTotal">0</span></div>
+                    <div class="sum-row total">Final Balance: <span id="grandTotal">0</span></div>
+                </div>
+                <button class="btn-invoice" onclick="generateAndClear()">Generate Word Invoice & Archive</button>
+            </div>
+        </div>
+
+        <div id="historySection" style="display:none;">
+            <div class="card chart-card">
+                <canvas id="performanceChart"></canvas>
+            </div>
+            <div class="card table-card">
+                <h3>Payment Archives</h3>
+                <table id="historyTable">
+                    <thead><tr><th>DATE</th><th>CLIENT</th><th>DETAILS</th><th>AMOUNT</th></tr></thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
-</div>
+</body>
 
 <script>
     const SUPABASE_URL = 'https://xzxpwbkjhazvsaxxgqws.supabase.co';
@@ -998,6 +1047,19 @@ async function moveOrder(orderId) {
         // Refresh the current workspace to reflect the change
         fetchTasksByEmployer(currentEmployerId); 
     }
+}
+		
+		function toggleSettings() {
+    const s = document.getElementById('settingsSection');
+    s.style.display = (s.style.display === 'none') ? 'block' : 'none';
+}
+
+function showTab(type) {
+    document.getElementById('activeSection').style.display = type === 'active' ? 'block' : 'none';
+    document.getElementById('historySection').style.display = type === 'history' ? 'block' : 'none';
+    
+    document.getElementById('tabActive').classList.toggle('active', type === 'active');
+    document.getElementById('tabHistory').classList.toggle('active', type === 'history');
 }
 		
 		let deferredPrompt;
