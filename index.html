@@ -124,6 +124,17 @@ td, th {
     <div class="tabs">
         <div id="tabActive" class="tab active" onclick="showTab('active')">Active Orders</div>
         <div id="tabHistory" class="tab" onclick="showTab('history')">History / Performance</div>
+		<div id="setup-section" style="background: #34495e; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+    <h3 style="color: white; margin-top: 0;">Register New Employer</h3>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <input type="text" id="newEmployerName" placeholder="e.g. SmartSourcing Ltd" style="flex: 2;">
+        <input type="number" id="employerRate" placeholder="Rate (e.g. 500)" style="flex: 1;">
+        <button onclick="saveEmployer()" class="btn" style="background: #27ae60;">Add Employer</button>
+    </div>
+</div>
+
+<div id="employer-tabs" style="display: flex; gap: 5px; overflow-x: auto; padding-bottom: 10px;">
+    </div>
     </div>
 
     <div id="activeSection">
@@ -753,6 +764,18 @@ async function syncOfflineData() {
 		}
 		
 		async function addOrder() {
+		if (!currentEmployerId) {
+        alert("Select an Employer tab first so we know who this work is for!");
+        return;
+    }
+
+    const newOrder = {
+        detail: document.getElementById('detail').value,
+        deadline: document.getElementById('deadline').value,
+        employer_id: currentEmployerId, // The secret ingredient!
+        status: 'pending',
+        created_at: new Date().toISOString()
+    };
 			const detail = document.getElementById('detail').value;
 			const deadline = document.getElementById('deadline').value; // e.g., "2026-03-30T14:00"
 			
@@ -811,6 +834,44 @@ async function syncOfflineData() {
 				};
 			};
 		}
+		
+		async function saveEmployer() {
+    const nameInput = document.getElementById('newEmployerName');
+    const rateInput = document.getElementById('employerRate');
+    
+    const name = nameInput.value.trim();
+    const rate = parseFloat(rateInput.value) || 0;
+
+    if (!name) {
+        alert("Please enter a valid Employer Name.");
+        return;
+    }
+
+    try {
+        const { data, error } = await _supabase
+            .from('employers')
+            .insert([{ 
+                employer_name: name, 
+                rate_per_unit: rate 
+            }])
+            .select();
+
+        if (error) throw error;
+
+        // Clear the inputs
+        nameInput.value = '';
+        rateInput.value = '';
+
+        alert(`Employer "${name}" registered successfully!`);
+        
+        // Refresh the tabs to show the new name
+        loadEmployers(); 
+        
+    } catch (err) {
+        console.error("Error saving employer:", err.message);
+        alert("Failed to save employer. Check your connection.");
+    }
+}
 		
 		let deferredPrompt;
 const installBtn = document.getElementById('installBtn');
