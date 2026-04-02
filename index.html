@@ -164,7 +164,7 @@ td, th {
 			</div>
 		</div>
             <div><label>Deadline</label><input type="datetime-local" id="deadline"></div>
-            <button class="btn btn-add" onclick="saveTask('Regular')">Register Order</button>
+            <button class="btn btn-add" onclick="addOrder()">Register Order</button>
 			<div>
 			<label>Alert Me Before (Hours)</label>
 			<input type="number" id="alertLeadTime" value="1" step="0.5" placeholder="e.g. 2">
@@ -764,51 +764,64 @@ async function syncOfflineData() {
 		}
 		
 		async function addOrder() {
-		if (!currentEmployerId) {
+    // 1. Check if an employer is selected
+    if (typeof currentEmployerId === 'undefined' || !currentEmployerId) {
         alert("Select an Employer tab first so we know who this work is for!");
         return;
     }
 
-    const newOrder = {
-        detail: document.getElementById('detail').value,
-        deadline: document.getElementById('deadline').value,
-        employer_id: currentEmployerId, // The secret ingredient!
+    // 2. Gather data from the form
+    const detail = document.getElementById('detail').value;
+    const deadline = document.getElementById('deadline').value;
+    const client = document.getElementById('client').value;
+    const type = document.getElementById('type').value;
+    const unit = parseFloat(document.getElementById('unit').value) || 0;
+    const cpp = parseFloat(document.getElementById('cpp').value) || 0;
+    
+    // Calculate pay based on type (Logic from your saveTask function)
+    let pay = (type === 'Quiz' || type === 'Midterm') ? cpp : unit * cpp;
+
+    // 3. Create the order object (Declared ONLY ONCE)
+    const newOrderData = {
+        detail: detail,
+        client_name: client,
+        task_type: type,
+        units: unit,
+        cpp: cpp,
+        payable: pay,
+        deadline: deadline,
+        employer_id: currentEmployerId, 
         status: 'pending',
         created_at: new Date().toISOString()
     };
-			const detail = document.getElementById('detail').value;
-			const deadline = document.getElementById('deadline').value; // e.g., "2026-03-30T14:00"
-			
-			const newOrder = {
-				detail: detail,
-				deadline: deadline,
-				status: 'pending',
-				created_at: new Date().toISOString()
-			};
 
-			try {
-				// 1. Save to Supabase (The Cloud)
-				const { data, error } = await _supabase
-					.from('orders')
-					.insert([newOrder])
-					.select();
+    try {
+        // 4. Save to Supabase (Cloud)
+        // Note: Using 'tasks' as the table name since that is what your SQL/fetch uses
+        const { data, error } = await supabaseClient
+            .from('tasks') 
+            .insert([newOrderData])
+            .select();
 
-				if (error) throw error;
+        if (error) throw error;
 
-				// 2. Save to Phone Storage (The Local Alarm)
-				// We include the Supabase ID so the phone can sync later
-				saveOrderToPhone({ ...newOrder, id: data[0].id });
+        // 5. Save to Phone Storage (Local Alarm)
+        if (data && data[0]) {
+            saveOrderToPhone({ ...newOrderData, id: data[0].id });
+        }
 
-				alert("Order saved to Cloud and Phone!");
-				fetchOrders(); // Refresh your table
-			} catch (err) {
-				console.warn("Cloud save failed, saving locally only:", err.message);
-				// If no internet, create a temporary unique ID
-				const tempOrder = { ...newOrder, id: 'temp-' + Date.now() };
-				saveOrderToPhone(tempOrder);
-				alert("Saved to phone only (Offline). Will sync to cloud later.");
-			}
-		}
+        alert("Order saved to Cloud and Phone!");
+        fetchTasks(); // Refresh your table
+        
+        // Clear inputs
+        document.getElementById('detail').value = '';
+    } catch (err) {
+        console.warn("Cloud save failed, saving locally only:", err.message);
+        const tempOrder = { ...newOrderData, id: 'temp-' + Date.now() };
+        saveOrderToPhone(tempOrder);
+        alert("Saved to phone only (Offline).");
+    }
+}
 		
 		// This saves your orders to the phone's "Internal Memory"
 		function saveOrderToPhone(order) {
@@ -871,6 +884,68 @@ async function syncOfflineData() {
         console.error("Error saving employer:", err.message);
         alert("Failed to save employer. Check your connection.");
     }
+}
+
+let currentEmployerId = null;
+
+// This runs when the app starts to show your bosses
+async function loadEmployers() {
+    const { data: employers, error } = await supabaseClient
+        .from('employers')
+        .select('*');
+    
+    if (error) {
+        console.error("Error loading employers:", error.message);
+        return;
+    }
+
+    const tabContainer = document.getElementById('employer-tabs');
+    tabContainer.innerHTML = ''; // Clear the "Employer A/B" placeholders
+
+    employers.forEach(emp => {
+        const btn = document.createElement('div');
+        btn.className = 'tab'; // Using your existing .tab CSS class
+        btn.innerText = emp.employer_name;
+        btn.id = `emp-tab-${emp.id}`;
+        btn.onclick = () => switchToEmployer(emp);
+        tabContainer.appendChild(btn);
+    });
+
+    // Automatically select the first one if available
+    if (employers.length > 0) {
+        switchToEmployer(employers[0]);
+    }
+}
+
+// This "Swaps" your entire view to a specific boss
+async function switchToEmployer(employer) {
+    currentEmployerId = employer.id;
+
+    // 1. Update UI Selection (Visual feedback)
+    document.querySelectorAll('#employer-tabs .tab').forEach(t => t.classList.remove('active'));
+    const activeTab = document.getElementById(`emp-tab-${employer.id}`);
+    if (activeTab) activeTab.classList.add('active');
+
+    // 2. Fetch ONLY the tasks for THIS employer
+    fetchTasksByEmployer(employer.id);
+}
+
+async function fetchTasksByEmployer(empId) {
+    if (!navigator.onLine) return;
+
+    const { data, error } = await supabaseClient
+        .from('tasks')
+        .select('*')
+        .eq('employer_id', empId) // THE FILTER: Only show this boss's work
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Fetch error:", error.message);
+        return;
+    }
+
+    renderActive(data.filter(t => t.status === 'Pending' || t.status === 'Done'));
+    renderPendingPayment(data.filter(t => t.status === 'Invoiced'));
 }
 		
 		let deferredPrompt;
