@@ -15,19 +15,202 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-	/* Tablet and Phone Styles */
+/* =========================
+   ROOT VARIABLES
+========================= */
+:root {
+    --primary: #2c3e50;
+    --success: #27ae60;
+    --danger: #e74c3c;
+    --warning: #f39c12;
+    --bg: #f4f7f6;
+}
+
+/* =========================
+   BASE STYLES
+========================= */
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: var(--bg);
+    margin: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* =========================
+   TABS
+========================= */
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #ddd;
+}
+
+.tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    background: #eee;
+    border-radius: 8px 8px 0 0;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.tab.active {
+    background: var(--primary);
+    color: white;
+}
+
+/* =========================
+   FORM CONTROLS
+========================= */
+label {
+    display: block;
+    font-size: 11px;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #555;
+}
+
+input, select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+
+    height: 44px;
+    font-size: 16px !important;
+}
+
+/* =========================
+   GRID & LAYOUT
+========================= */
+.controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr 1fr 0.8fr 0.8fr 1.2fr auto;
+    gap: 10px;
+    background: #eee;
+    padding: 15px;
+    border-radius: 4px;
+    align-items: end;
+    margin-bottom: 10px;
+}
+
+.adjustment-bar {
+    background: #fdf2f2;
+    border: 1px solid #fab1a0;
+    padding: 15px;
+    border-radius: 4px;
+    display: flex;
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 20px;
+}
+
+/* =========================
+   TABLE STYLES
+========================= */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+th {
+    background: var(--primary);
+    color: white;
+    padding: 12px;
+    text-align: left;
+}
+
+}
+
+td, th {
+    padding: 8px 4px;
+    font-size: 13px;
+}
+
+.client-header {
+    background: #dfe6e9;
+    font-weight: bold;
+    color: #2c3e50;
+    text-transform: uppercase;
+}
+
+.client-header td {
+    font-size: 12px;
+    padding: 5px;
+}
+
+/* =========================
+   BUTTONS
+========================= */
+.btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    color: white;
+}
+
+.btn-add { background: var(--success); }
+.btn-adj { background: var(--danger); }
+
+/* =========================
+   STATUS & ALERTS
+========================= */
+.status-pending {
+    color: #e74c3c !important;
+    font-weight: bold;
+    background-color: #fdf2f2;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.status-pending::after {
+    content: " 🚨";
+}
+
+#statusIndicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px;
+    border-radius: 50px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 1000;
+}
+
+.online { background: #27ae60; color: white; }
+.offline { background: #e74c3c; color: white; }
+
+/* =========================
+   RESPONSIVE DESIGN
+========================= */
 @media (max-width: 768px) {
-    .container { margin: 10px; padding: 15px; }
-    
+    .container {
+        margin: 10px;
+        padding: 15px;
+    }
+
     .controls-grid {
-        grid-template-columns: 1fr 1fr; /* Two columns instead of seven */
+        grid-template-columns: 1fr 1fr;
         gap: 8px;
     }
-    
-    /* Make the Detail and Button take full width */
-    .controls-grid div:nth-child(2), 
-    .controls-grid button { 
-        grid-column: span 2; 
+
+    .controls-grid div:nth-child(2),
+    .controls-grid button {
+        grid-column: span 2;
     }
 
     .adjustment-bar {
@@ -35,122 +218,125 @@
         align-items: stretch;
     }
 
-    /* Make table scrollable horizontally so it doesn't break the layout */
     table {
         display: block;
         overflow-x: auto;
         white-space: nowrap;
     }
-    
+
     .btn {
         width: 100%;
-        padding: 12px; /* Bigger tap targets for fingers */
+        padding: 12px;
     }
 }
-td, th {
-    padding: 8px 4px;
-    font-size: 13px; /* Slightly smaller text for mobile */
-}
-
-.client-header td {
-    font-size: 12px;
-    padding: 5px;
-}
-        :root { --primary: #2c3e50; --success: #27ae60; --danger: #e74c3c; --warning: #f39c12; --bg: #f4f7f6; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 20px; }
-        .container { max-width: 1200px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
-        .tab { padding: 10px 20px; cursor: pointer; background: #eee; border-radius: 8px 8px 0 0; font-weight: bold; transition: 0.3s; }
-        .tab.active { background: var(--primary); color: white; }
-
-        .controls-grid { display: grid; grid-template-columns: 1fr 1.5fr 1fr 0.8fr 0.8fr 1.2fr auto; gap: 10px; background: #eee; padding: 15px; border-radius: 4px; align-items: end; margin-bottom: 10px; }
-        .adjustment-bar { background: #fdf2f2; border: 1px solid #fab1a0; padding: 15px; border-radius: 4px; display: flex; gap: 10px; align-items: end; margin-bottom: 20px; }
-        
-        label { display: block; font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #555; }
-        input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-		
-		input, select {
-			height: 44px; /* Recommended minimum height for mobile touch */
-			font-size: 16px !important; /* Prevents iOS from auto-zooming when typing */
-		}
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background: var(--primary); color: white; padding: 12px; text-align: left; }
-        td { padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; }
-        .client-header { background: #dfe6e9; font-weight: bold; color: #2c3e50; text-transform: uppercase; }
-
-        .btn { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; }
-        .btn-add { background: var(--success); }
-        .btn-adj { background: var(--danger); }
-        
-        /* This makes the text red and bold */
-		.status-pending {
-			color: #e74c3c !important;
-			font-weight: bold;
-			background-color: #fdf2f2;
-			padding: 2px 6px;
-			border-radius: 4px;
-		}
-
-		/* This adds the emoji at the end of the text */
-		.status-pending::after {
-			content: " 🚨";
-		}
-		#statusIndicator {
-			position: fixed;
-			bottom: 20px;
-			right: 20px;
-			padding: 10px;
-			border-radius: 50px;
-			font-size: 12px;
-			font-weight: bold;
-			z-index: 1000;
-		}
-		.online { background: #27ae60; color: white; }
-		.offline { background: #e74c3c; color: white; }
-    </style>
+</style>
 </head>
 <body style="display:none;" id="mainBody">
-    <div id="statusIndicator" class="online">ONLINE</div>
-    <audio id="dueAlarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
 
-    <div id="alarmBanner" style="display:none; background: #e74c3c; color: white; padding: 15px; text-align: center; font-weight: bold; position: fixed; top: 0; left: 0; width: 100%; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
-        🚨 URGENT: ORDER DUE SOON! 
+    <!-- =========================
+         SYSTEM STATUS & ALERTS
+    ========================== -->
+    <div id="statusIndicator" class="online">ONLINE</div>
+
+    <audio id="dueAlarm"
+        src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"
+        preload="auto">
+    </audio>
+
+    <div id="alarmBanner"
+        style="display:none; background: #e74c3c; color: white; padding: 15px; text-align: center; font-weight: bold; position: fixed; top: 0; left: 0; width: 100%; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+
+        🚨 URGENT: ORDER DUE SOON!
         <span id="snoozeCountdown" style="margin-left: 10px; font-weight: normal;"></span>
-        <button onclick="snoozeAlarm()" style="margin-left:20px; padding: 8px 12px; cursor:pointer; background: #f39c12; border:none; color:white; border-radius:4px;">Snooze (15m)</button>
-        <button onclick="stopAlarm()" style="margin-left:10px; padding: 8px 12px; cursor:pointer; background: #2c3e50; border:none; color:white; border-radius:4px;">Dismiss</button>
+
+        <button onclick="snoozeAlarm()"
+            style="margin-left:20px; padding: 8px 12px; cursor:pointer; background: #f39c12; border:none; color:white; border-radius:4px;">
+            Snooze (15m)
+        </button>
+
+        <button onclick="stopAlarm()"
+            style="margin-left:10px; padding: 8px 12px; cursor:pointer; background: #2c3e50; border:none; color:white; border-radius:4px;">
+            Dismiss
+        </button>
     </div>
 
+    <!-- =========================
+         MAIN CONTAINER
+    ========================== -->
     <div class="container">
+
+        <!-- =========================
+             TOP NAVIGATION (TABS)
+        ========================== -->
         <div class="tabs">
-            <div id="tabActive" class="tab active" onclick="showTab('active')">Active Orders</div>
-            <div id="tabHistory" class="tab" onclick="showTab('history')">History / Performance</div>
-            
-            <div id="setup-section" style="background: #34495e; padding: 20px; border-radius: 8px; margin-top: 20px; margin-bottom: 10px;">
-                <h3 style="color: white; margin-top: 0;">Register New Employer</h3>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <input type="text" id="newEmployerName" placeholder="e.g. SmartSourcing Ltd" style="flex: 2;">
-                    <input type="number" id="employerRate" placeholder="Rate (e.g. 500)" style="flex: 1;">
-                    <button onclick="saveEmployer()" class="btn" style="background: #27ae60;">Add Employer</button>
-                </div>
+            <div id="tabActive" class="tab active" onclick="showTab('active')">
+                Active Orders
             </div>
 
-            <div id="employer-tabs" style="display: flex; gap: 5px; overflow-x: auto; padding-bottom: 10px; margin-top:10px;">
-    </div>
+            <div id="tabHistory" class="tab" onclick="showTab('history')">
+                History / Performance
+            </div>
         </div>
 
+        <!-- =========================
+             EMPLOYER SETUP
+        ========================== -->
+        <div id="setup-section"
+            style="background: #34495e; padding: 20px; border-radius: 8px; margin-top: 20px; margin-bottom: 10px;">
+
+            <h3 style="color: white; margin-top: 0;">Register New Employer</h3>
+
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <input type="text" id="newEmployerName"
+                    placeholder="e.g. SmartSourcing Ltd" style="flex: 2;">
+
+                <input type="number" id="employerRate"
+                    placeholder="Rate (e.g. 500)" style="flex: 1;">
+
+                <button onclick="saveEmployer()"
+                    class="btn"
+                    style="background: #27ae60;">
+                    Add Employer
+                </button>
+            </div>
+        </div>
+
+        <!-- EMPLOYER TABS -->
+        <div id="employer-tabs"
+            style="display: flex; gap: 5px; overflow-x: auto; padding-bottom: 10px; margin-top:10px;">
+        </div>
+
+        <!-- =========================
+             ACTIVE SECTION
+        ========================== -->
         <div id="activeSection">
+
+            <!-- CONTROLS -->
             <div class="controls-grid">
-                <button id="installBtn" class="btn" style="background: #3498db; display: none;">Install App</button>
-                
+
+                <button id="installBtn"
+                    class="btn"
+                    style="background: #3498db; display: none;">
+                    Install App
+                </button>
+
+                <!-- Alarm Volume -->
                 <div style="background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 4px; grid-column: span 2;">
                     <label>🔔 Alarm Volume</label>
-                    <input type="range" id="volSlider" min="0" max="1" step="0.1" value="1" oninput="updateVolume(this.value)">
+                    <input type="range" id="volSlider" min="0" max="1" step="0.1"
+                        value="1" oninput="updateVolume(this.value)">
                 </div>
 
-                <div><label>Client</label><input type="text" id="client" placeholder="Client Name"></div>
-                <div><label>Task Detail</label><input type="text" id="detail" placeholder="Task Detail"></div>
+                <div>
+                    <label>Client</label>
+                    <input type="text" id="client" placeholder="Client Name">
+                </div>
+
+                <div>
+                    <label>Task Detail</label>
+                    <input type="text" id="detail" placeholder="Task Detail">
+                </div>
+
                 <div>
                     <label>Type</label>
                     <select id="type" onchange="adjustInputs()">
@@ -160,31 +346,62 @@ td, th {
                         <option value="PPT">PPT (PowerPoint)</option>
                     </select>
                 </div>
-                <div><label>Units</label><input type="number" id="unit" value="1" step="0.1"></div>
+
+                <div>
+                    <label>Units</label>
+                    <input type="number" id="unit" value="1" step="0.1">
+                </div>
+
                 <div>
                     <label>CPP / Rate</label>
                     <div id="cppContainer">
                         <input type="number" id="cpp" value="300">
                     </div>
                 </div>
-                <div><label>Deadline</label><input type="datetime-local" id="deadline"></div>
-                
-                <button class="btn btn-add" onclick="addOrder()">Register Order</button>
-                
+
+                <div>
+                    <label>Deadline</label>
+                    <input type="datetime-local" id="deadline">
+                </div>
+
+                <button class="btn btn-add" onclick="addOrder()">
+                    Register Order
+                </button>
+
                 <div>
                     <label>Alert Me Before (Hours)</label>
-                    <input type="number" id="alertLeadTime" value="1" step="0.5" placeholder="e.g. 2">
+                    <input type="number" id="alertLeadTime"
+                        value="1" step="0.5" placeholder="e.g. 2">
                 </div>
-                
-                <button class="btn" style="background: var(--warning);" onclick="testSystem()">Test Alarm & Pop-up</button>
+
+                <button class="btn"
+                    style="background: var(--warning);"
+                    onclick="testSystem()">
+                    Test Alarm & Pop-up
+                </button>
             </div>
 
-            <div class="adjustment-bar" style="display: flex; gap: 10px; margin-top: 20px;">
-                <div style="flex:2"><label>Adjustment Description</label><input type="text" id="adjDetail" placeholder="e.g. Advance + refund"></div>
-                <div style="flex:1"><label>Amount (Use - for Advances)</label><input type="number" id="adjAmount" placeholder="e.g. -1000"></div>
-                <button class="btn btn-adj" onclick="saveTask('Adjustment')">Add Adjustment</button>
+            <!-- ADJUSTMENTS -->
+            <div class="adjustment-bar">
+                <div style="flex:2">
+                    <label>Adjustment Description</label>
+                    <input type="text" id="adjDetail"
+                        placeholder="e.g. Advance + refund">
+                </div>
+
+                <div style="flex:1">
+                    <label>Amount (Use - for Advances)</label>
+                    <input type="number" id="adjAmount"
+                        placeholder="e.g. -1000">
+                </div>
+
+                <button class="btn btn-adj"
+                    onclick="saveTask('Adjustment')">
+                    Add Adjustment
+                </button>
             </div>
 
+            <!-- MAIN TABLE -->
             <table id="invoiceTable">
                 <thead>
                     <tr>
@@ -197,17 +414,40 @@ td, th {
                         <th>ACTIONS</th>
                     </tr>
                 </thead>
+
                 <tbody id="tableBody"></tbody>
+
                 <tfoot>
-                    <tr style="font-weight:bold; background:#f9f9f9;"><td colspan="3" align="right">TOTAL:</td><td id="subTotal">0</td><td colspan="2"></td></tr>
-                    <tr style="font-weight:bold; color:var(--danger);"><td colspan="3" align="right">ADJUSTMENTS (Advances):</td><td id="adjTotal">0</td><td colspan="2"></td></tr>
-                    <tr style="font-weight:bold; background:#eee; font-size:1.1em;"><td colspan="3" align="right">FINAL PAYABLE:</td><td id="grandTotal">0</td><td colspan="2"></td></tr>
+                    <tr style="font-weight:bold; background:#f9f9f9;">
+                        <td colspan="3" align="right">TOTAL:</td>
+                        <td id="subTotal">0</td>
+                        <td colspan="2"></td>
+                    </tr>
+
+                    <tr style="font-weight:bold; color:var(--danger);">
+                        <td colspan="3" align="right">ADJUSTMENTS (Advances):</td>
+                        <td id="adjTotal">0</td>
+                        <td colspan="2"></td>
+                    </tr>
+
+                    <tr style="font-weight:bold; background:#eee; font-size:1.1em;">
+                        <td colspan="3" align="right">FINAL PAYABLE:</td>
+                        <td id="grandTotal">0</td>
+                        <td colspan="2"></td>
+                    </tr>
                 </tfoot>
             </table>
 
-            <button class="btn" style="background:var(--primary); margin-top:20px; width:100%" onclick="generateAndClear()">Generate Word Invoice & Clear</button>
+            <!-- ACTION BUTTON -->
+            <button class="btn"
+                style="background:var(--primary); margin-top:20px; width:100%"
+                onclick="generateAndClear()">
+                Generate Word Invoice & Clear
+            </button>
 
+            <!-- PENDING PAYMENTS -->
             <h2>Pending Payment (Invoiced)</h2>
+
             <table id="pendingPaymentTable">
                 <thead>
                     <tr>
@@ -221,16 +461,30 @@ td, th {
             </table>
         </div>
 
+        <!-- =========================
+             HISTORY SECTION
+        ========================== -->
         <div id="historySection" style="display:none;">
+
             <div style="margin-bottom: 30px; padding: 20px; background: #fff; border: 1px solid #ddd; border-radius: 8px;">
                 <canvas id="performanceChart" style="max-height: 400px;"></canvas>
             </div>
+
             <h3>Archived Records</h3>
+
             <table id="historyTable">
-                <thead><tr><th>DATE</th><th>CLIENT</th><th>DETAILS</th><th>AMOUNT</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>DATE</th>
+                        <th>CLIENT</th>
+                        <th>DETAILS</th>
+                        <th>AMOUNT</th>
+                    </tr>
+                </thead>
                 <tbody id="historyBody"></tbody>
             </table>
         </div>
+
     </div>
 </body>
 
