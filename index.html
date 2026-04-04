@@ -625,10 +625,7 @@ async function fetchTasks() {
     const paidTasks = data.filter(t => t.status === 'Paid');
     renderHistory(paidTasks);
 
-    checkDeadlines(data);
-}
-
-    // 1. Render Active Orders (Pending or Done)
+	// 1. Render Active Orders (Pending or Done)
     const activeTasks = data.filter(t => 
         (t.status === 'Pending' || t.status === 'Done') && 
         (currentEmployerId ? t.employer_id === currentEmployerId : !t.employer_id)
