@@ -629,16 +629,17 @@ async function fetchTasks() {
 }
 
 async function renderActive(tasks) {
-	const body = document.getElementById('tableBody');
+    const body = document.getElementById('tableBody');
     if (!body) return;
     
-    body.innerHTML = ''; // THIS PREVENTS DUPLICATION
+    // 1. Clear the table once to prevent duplication
+    body.innerHTML = ''; 
     
+    // 2. Initialize totals correctly (only declare them ONCE)
+    let gross = 0;
     let advances = 0;
-    body.innerHTML = '';
-    let gross = 0, advances = 0;
 
-    // 1. Fetch all employers to map names to IDs
+    // 3. Fetch all employers to map names to IDs
     const { data: employersList } = await supabaseClient.from('employers').select('id, employer_name');
     
     // Create the HTML options for the dropdown
@@ -646,7 +647,7 @@ async function renderActive(tasks) {
         `<option value="${e.id}">${e.employer_name}</option>`
     ).join('');
 
-    // 2. Group tasks by client name
+    // 4. Group tasks by client name
     const grouped = tasks.reduce((acc, t) => {
         const client = t.client_name || 'Unassigned';
         if (!acc[client]) acc[client] = [];
@@ -654,30 +655,31 @@ async function renderActive(tasks) {
         return acc;
     }, {});
 
-    // 3. Loop through client groups
+    // 5. Loop through client groups
     for (let client in grouped) {
         body.innerHTML += `<tr class="client-header"><td colspan="7" style="background:#dfe6e9; font-weight:bold;">${client.toUpperCase()}</td></tr>`;
         
         grouped[client].forEach(t => {
             if (t.status !== 'Cancelled') {
-                if (t.task_type === 'Adjustment') advances += t.payable;
-                else gross += t.payable;
+                if (t.task_type === 'Adjustment') {
+                    advances += t.payable;
+                } else {
+                    gross += t.payable;
+                }
             }
             
             const timeLeft = getRemainingTime(t.deadline);
             const statusClass = t.status === 'Pending' ? 'status-pending' : '';
             
-            // LOGIC: Check if employer is already assigned
+            // Logic: Check if employer is already assigned
             const assignedEmp = (employersList || []).find(e => e.id === t.employer_id);
             
             let moveControls = "";
             if (assignedEmp) {
-                // Show the name if assigned
                 moveControls = `<div style="margin-top:8px; color:#27ae60; font-size:11px; font-weight:bold;">
                                     👤 Boss: ${assignedEmp.employer_name}
                                 </div>`;
             } else {
-                // Show the dropdown ONLY if not assigned
                 moveControls = `<div style="margin-top:8px; border-top:1px solid #ddd; padding-top:5px;">
                                     <select id="move-to-${t.id}" style="width:100px; font-size:11px; height:30px;">
                                         <option value="">Move to...</option>
@@ -704,6 +706,7 @@ async function renderActive(tasks) {
         });
     }
 
+    // 6. Update the footer totals
     document.getElementById('subTotal').innerText = gross;
     document.getElementById('adjTotal').innerText = advances;
     document.getElementById('grandTotal').innerText = gross + advances;
