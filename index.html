@@ -610,13 +610,6 @@ async function fetchTasks() {
         return;
     }
 
-    // 1. Render Active Orders (Pending or Done)
-    const activeTasks = data.filter(t => 
-        (t.status === 'Pending' || t.status === 'Done') && 
-        (currentEmployerId ? t.employer_id === currentEmployerId : !t.employer_id)
-    );
-    renderActive(activeTasks);
-
     // 2. Render Pending Payments (Invoiced)
     const invoicedTasks = data.filter(t => t.status === 'Invoiced');
     renderPendingPayment(invoicedTasks);
@@ -631,14 +624,6 @@ async function fetchTasks() {
         (currentEmployerId ? t.employer_id === currentEmployerId : !t.employer_id)
     );
     renderActive(activeTasks);
-
-    // 2. Render Pending Payments (Invoiced) - THIS BRINGS YOUR MISSING ORDERS BACK
-    const invoicedTasks = data.filter(t => t.status === 'Invoiced');
-    renderPendingPayment(invoicedTasks);
-
-    // 3. Render History (Paid)
-    const paidTasks = data.filter(t => t.status === 'Paid');
-    renderHistory(paidTasks);
 
     checkDeadlines(data);
 }
