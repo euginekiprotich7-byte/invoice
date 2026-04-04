@@ -610,22 +610,19 @@ async function fetchTasks() {
         return;
     }
 
-    // 1. Active: Only Pending or Done (Filtered by Employer if selected)
-    const activeData = data.filter(t => 
-        (t.status === 'Pending' || t.status === 'Done') && 
-        (currentEmployerId ? t.employer_id === currentEmployerId : !t.employer_id)
-    );
+    // 1. Active: Pending or Done
+    const activeData = data.filter(t => t.status === 'Pending' || t.status === 'Done');
     renderActive(activeData);
 
-    // 2. Pending Payment: Only Invoiced (This brings back your missing orders)
+    // 2. Pending Payment: EVERYTHING marked 'Invoiced'
     const invoicedData = data.filter(t => t.status === 'Invoiced');
     renderPendingPayment(invoicedData);
 
-    // 3. History: Only Paid
+    // 3. History: Everything marked 'Paid'
     const paidData = data.filter(t => t.status === 'Paid');
     renderHistory(paidData);
 
-    checkDeadlines(data);
+    if (typeof checkDeadlines === 'function') checkDeadlines(data);
 }
 
 async function renderActive(tasks) {
@@ -715,16 +712,16 @@ async function renderActive(tasks) {
 function renderPendingPayment(tasks) {
     const body = document.getElementById('pendingPaymentBody');
     if (!body) return;
-    body.innerHTML = '';
+    body.innerHTML = ''; // Clears the section first
 
     if (!tasks || tasks.length === 0) {
-        body.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No pending payments.</td></tr>';
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#95a5a6;">No orders awaiting payment.</td></tr>';
         return;
     }
 
-    // Group by Invoice Number or mark as Legacy if null
+    // Grouping: If invoice_no is missing, we call it 'MANUAL_CHECK'
     const grouped = tasks.reduce((acc, t) => {
-        const key = t.invoice_no || 'LEGACY_UNASSIGNED';
+        const key = t.invoice_no || 'MANUAL_CHECK';
         if (!acc[key]) acc[key] = [];
         acc[key].push(t);
         return acc;
@@ -733,15 +730,15 @@ function renderPendingPayment(tasks) {
     for (let invNo in grouped) {
         const invTasks = grouped[invNo];
         const total = invTasks.reduce((sum, t) => sum + t.payable, 0);
-        const displayTitle = invNo === 'LEGACY_UNASSIGNED' ? '⚠️ Legacy Orders (Old System)' : invNo;
+        const title = invNo === 'MANUAL_CHECK' ? '⚠️ UNCONFIRMED (Old System)' : `Invoice: ${invNo}`;
 
         body.innerHTML += `
-            <tr style="background:#f8f9fa; border-top: 2px solid #2c3e50;">
-                <td style="font-weight:bold;">${displayTitle}</td>
-                <td colspan="2">${invTasks.length} Items</td>
+            <tr style="background:#fdf6e3; border-top:2px solid #2c3e50;">
+                <td style="font-weight:bold; color:#d35400;">${title}</td>
+                <td colspan="2" style="font-size:11px;">${invTasks.length} items</td>
                 <td style="font-weight:bold; color:#27ae60;">${total}</td>
                 <td>
-                    <button onclick="markInvoicePaid('${invNo}')" style="background:#27ae60; color:white; border:none; padding:6px; border-radius:4px; cursor:pointer; width:100%;">
+                    <button onclick="markInvoicePaid('${invNo}')" style="background:#27ae60; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; width:100%;">
                         Confirm Paid
                     </button>
                 </td>
@@ -749,12 +746,12 @@ function renderPendingPayment(tasks) {
 
         invTasks.forEach(t => {
             body.innerHTML += `
-                <tr style="font-size:11px; color:#7f8c8d; background:#fff;">
-                    <td></td>
-                    <td>${t.client_name}</td>
+                <tr style="font-size:11px; background:#fff; border-bottom:1px solid #eee;">
+                    <td style="padding-left:15px;">└ ${t.client_name}</td>
                     <td>${t.task_detail}</td>
+                    <td>${t.units || '-'}</td>
                     <td>${t.payable}</td>
-                    <td>Invoiced</td>
+                    <td style="color:#e67e22;">Awaiting</td>
                 </tr>`;
         });
     }
