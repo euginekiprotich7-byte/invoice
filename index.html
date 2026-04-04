@@ -610,20 +610,20 @@ async function fetchTasks() {
         return;
     }
 
-    // 2. Render Pending Payments (Invoiced)
-    const invoicedTasks = data.filter(t => t.status === 'Invoiced');
-    renderPendingPayment(invoicedTasks);
-
-    // 3. Render History (Paid)
-    const paidTasks = data.filter(t => t.status === 'Paid');
-    renderHistory(paidTasks);
-
-	// 1. Render Active Orders (Pending or Done)
-    const activeTasks = data.filter(t => 
+    // 1. Active Orders (Pending or Done)
+    const activeData = data.filter(t => 
         (t.status === 'Pending' || t.status === 'Done') && 
         (currentEmployerId ? t.employer_id === currentEmployerId : !t.employer_id)
     );
-    renderActive(activeTasks);
+    renderActive(activeData);
+
+    // 2. Pending Payments (Invoiced) - THIS BRINGS BACK YOUR MISSING ORDERS
+    const invoicedData = data.filter(t => t.status === 'Invoiced');
+    renderPendingPayment(invoicedData);
+
+    // 3. History (Paid)
+    const paidData = data.filter(t => t.status === 'Paid');
+    renderHistory(paidData);
 
     checkDeadlines(data);
 }
@@ -716,8 +716,8 @@ function renderPendingPayment(tasks) {
 
     // Group tasks by Invoice Number
     const groupedInvoices = tasks.reduce((acc, t) => {
-        // Fallback for older orders that have no invoice number
-        const inv = t.invoice_no || 'UNCATEGORIZED_OLD_ORDERS'; 
+        // If invoice_no is missing (from your old version), group them together
+        const inv = t.invoice_no || 'LEGACY_ORDERS'; 
         if (!acc[inv]) acc[inv] = [];
         acc[inv].push(t);
         return acc;
@@ -726,13 +726,12 @@ function renderPendingPayment(tasks) {
     for (let invNo in groupedInvoices) {
         const invTasks = groupedInvoices[invNo];
         const total = invTasks.reduce((sum, t) => sum + t.payable, 0);
-        const displayName = invNo === 'UNCATEGORIZED_OLD_ORDERS' ? '⚠️ Legacy Orders (No Inv #)' : invNo;
+        const label = invNo === 'LEGACY_ORDERS' ? '⚠️ Previous Unconfirmed Orders' : invNo;
         
-        // Header for the Invoice Group
         body.innerHTML += `
             <tr style="background:#f1f2f6; border-top: 2px solid #2c3e50;">
-                <td style="font-weight:bold; color:#2c3e50;">${displayName}</td>
-                <td colspan="2" style="font-size:11px;">${invTasks.length} items grouped</td>
+                <td style="font-weight:bold;">${label}</td>
+                <td colspan="2" style="font-size:11px;">${invTasks.length} items</td>
                 <td style="font-weight:bold;">${total}</td>
                 <td>
                     <button onclick="markInvoicePaid('${invNo}')" 
@@ -742,7 +741,6 @@ function renderPendingPayment(tasks) {
                 </td>
             </tr>`;
 
-        // Show the individual orders inside that invoice
         invTasks.forEach(t => {
             body.innerHTML += `
                 <tr style="font-size:11px; color:#666; background: #fff;">
@@ -750,7 +748,7 @@ function renderPendingPayment(tasks) {
                     <td>${t.client_name}</td>
                     <td>${t.task_detail}</td>
                     <td>${t.payable}</td>
-                    <td style="font-style:italic;">Awaiting Payment</td>
+                    <td>Invoiced</td>
                 </tr>`;
         });
     }
