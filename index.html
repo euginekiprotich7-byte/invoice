@@ -600,26 +600,28 @@ window.onload = checkPass;
 async function fetchTasks() {
     if (!navigator.onLine) return; 
 
-    // Fetch all records to distribute across tabs
     const { data, error } = await supabaseClient
         .from('tasks')
         .select('*')
         .order('created_at', { ascending: false });
 
-    if (error) return;
+    if (error) {
+        console.error(\"Error fetching tasks:\", error.message);
+        return;
+    }
 
-    // Filter for Active Tab (Pending/Done and specific employer)
+    // 1. Render Active Orders (Pending or Done)
     const activeTasks = data.filter(t => 
         (t.status === 'Pending' || t.status === 'Done') && 
         (currentEmployerId ? t.employer_id === currentEmployerId : !t.employer_id)
     );
     renderActive(activeTasks);
 
-    // Filter for Invoiced Tab (Awaiting payment)
+    // 2. Render Pending Payments (Invoiced) - THIS BRINGS YOUR MISSING ORDERS BACK
     const invoicedTasks = data.filter(t => t.status === 'Invoiced');
     renderPendingPayment(invoicedTasks);
 
-    // Filter for History Tab (Paid)
+    // 3. Render History (Paid)
     const paidTasks = data.filter(t => t.status === 'Paid');
     renderHistory(paidTasks);
 
@@ -707,10 +709,15 @@ function renderPendingPayment(tasks) {
     if (!body) return;
     body.innerHTML = '';
 
+    if (tasks.length === 0) {
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No pending payments found.</td></tr>';
+        return;
+    }
+
     // Group tasks by Invoice Number
     const groupedInvoices = tasks.reduce((acc, t) => {
-        // FIX: If invoice_no is missing, call it "Legacy/Old Orders"
-        const inv = t.invoice_no || 'Old_Unassigned_Orders'; 
+        // Fallback for older orders that have no invoice number
+        const inv = t.invoice_no || 'UNCATEGORIZED_OLD_ORDERS'; 
         if (!acc[inv]) acc[inv] = [];
         acc[inv].push(t);
         return acc;
@@ -719,12 +726,13 @@ function renderPendingPayment(tasks) {
     for (let invNo in groupedInvoices) {
         const invTasks = groupedInvoices[invNo];
         const total = invTasks.reduce((sum, t) => sum + t.payable, 0);
+        const displayName = invNo === 'UNCATEGORIZED_OLD_ORDERS' ? '⚠️ Legacy Orders (No Inv #)' : invNo;
         
         // Header for the Invoice Group
         body.innerHTML += `
-            <tr style="background:#f9f9f9; border-top: 2px solid #2c3e50;">
-                <td style="font-weight:bold; color:#2c3e50;">${invNo.replace(/_/g, ' ')}</td>
-                <td colspan="2" style="font-size:11px;">${invTasks.length} Orders inside</td>
+            <tr style="background:#f1f2f6; border-top: 2px solid #2c3e50;">
+                <td style="font-weight:bold; color:#2c3e50;">${displayName}</td>
+                <td colspan="2" style="font-size:11px;">${invTasks.length} items grouped</td>
                 <td style="font-weight:bold;">${total}</td>
                 <td>
                     <button onclick="markInvoicePaid('${invNo}')" 
@@ -734,14 +742,15 @@ function renderPendingPayment(tasks) {
                 </td>
             </tr>`;
 
+        // Show the individual orders inside that invoice
         invTasks.forEach(t => {
             body.innerHTML += `
-                <tr style="font-size:11px; color:#666;">
+                <tr style="font-size:11px; color:#666; background: #fff;">
                     <td></td>
                     <td>${t.client_name}</td>
                     <td>${t.task_detail}</td>
                     <td>${t.payable}</td>
-                    <td>Invoiced</td>
+                    <td style="font-style:italic;">Awaiting Payment</td>
                 </tr>`;
         });
     }
@@ -752,8 +761,8 @@ function renderPendingPayment(tasks) {
 
     let query = supabaseClient.from('tasks').update({ status: 'Paid' });
 
-    if (invNo === 'Old_Unassigned_Orders') {
-        // If they are old orders, find them by status instead of invoice number
+    if (invNo === 'UNCATEGORIZED_OLD_ORDERS') {
+        // Target old orders that are invoiced but have no number
         query = query.eq('status', 'Invoiced').is('invoice_no', null);
     } else {
         query = query.eq('invoice_no', invNo);
@@ -762,10 +771,10 @@ function renderPendingPayment(tasks) {
     const { error } = await query;
 
     if (error) {
-        alert("Update failed: " + error.message);
+        alert("Payment update failed: " + error.message);
     } else {
-        alert("Orders marked as Paid!");
-        fetchTasks();
+        alert("Payment Confirmed! Orders moved to History.");
+        fetchTasks(); // Refresh tables
     }
 }
 
