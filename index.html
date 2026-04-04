@@ -610,15 +610,18 @@ async function fetchTasks() {
         return;
     }
 
-    // Bucket 1: Active (Pending/Done)
-    const activeData = data.filter(t => t.status === 'Pending' || t.status === 'Done');
+    // 1. Active: Only Pending or Done (Filtered by Employer if selected)
+    const activeData = data.filter(t => 
+        (t.status === 'Pending' || t.status === 'Done') && 
+        (currentEmployerId ? t.employer_id === currentEmployerId : !t.employer_id)
+    );
     renderActive(activeData);
 
-    // Bucket 2: Pending Payment (Invoiced) - THIS IS WHERE YOUR MISSING ORDERS ARE
+    // 2. Pending Payment: Only Invoiced (This brings back your missing orders)
     const invoicedData = data.filter(t => t.status === 'Invoiced');
     renderPendingPayment(invoicedData);
 
-    // Bucket 3: History (Paid)
+    // 3. History: Only Paid
     const paidData = data.filter(t => t.status === 'Paid');
     renderHistory(paidData);
 
@@ -626,6 +629,13 @@ async function fetchTasks() {
 }
 
 async function renderActive(tasks) {
+	const body = document.getElementById('tableBody');
+    if (!body) return;
+    
+    body.innerHTML = ''; // THIS PREVENTS DUPLICATION
+    
+    let gross = 0;
+    let advances = 0;
     const body = document.getElementById('tableBody');
     body.innerHTML = '';
     let gross = 0, advances = 0;
@@ -711,9 +721,9 @@ function renderPendingPayment(tasks) {
         return;
     }
 
-    // Grouping logic that handles NULL invoice numbers
+    // Group by Invoice Number or mark as Legacy if null
     const grouped = tasks.reduce((acc, t) => {
-        const key = t.invoice_no || 'Legacy_Orders';
+        const key = t.invoice_no || 'LEGACY_UNASSIGNED';
         if (!acc[key]) acc[key] = [];
         acc[key].push(t);
         return acc;
@@ -722,29 +732,28 @@ function renderPendingPayment(tasks) {
     for (let invNo in grouped) {
         const invTasks = grouped[invNo];
         const total = invTasks.reduce((sum, t) => sum + t.payable, 0);
-        const label = invNo === 'Legacy_Orders' ? '⚠️ UNCONFIRMED (Old System)' : invNo;
+        const displayTitle = invNo === 'LEGACY_UNASSIGNED' ? '⚠️ Legacy Orders (Old System)' : invNo;
 
         body.innerHTML += `
-            <tr style="background:#f8f9fa; border-top:2px solid #2c3e50;">
-                <td style="font-weight:bold;">${label}</td>
-                <td colspan="2">${invTasks.length} Orders</td>
+            <tr style="background:#f8f9fa; border-top: 2px solid #2c3e50;">
+                <td style="font-weight:bold;">${displayTitle}</td>
+                <td colspan="2">${invTasks.length} Items</td>
                 <td style="font-weight:bold; color:#27ae60;">${total}</td>
                 <td>
-                    <button onclick="markInvoicePaid('${invNo}')" style="background:#27ae60; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">
+                    <button onclick="markInvoicePaid('${invNo}')" style="background:#27ae60; color:white; border:none; padding:6px; border-radius:4px; cursor:pointer; width:100%;">
                         Confirm Paid
                     </button>
                 </td>
             </tr>`;
 
-        // Show the small details under the header
         invTasks.forEach(t => {
             body.innerHTML += `
-                <tr style="font-size:11px; color:#7f8c8d;">
+                <tr style="font-size:11px; color:#7f8c8d; background:#fff;">
                     <td></td>
                     <td>${t.client_name}</td>
                     <td>${t.task_detail}</td>
                     <td>${t.payable}</td>
-                    <td>Awaiting</td>
+                    <td>Invoiced</td>
                 </tr>`;
         });
     }
