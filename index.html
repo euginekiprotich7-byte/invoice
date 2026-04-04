@@ -610,18 +610,15 @@ async function fetchTasks() {
         return;
     }
 
-    // 1. Active Orders (Pending or Done)
-    const activeData = data.filter(t => 
-        (t.status === 'Pending' || t.status === 'Done') && 
-        (currentEmployerId ? t.employer_id === currentEmployerId : !t.employer_id)
-    );
+    // Bucket 1: Active (Pending/Done)
+    const activeData = data.filter(t => t.status === 'Pending' || t.status === 'Done');
     renderActive(activeData);
 
-    // 2. Pending Payments (Invoiced) - THIS BRINGS BACK YOUR MISSING ORDERS
+    // Bucket 2: Pending Payment (Invoiced) - THIS IS WHERE YOUR MISSING ORDERS ARE
     const invoicedData = data.filter(t => t.status === 'Invoiced');
     renderPendingPayment(invoicedData);
 
-    // 3. History (Paid)
+    // Bucket 3: History (Paid)
     const paidData = data.filter(t => t.status === 'Paid');
     renderHistory(paidData);
 
@@ -709,46 +706,45 @@ function renderPendingPayment(tasks) {
     if (!body) return;
     body.innerHTML = '';
 
-    if (tasks.length === 0) {
-        body.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No pending payments found.</td></tr>';
+    if (!tasks || tasks.length === 0) {
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No pending payments.</td></tr>';
         return;
     }
 
-    // Group tasks by Invoice Number
-    const groupedInvoices = tasks.reduce((acc, t) => {
-        // If invoice_no is missing (from your old version), group them together
-        const inv = t.invoice_no || 'LEGACY_ORDERS'; 
-        if (!acc[inv]) acc[inv] = [];
-        acc[inv].push(t);
+    // Grouping logic that handles NULL invoice numbers
+    const grouped = tasks.reduce((acc, t) => {
+        const key = t.invoice_no || 'Legacy_Orders';
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(t);
         return acc;
     }, {});
 
-    for (let invNo in groupedInvoices) {
-        const invTasks = groupedInvoices[invNo];
+    for (let invNo in grouped) {
+        const invTasks = grouped[invNo];
         const total = invTasks.reduce((sum, t) => sum + t.payable, 0);
-        const label = invNo === 'LEGACY_ORDERS' ? '⚠️ Previous Unconfirmed Orders' : invNo;
-        
+        const label = invNo === 'Legacy_Orders' ? '⚠️ UNCONFIRMED (Old System)' : invNo;
+
         body.innerHTML += `
-            <tr style="background:#f1f2f6; border-top: 2px solid #2c3e50;">
+            <tr style="background:#f8f9fa; border-top:2px solid #2c3e50;">
                 <td style="font-weight:bold;">${label}</td>
-                <td colspan="2" style="font-size:11px;">${invTasks.length} items</td>
-                <td style="font-weight:bold;">${total}</td>
+                <td colspan="2">${invTasks.length} Orders</td>
+                <td style="font-weight:bold; color:#27ae60;">${total}</td>
                 <td>
-                    <button onclick="markInvoicePaid('${invNo}')" 
-                        style="background:#27ae60; color:white; border:none; padding:8px; border-radius:4px; width:100%; cursor:pointer;">
-                        Confirm All Paid
+                    <button onclick="markInvoicePaid('${invNo}')" style="background:#27ae60; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">
+                        Confirm Paid
                     </button>
                 </td>
             </tr>`;
 
+        // Show the small details under the header
         invTasks.forEach(t => {
             body.innerHTML += `
-                <tr style="font-size:11px; color:#666; background: #fff;">
+                <tr style="font-size:11px; color:#7f8c8d;">
                     <td></td>
                     <td>${t.client_name}</td>
                     <td>${t.task_detail}</td>
                     <td>${t.payable}</td>
-                    <td>Invoiced</td>
+                    <td>Awaiting</td>
                 </tr>`;
         });
     }
