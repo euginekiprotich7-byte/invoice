@@ -709,7 +709,8 @@ function renderPendingPayment(tasks) {
 
     // Group tasks by Invoice Number
     const groupedInvoices = tasks.reduce((acc, t) => {
-        const inv = t.invoice_no || 'Unassigned';
+        // FIX: If invoice_no is missing, call it "Legacy/Old Orders"
+        const inv = t.invoice_no || 'Old_Unassigned_Orders'; 
         if (!acc[inv]) acc[inv] = [];
         acc[inv].push(t);
         return acc;
@@ -722,18 +723,17 @@ function renderPendingPayment(tasks) {
         // Header for the Invoice Group
         body.innerHTML += `
             <tr style="background:#f9f9f9; border-top: 2px solid #2c3e50;">
-                <td style="font-weight:bold; color:#2c3e50;">${invNo}</td>
+                <td style="font-weight:bold; color:#2c3e50;">${invNo.replace(/_/g, ' ')}</td>
                 <td colspan="2" style="font-size:11px;">${invTasks.length} Orders inside</td>
                 <td style="font-weight:bold;">${total}</td>
                 <td>
                     <button onclick="markInvoicePaid('${invNo}')" 
-                        style="background:#27ae60; color:white; border:none; padding:8px; border-radius:4px; width:100%;">
+                        style="background:#27ae60; color:white; border:none; padding:8px; border-radius:4px; width:100%; cursor:pointer;">
                         Confirm All Paid
                     </button>
                 </td>
             </tr>`;
 
-        // Collapsible Detail Rows (Hidden by default or shown in smaller font)
         invTasks.forEach(t => {
             body.innerHTML += `
                 <tr style="font-size:11px; color:#666;">
@@ -741,27 +741,33 @@ function renderPendingPayment(tasks) {
                     <td>${t.client_name}</td>
                     <td>${t.task_detail}</td>
                     <td>${t.payable}</td>
-                    <td>Pending</td>
+                    <td>Invoiced</td>
                 </tr>`;
         });
     }
 }
 
 	async function markInvoicePaid(invNo) {
-		if (!confirm(`Mark all orders in ${invNo} as Paid?`)) return;
+    if (!confirm(`Mark these orders as Paid?`)) return;
 
-		const { error } = await supabaseClient
-			.from('tasks')
-			.update({ status: 'Paid' })
-			.eq('invoice_no', invNo);
+    let query = supabaseClient.from('tasks').update({ status: 'Paid' });
 
-		if (error) {
-			alert("Payment confirmation failed: " + error.message);
-		} else {
-			alert(`${invNo} marked as Paid!`);
-			fetchTasks(); // Refresh to move items to History
-		}
-	}
+    if (invNo === 'Old_Unassigned_Orders') {
+        // If they are old orders, find them by status instead of invoice number
+        query = query.eq('status', 'Invoiced').is('invoice_no', null);
+    } else {
+        query = query.eq('invoice_no', invNo);
+    }
+
+    const { error } = await query;
+
+    if (error) {
+        alert("Update failed: " + error.message);
+    } else {
+        alert("Orders marked as Paid!");
+        fetchTasks();
+    }
+}
 
     function renderHistory(tasks) {
         const hBody = document.getElementById('historyBody'); hBody.innerHTML = '';
