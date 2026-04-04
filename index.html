@@ -347,10 +347,12 @@ td, th {
                     </select>
                 </div>
 
-                <div>
-                    <label>Units</label>
-                    <input type="number" id="unit" value="1" step="0.1">
-                </div>
+               
+				<div>
+					<label id="unitLabel">Units</label> 
+					<input type="number" id="unit" value="1" step="0.1">
+				</div>
+                
 
                 <div>
                     <label>CPP / Rate</label>
@@ -501,6 +503,9 @@ td, th {
     if (prompt("Enter System Password:") === "E") { 
         document.getElementById('mainBody').style.display = 'block'; 
         
+        // Load the bosses first so 'currentEmployerId' gets set
+        await loadEmployers(); 
+        
         // Wake up the audio element
         const alarm = document.getElementById('dueAlarm');
         alarm.play().then(() => {
@@ -578,37 +583,21 @@ window.onload = checkPass;
 }
 
 async function fetchTasks() {
-    // 1. Safety check for connection
-    if (!navigator.onLine) {
-        console.log("Offline mode: Skipping cloud fetch.");
-        return; 
-    }
+    if (!navigator.onLine) return; 
 
-    // 2. Pull all tasks from Supabase
-    const { data, error } = await supabaseClient
-        .from('tasks')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        console.error("Error fetching tasks:", error.message);
+    // If a boss is selected, only fetch THEIR work.
+    if (currentEmployerId) {
+        fetchTasksByEmployer(currentEmployerId);
         return;
     }
 
-    // 3. Distribute the data to the correct UI sections
-    // Active Section: Tasks that are 'Pending' (with alarm) or 'Done' (waiting for invoice)
-    const activeTasks = data.filter(t => t.status === 'Pending' || t.status === 'Done');
-    renderActive(activeTasks);
+    // Otherwise, fetch everything
+    const { data, error } = await supabaseClient.from('tasks').select('*').order('created_at', { ascending: false });
+    if (error) return;
 
-    // Pending Payment: Tasks that have been 'Invoiced' but not yet 'Paid'
-    const pendingPaymentTasks = data.filter(t => t.status === 'Invoiced');
-    renderPendingPayment(pendingPaymentTasks);
-
-    // History: Tasks that are fully 'Paid'
-    const historyTasks = data.filter(t => t.status === 'Paid');
-    renderHistory(historyTasks);
-
-    // 4. Run the alarm check now that we have fresh data
+    renderActive(data.filter(t => t.status === 'Pending' || t.status === 'Done'));
+    renderPendingPayment(data.filter(t => t.status === 'Invoiced'));
+    renderHistory(data.filter(t => t.status === 'Paid'));
     checkDeadlines(data);
 }
 
@@ -1057,7 +1046,7 @@ async function syncOfflineData() {
 
     // 3. Create the order object (Declared ONLY ONCE)
     const newOrderData = {
-        detail: detail,
+        task_detail: detail, // FIXED: Changed 'detail' to 'task_detail'
         client_name: client,
         task_type: type,
         units: unit,
@@ -1065,7 +1054,7 @@ async function syncOfflineData() {
         payable: pay,
         deadline: deadline,
         employer_id: currentEmployerId, 
-        status: 'pending',
+        status: 'Pending',   // FIXED: Capital 'P' to match your status CSS
         created_at: new Date().toISOString()
     };
 
@@ -1207,12 +1196,6 @@ function switchToEmployer(employer) {
     fetchTasksByEmployer(employer.id);
 }
 
-function checkPass() {
-    if (prompt("Enter System Password:") === "E") { 
-        document.getElementById('mainBody').style.display = 'block'; 
-        loadEmployers(); // <--- THIS line makes the section appear!
-    }
-}
 
 async function fetchTasksByEmployer(empId) {
     if (!navigator.onLine) return;
