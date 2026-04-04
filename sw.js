@@ -129,3 +129,22 @@ async function checkAndNotify() {
         }
     });
 }
+
+	self.addEventListener('show-alarm', (event) => {
+		const options = {
+			body: '🚨 URGENT: An order is due in less than 1 hour!',
+			icon: 'https://cdn-icons-png.flaticon.com/512/2821/2821637.png',
+			badge: 'https://cdn-icons-png.flaticon.com/512/2821/2821637.png',
+			tag: 'order-alarm',
+			renotify: true,
+			vibrate: [200, 100, 200],
+			actions: [
+				{ action: 'open', title: 'Open App' },
+				{ action: 'close', title: 'Dismiss' }
+			]
+		};
+
+		event.waitUntil(
+			self.registration.showNotification('Order Deadline Alert', options)
+		);
+	});

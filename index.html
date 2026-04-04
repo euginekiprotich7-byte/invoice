@@ -269,14 +269,18 @@ td, th {
              TOP NAVIGATION (TABS)
         ========================== -->
         <div class="tabs">
-            <div id="tabActive" class="tab active" onclick="showTab('active')">
-                Active Orders
-            </div>
+			<div id="tabActive" class="tab active" onclick="showTab('active')">
+				Active Orders
+			</div>
 
-            <div id="tabHistory" class="tab" onclick="showTab('history')">
-                History / Performance
-            </div>
-        </div>
+			<div id="tabInvoiced" class="tab" onclick="showTab('invoiced')">
+				Pending Payment
+			</div>
+
+			<div id="tabHistory" class="tab" onclick="showTab('history')">
+				History / Performance
+			</div>
+		</div>
 
         <!-- =========================
              EMPLOYER SETUP
@@ -310,7 +314,12 @@ td, th {
              ACTIVE SECTION
         ========================== -->
         <div id="activeSection">
-
+			<div style="margin-bottom: 10px; display: flex; gap: 10px; align-items: center;">
+				<button id="syncBtn" class="btn" style="background: #8e44ad; flex: 1;" onclick="forceSync()">
+					🔄 Sync to Cloud Now
+				</button>
+				<small id="syncStatus" style="color: #7f8c8d; font-size: 11px;"></small>
+			</div>
             <!-- CONTROLS -->
             <div class="controls-grid">
 
@@ -448,20 +457,20 @@ td, th {
             </button>
 
             <!-- PENDING PAYMENTS -->
-            <h2>Pending Payment (Invoiced)</h2>
-
-            <table id="pendingPaymentTable">
-                <thead>
-                    <tr>
-                        <th>INV #</th>
-                        <th>CLIENT</th>
-                        <th>PAYABLE</th>
-                        <th>ACTION</th>
-                    </tr>
-                </thead>
-                <tbody id="pendingPaymentBody"></tbody>
-            </table>
-        </div>
+            <div id="invoicedSection" style="display:none;">
+				<h2 style="color: var(--primary);">Invoiced Orders (Awaiting Payment)</h2>
+				<table id="pendingPaymentTable">
+					<thead>
+						<tr>
+							<th>INV #</th>
+							<th>CLIENT</th>
+							<th>DETAILS</th> <th>PAYABLE</th>
+							<th>ACTION</th>
+						</tr>
+					</thead>
+					<tbody id="pendingPaymentBody"></tbody>
+				</table>
+			</div>
 
         <!-- =========================
              HISTORY SECTION
@@ -526,16 +535,22 @@ td, th {
 window.onload = checkPass;
 
     function showTab(t) {
-        document.getElementById('activeSection').style.display = t === 'active' ? 'block' : 'none';
-        document.getElementById('historySection').style.display = t === 'history' ? 'block' : 'none';
-        document.getElementById('tabActive').classList.toggle('active', t === 'active');
-        document.getElementById('tabHistory').classList.toggle('active', t === 'history');
-    
-    if (t === 'history') {
-        if (!myChart) initChart();
-        updatePerformanceGraph();
-    }
-}
+    // 1. Handle Section Visibility
+		document.getElementById('activeSection').style.display = t === 'active' ? 'block' : 'none';
+		document.getElementById('invoicedSection').style.display = t === 'invoiced' ? 'block' : 'none';
+		document.getElementById('historySection').style.display = t === 'history' ? 'block' : 'none';
+
+		// 2. Handle Tab Styling (Active state)
+		document.getElementById('tabActive').classList.toggle('active', t === 'active');
+		document.getElementById('tabInvoiced').classList.toggle('active', t === 'invoiced');
+		document.getElementById('tabHistory').classList.toggle('active', t === 'history');
+
+		// 3. Initialize History charts if needed
+		if (t === 'history') {
+			if (!myChart) initChart();
+			updatePerformanceGraph();
+		}
+	}
 
     async function saveTask(mode) {
     let task = {};
@@ -585,19 +600,29 @@ window.onload = checkPass;
 async function fetchTasks() {
     if (!navigator.onLine) return; 
 
-    // If a boss is selected, only fetch THEIR work.
-    if (currentEmployerId) {
-        fetchTasksByEmployer(currentEmployerId);
-        return;
-    }
+    // Fetch all records to distribute across tabs
+    const { data, error } = await supabaseClient
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    // Otherwise, fetch everything
-    const { data, error } = await supabaseClient.from('tasks').select('*').order('created_at', { ascending: false });
     if (error) return;
 
-    renderActive(data.filter(t => t.status === 'Pending' || t.status === 'Done'));
-    renderPendingPayment(data.filter(t => t.status === 'Invoiced'));
-    renderHistory(data.filter(t => t.status === 'Paid'));
+    // Filter for Active Tab (Pending/Done and specific employer)
+    const activeTasks = data.filter(t => 
+        (t.status === 'Pending' || t.status === 'Done') && 
+        (currentEmployerId ? t.employer_id === currentEmployerId : !t.employer_id)
+    );
+    renderActive(activeTasks);
+
+    // Filter for Invoiced Tab (Awaiting payment)
+    const invoicedTasks = data.filter(t => t.status === 'Invoiced');
+    renderPendingPayment(invoicedTasks);
+
+    // Filter for History Tab (Paid)
+    const paidTasks = data.filter(t => t.status === 'Paid');
+    renderHistory(paidTasks);
+
     checkDeadlines(data);
 }
 
@@ -606,7 +631,7 @@ async function renderActive(tasks) {
     body.innerHTML = '';
     let gross = 0, advances = 0;
 
-    // 1. Fetch all employers once so we can build the "Move" dropdown
+    // 1. Fetch all employers to map names to IDs
     const { data: employersList } = await supabaseClient.from('employers').select('id, employer_name');
     
     // Create the HTML options for the dropdown
@@ -622,7 +647,7 @@ async function renderActive(tasks) {
         return acc;
     }, {});
 
-    // 3. Loop through each client group
+    // 3. Loop through client groups
     for (let client in grouped) {
         body.innerHTML += `<tr class="client-header"><td colspan="7" style="background:#dfe6e9; font-weight:bold;">${client.toUpperCase()}</td></tr>`;
         
@@ -633,9 +658,27 @@ async function renderActive(tasks) {
             }
             
             const timeLeft = getRemainingTime(t.deadline);
-            const isUrgent = timeLeft !== "No Deadline" && timeLeft !== "OVERDUE" && parseInt(timeLeft) < (t.alert_lead_hours || 24);
             const statusClass = t.status === 'Pending' ? 'status-pending' : '';
-            const timeStyle = isUrgent ? 'color: #e74c3c; font-weight: bold;' : '';
+            
+            // LOGIC: Check if employer is already assigned
+            const assignedEmp = (employersList || []).find(e => e.id === t.employer_id);
+            
+            let moveControls = "";
+            if (assignedEmp) {
+                // Show the name if assigned
+                moveControls = `<div style="margin-top:8px; color:#27ae60; font-size:11px; font-weight:bold;">
+                                    👤 Boss: ${assignedEmp.employer_name}
+                                </div>`;
+            } else {
+                // Show the dropdown ONLY if not assigned
+                moveControls = `<div style="margin-top:8px; border-top:1px solid #ddd; padding-top:5px;">
+                                    <select id="move-to-${t.id}" style="width:100px; font-size:11px; height:30px;">
+                                        <option value="">Move to...</option>
+                                        ${employerOptions}
+                                    </select>
+                                    <button onclick="moveOrder('${t.id}')" style="background:#f39c12; color:white; border:none; padding:4px; font-size:10px; border-radius:3px;">Go</button>
+                                </div>`;
+            }
 
             body.innerHTML += `
                 <tr>
@@ -643,19 +686,12 @@ async function renderActive(tasks) {
                     <td>${t.task_type === 'Adjustment' ? '-' : (t.task_type === 'Quiz' ? 'quiz' : t.units)}</td>
                     <td>${t.cpp}</td>
                     <td>${t.payable}</td>
-                    <td style="${timeStyle}">${timeLeft}</td> 
+                    <td>${timeLeft}</td> 
                     <td class="${statusClass}">${t.status}</td>
                     <td>
                         <button onclick="updateStatus('${t.id}','Done')">Done</button>
                         <button onclick="updateStatus('${t.id}','Cancelled')">X</button>
-                        
-                        <div style="margin-top:8px; border-top:1px solid #ddd; padding-top:5px;">
-                            <select id="move-to-${t.id}" style="width:100px; font-size:11px; height:30px;">
-                                <option value="">Move to...</option>
-                                ${employerOptions}
-                            </select>
-                            <button onclick="moveOrder('${t.id}')" style="background:#f39c12; color:white; border:none; padding:4px; font-size:10px; border-radius:3px;">Go</button>
-                        </div>
+                        ${moveControls}
                     </td>
                 </tr>`;
         });
@@ -668,24 +704,64 @@ async function renderActive(tasks) {
 
 function renderPendingPayment(tasks) {
     const body = document.getElementById('pendingPaymentBody');
-    if (!body) return; // Safety check
+    if (!body) return;
     body.innerHTML = '';
 
-    tasks.forEach(t => {
+    // Group tasks by Invoice Number
+    const groupedInvoices = tasks.reduce((acc, t) => {
+        const inv = t.invoice_no || 'Unassigned';
+        if (!acc[inv]) acc[inv] = [];
+        acc[inv].push(t);
+        return acc;
+    }, {});
+
+    for (let invNo in groupedInvoices) {
+        const invTasks = groupedInvoices[invNo];
+        const total = invTasks.reduce((sum, t) => sum + t.payable, 0);
+        
+        // Header for the Invoice Group
         body.innerHTML += `
-            <tr>
-                <td>${t.invoice_no || 'N/A'}</td>
-                <td>${t.client_name}</td>
-                <td>${t.task_detail}</td>
-                <td>${t.payable}</td>
+            <tr style="background:#f9f9f9; border-top: 2px solid #2c3e50;">
+                <td style="font-weight:bold; color:#2c3e50;">${invNo}</td>
+                <td colspan="2" style="font-size:11px;">${invTasks.length} Orders inside</td>
+                <td style="font-weight:bold;">${total}</td>
                 <td>
-                    <button onclick="updateStatus('${t.id}', 'Paid')" style="background: #27ae60; color:white; border:none; padding:5px; cursor:pointer; border-radius:3px;">
-                        Confirm Payment
+                    <button onclick="markInvoicePaid('${invNo}')" 
+                        style="background:#27ae60; color:white; border:none; padding:8px; border-radius:4px; width:100%;">
+                        Confirm All Paid
                     </button>
                 </td>
             </tr>`;
-    });
+
+        // Collapsible Detail Rows (Hidden by default or shown in smaller font)
+        invTasks.forEach(t => {
+            body.innerHTML += `
+                <tr style="font-size:11px; color:#666;">
+                    <td></td>
+                    <td>${t.client_name}</td>
+                    <td>${t.task_detail}</td>
+                    <td>${t.payable}</td>
+                    <td>Pending</td>
+                </tr>`;
+        });
+    }
 }
+
+	async function markInvoicePaid(invNo) {
+		if (!confirm(`Mark all orders in ${invNo} as Paid?`)) return;
+
+		const { error } = await supabaseClient
+			.from('tasks')
+			.update({ status: 'Paid' })
+			.eq('invoice_no', invNo);
+
+		if (error) {
+			alert("Payment confirmation failed: " + error.message);
+		} else {
+			alert(`${invNo} marked as Paid!`);
+			fetchTasks(); // Refresh to move items to History
+		}
+	}
 
     function renderHistory(tasks) {
         const hBody = document.getElementById('historyBody'); hBody.innerHTML = '';
@@ -695,69 +771,59 @@ function renderPendingPayment(tasks) {
     async function updateStatus(id, s) { await supabaseClient.from('tasks').update({ status: s }).eq('id', id); fetchTasks(); }
 
     async function generateAndClear() {
-    // 1. Fetch only 'Done' tasks (avoiding Pending or already Invoiced)
     const { data } = await supabaseClient.from('tasks')
         .select('*')
         .eq('status', 'Done');
 
     if (!data || data.length === 0) return alert("No 'Done' tasks to invoice!");
 
-    // 2. Generate unique Invoice Number (e.g., INV-123456)
     const invNo = "INV-" + Date.now().toString().slice(-6);
+    const tasks = data.filter(t => t.task_type !== 'Adjustment');
+    const adjustments = data.filter(t => t.task_type === 'Adjustment');
 
-    // 3. Build the Word document HTML
     let html = `
         <h2 style="text-align:center; font-family:Arial;">INVOICE: ${invNo}</h2>
         <p style="text-align:center; font-family:Arial;">Date: ${new Date().toLocaleDateString()}</p>
         <table border="1" style="width:100%; border-collapse:collapse; font-family:Arial;">
             <tr style="background:#eeeeee;">
-                <th>DETAILS</th><th>PAGES</th><th>CPP</th><th>PAYABLE</th>
+                <th>DETAILS</th><th>PAGES/TYPE</th><th>CPP</th><th>PAYABLE</th>
             </tr>`;
 
-    const grouped = data.reduce((acc, t) => {
-        const client = t.client_name || 'General';
-        if (!acc[client]) acc[client] = [];
-        acc[client].push(t);
-        return acc;
-    }, {});
+    // Tasks Section
+    tasks.forEach(t => {
+        html += `<tr>
+            <td>${t.task_detail}</td>
+            <td>${t.task_type === 'Quiz' || t.task_type === 'Midterm' ? t.task_type : t.units}</td>
+            <td>${t.cpp}</td>
+            <td>${t.payable}</td>
+        </tr>`;
+    });
 
-    for (let client in grouped) {
-        html += `<tr style="background:#f2f2f2;"><td colspan="4"><b>${client}</b></td></tr>`;
-        grouped[client].forEach(t => {
-            html += `
-                <tr>
-                    <td>${t.task_detail}</td>
-                    <td>${t.task_type === 'Adjustment' ? '' : (t.task_type === 'Quiz' ? 'quiz' : t.units)}</td>
-                    <td>${t.cpp || ''}</td>
-                    <td>${t.payable}</td>
-                </tr>`;
+    // Dedicated Adjustment Section at the bottom
+    if (adjustments.length > 0) {
+        html += `<tr style="background:#fdf2f2;"><td colspan="4"><b>DEDUCTIONS & ADJUSTMENTS</b></td></tr>`;
+        adjustments.forEach(a => {
+            html += `<tr style="color:#e74c3c;">
+                <td colspan="3">${a.task_detail}</td>
+                <td>${a.payable}</td>
+            </tr>`;
         });
     }
 
-    const total = document.getElementById('subTotal').innerText;
     const final = document.getElementById('grandTotal').innerText;
-    
-    html += `
-        <tr><td colspan="3" align="right"><b>TOTAL</b></td><td><b>${total}</b></td></tr>
-        <tr><td colspan="3" align="right"><b>PAYABLE</b></td><td><b>${final}</b></td></tr>
-        </table>`;
+    html += `<tr style="background:#eee;">
+        <td colspan="3" align="right"><b>TOTAL PAYABLE</b></td>
+        <td><b>${final}</b></td>
+    </tr></table>`;
 
-    // 4. Trigger Download
+    // Download and Update Status
     let link = document.createElement('a');
     link.href = URL.createObjectURL(new Blob(['\ufeff', html], { type: 'application/msword' }));
     link.download = `Invoice_${invNo}.doc`;
     link.click();
 
-    // 5. Update Database: Move to 'Invoiced' (Pending Payment) and store the INV #
     const ids = data.map(t => t.id);
-    await supabaseClient.from('tasks')
-        .update({ 
-            status: 'Invoiced', 
-            invoice_no: invNo 
-        })
-        .in('id', ids);
-
-    // Refresh UI to show the new "Pending Payment" section
+    await supabaseClient.from('tasks').update({ status: 'Invoiced', invoice_no: invNo }).in('id', ids);
     fetchTasks();
 }
 	
@@ -1084,6 +1150,26 @@ async function syncOfflineData() {
         saveOrderToPhone(tempOrder);
         alert("Saved to phone only (Offline).");
     }
+	const newOrder = { 
+        ...newOrderData, 
+        synced: navigator.onLine // Mark as false if offline
+    };
+
+    // 1. ALWAYS save to IndexedDB first (Local Backup)
+    await db.tasks.add(newOrder);
+
+    // 2. Try Supabase only if online
+    if (navigator.onLine) {
+        try {
+            await supabaseClient.from('tasks').insert([newOrderData]);
+        } catch (e) {
+            console.log("Supabase failed, will sync later.");
+        }
+    } else {
+        console.log("Offline: Saved to phone only.");
+    }
+    
+    renderActive(); 
 }
 		
 		// This saves your orders to the phone's "Internal Memory"
@@ -1252,7 +1338,58 @@ async function moveOrder(orderId) {
         fetchTasksByEmployer(currentEmployerId); 
     }
 }
-		
+
+async function forceSync() {
+    const syncBtn = document.getElementById('syncBtn');
+    const syncStatus = document.getElementById('syncStatus');
+    
+    if (!navigator.onLine) {
+        alert("You are currently offline. Please connect to the internet to sync.");
+        return;
+    }
+
+    syncBtn.disabled = true;
+    syncBtn.innerText = "Syncing...";
+    syncStatus.innerText = "Checking local data...";
+
+    try {
+        // 1. Get all unsynced tasks from your local DB
+        // Assuming you have a 'synced' property in your local store
+        const unsyncedTasks = await db.tasks.where('synced').equals(0).toArray();
+
+        if (unsyncedTasks.length === 0) {
+            syncStatus.innerText = "Everything is already up to date.";
+            setTimeout(() => syncStatus.innerText = "", 3000);
+        } else {
+            syncStatus.innerText = `Syncing ${unsyncedTasks.length} items...`;
+
+            for (let task of unsyncedTasks) {
+                // Prepare data for Supabase (remove the local 'id' if it's auto-gen)
+                const { id, synced, ...supabaseData } = task;
+
+                const { error } = await supabaseClient
+                    .from('tasks')
+                    .upsert([supabaseData]);
+
+                if (!error) {
+                    // Update local record as synced
+                    await db.tasks.update(id, { synced: 1 });
+                } else {
+                    console.error("Sync error for task:", error);
+                }
+            }
+            syncStatus.innerText = "✅ Sync Complete!";
+        }
+    } catch (err) {
+        console.error("Sync failed:", err);
+        syncStatus.innerText = "❌ Sync Failed.";
+    } finally {
+        syncBtn.disabled = false;
+        syncBtn.innerText = "🔄 Sync to Cloud Now";
+        fetchTasks(); // Refresh the UI
+    }
+}
+	
 		let deferredPrompt;
 const installBtn = document.getElementById('installBtn');
 
@@ -1281,11 +1418,21 @@ installBtn.addEventListener('click', async () => {
 // Automatically trigger sync when browser goes online
 window.addEventListener('online', syncOfflineData);
 
-		window.addEventListener('online', () => {
-			const el = document.getElementById('statusIndicator');
-			el.innerText = "ONLINE";
-			el.className = "online";
-		});
+		window.addEventListener('online', async () => {
+    document.getElementById('statusIndicator').className = 'online';
+    document.getElementById('statusIndicator').innerText = 'ONLINE';
+    
+    // Fetch all 'synced: false' items from IndexedDB and push to Supabase
+    const unsynced = await db.tasks.where('synced').equals(false).toArray();
+    
+    for (let task of unsynced) {
+        const { error } = await supabaseClient.from('tasks').insert([task]);
+        if (!error) {
+            await db.tasks.update(task.id, { synced: true });
+        }
+    }
+    console.log("Offline data synced to cloud!");
+});
 
 		window.addEventListener('offline', () => {
 			const el = document.getElementById('statusIndicator');
@@ -1300,6 +1447,12 @@ window.addEventListener('online', syncOfflineData);
 	setInterval(() => {
 		fetchTasks();
 	}, 60000);
+	
+	window.addEventListener('online', () => {
+    console.log("Connection restored. Triggering auto-sync...");
+    forceSync();
+});
+	
 </script>
 </body>
 </html>
