@@ -618,35 +618,118 @@ window.onload = checkPass;
 }
 
 async function fetchTasks() {
-    const { data, error } = await supabaseClient
-        .from('tasks')
-        .select('*')
-        .order('created_at', { ascending: false });
-
+    const { data, error } = await supabaseClient.from('tasks').select('*').order('created_at', { ascending: false });
     if (error) {
-        console.error("Error fetching tasks:", error.message);
+        console.error("Fetch Error:", error);
         return;
     }
 
-    // 1. Filter Active (Pending) - Shows what you are currently working on
+    // Filter Active (Pending)
     const activeTasks = data.filter(t => t.status === 'Pending');
-    renderTable('tableBody', activeTasks, true);
+    renderTable('tableBody', activeTasks, true); // true = show the action buttons
 
-    // 2. Filter Completed (Done) - Shows tasks ready to be invoiced
+    // Filter Completed (Done)
     const doneTasks = data.filter(t => t.status === 'Done');
-    renderTable('doneTableBody', doneTasks, false);
+    renderTable('doneTableBody', doneTasks, false); // false = slightly different buttons
     
-    // 3. Filter Invoiced - This MUST include all 'Invoiced' items
-    // This passes the data to your renderPendingPayment function, 
-    // which handles the "Legacy/Unassigned" grouping logic.
+    // Filter Invoiced (Pending Payment)
     const invoicedTasks = data.filter(t => t.status === 'Invoiced');
-    renderPendingPayment(invoicedTasks);
-
-    // 4. Optional: If you have a History/Paid section
-    const paidTasks = data.filter(t => t.status === 'Paid');
-    if (typeof renderHistory === 'function') {
-        renderHistory(paidTasks);
+    if (typeof renderPendingPayment === 'function') {
+        renderPendingPayment(invoicedTasks);
     }
+}
+
+
+function renderTable(tbodyId, tasks, showActions) {
+    const body = document.getElementById(tbodyId);
+    if (!body) return;
+
+    body.innerHTML = ''; // Clear existing rows
+
+    if (!tasks || tasks.length === 0) {
+        body.innerHTML = `<tr><td colspan="${showActions ? 7 : 5}" style="text-align:center; color:#95a5a6; padding:10px;">No orders found here.</td></tr>`;
+        return;
+    }
+
+    tasks.forEach(t => {
+        const timeLeft = typeof getRemainingTime === 'function' ? getRemainingTime(t.deadline) : 'N/A';
+        const statusClass = t.status === 'Pending' ? 'status-pending' : '';
+        
+        // Build the row HTML
+        let row = `
+            <tr>
+                <td>${t.task_detail}</td>
+                <td>${t.units || '-'}</td>
+                <td>${t.cpp || '-'}</td>
+                <td>${t.payable || 0}</td>
+                ${showActions ? `<td>${timeLeft}</td>` : ''}
+                <td class="${statusClass}">${t.status}</td>
+        `;
+
+        // Add the buttons column ONLY if showActions is true
+        if (showActions) {
+            row += `
+                <td>
+                    <div style="display:flex; gap:5px;">
+                        <button onclick="updateStatus('${t.id}','Done')" style="background:var(--success); color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">Done</button>
+                        <button onclick="updateStatus('${t.id}','Cancelled')" style="background:var(--danger); color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">X</button>
+                    </div>
+                </td>
+            `;
+        } else {
+            // For the "Completed" table, we use the "Invoice It" action
+            row += `<td><button onclick="updateStatus('${t.id}','Invoiced')" style="background:var(--warning); color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">Invoice It</button></td>`;
+        }
+
+        row += `</tr>`;
+        body.innerHTML += row;
+    }); // <--- This was the missing closing brace
+}
+
+function renderTable(tbodyId, tasks, showActions) {
+    const body = document.getElementById(tbodyId);
+    if (!body) return;
+
+    body.innerHTML = ''; // Clear existing rows
+
+    if (tasks.length === 0) {
+        body.innerHTML = `<tr><td colspan="${showActions ? 7 : 5}" style="text-align:center; color:#95a5a6; padding:10px;">No orders found here.</td></tr>`;
+        return;
+    }
+
+    tasks.forEach(t => {
+        const timeLeft = typeof getRemainingTime === 'function' ? getRemainingTime(t.deadline) : 'N/A';
+        const statusClass = t.status === 'Pending' ? 'status-pending' : '';
+        
+        // Build the row HTML
+        let row = `
+            <tr>
+                <td>${t.task_detail}</td>
+                <td>${t.units || '-'}</td>
+                <td>${t.cpp || '-'}</td>
+                <td>${t.payable || 0}</td>
+                ${showActions ? `<td>${timeLeft}</td>` : ''}
+                <td class="${statusClass}">${t.status}</td>
+        `;
+
+        // Add the buttons column ONLY if showActions is true
+        if (showActions) {
+            row += `
+                <td>
+                    <div style="display:flex; gap:5px;">
+                        <button onclick="updateStatus('${t.id}','Done')" style="background:var(--success); color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">Done</button>
+                        <button onclick="updateStatus('${t.id}','Cancelled')" style="background:var(--danger); color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">X</button>
+                    </div>
+                </td>
+            `;
+        } else {
+            // For the "Completed" table, we might want a different action (like "Invoiced")
+            row += `<td><button onclick="updateStatus('${t.id}','Invoiced')" style="background:var(--warning); color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">Invoice It</button></td>`;
+        }
+
+        row += `</tr>`;
+        body.innerHTML += row;
+    });
 }
 
 async function renderActive(tasks) {
@@ -1492,6 +1575,22 @@ async function forceSync() {
         syncBtn.disabled = false;
         syncBtn.innerText = "🔄 Sync to Cloud Now";
         fetchTasks(); // Refresh the UI
+    }
+}
+
+async function requestNotificationPermission() {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: 'YOUR_PUBLIC_VAPID_KEY' // You get this from Supabase/WebPush
+        });
+        
+        // Save this subscription to Supabase so the server knows WHERE to send the alarm
+        await supabaseClient.from('user_subscriptions').insert([{ 
+            subscription_json: JSON.stringify(subscription) 
+        }]);
     }
 }
 	
