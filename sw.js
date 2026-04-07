@@ -148,3 +148,31 @@ async function checkAndNotify() {
 			self.registration.showNotification('Order Deadline Alert', options)
 		);
 	});
+	
+	self.addEventListener('push', (event) => {
+    const data = event.data.json();
+    
+    const options = {
+        body: data.body,
+        icon: 'https://cdn-icons-png.flaticon.com/512/2821/2821637.png',
+        vibrate: [500, 100, 500, 100, 500], // Long vibration for the alarm
+        tag: 'deadline-alarm',
+        renotify: true,
+        data: { url: './index.html' },
+        actions: [
+            { action: 'open', title: 'View Order' }
+        ]
+    };
+
+    event.waitUntil(
+        self.registration.showNotification('🚨 LATE ORDER ALARM', options)
+    );
+});
+
+// Open the app when the notification is clicked
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil(
+        clients.openWindow(event.notification.data.url)
+    );
+});

@@ -448,6 +448,26 @@ td, th {
                     </tr>
                 </tfoot>
             </table>
+			
+			<div style="margin-top: 30px; border-top: 2px dashed #ccc; padding-top: 20px;">
+				<h3 style="color: var(--success);">✅ Completed Orders (To be Invoiced)</h3>
+				<p style="font-size: 12px; color: #666;">These tasks are marked 'Done' and are ready to be included in the next invoice.</p>
+				<table>
+					<thead>
+						<tr style="background: #f1f2f6;">
+							<th>Detail</th>
+							<th>Units</th>
+							<th>Payable</th>
+							<th>Status</th>
+							<th>Action</th>
+						</tr>
+					</thead>
+					<tbody id="doneTableBody"></tbody>
+				</table>
+			</div>
+			<div class="summary-box">
+				<p>Sub-Total: <span id="subTotal">0</span></p>
+			</div>
 
             <!-- ACTION BUTTON -->
             <button class="btn"
@@ -598,8 +618,6 @@ window.onload = checkPass;
 }
 
 async function fetchTasks() {
-    if (!navigator.onLine) return; 
-
     const { data, error } = await supabaseClient
         .from('tasks')
         .select('*')
@@ -610,19 +628,25 @@ async function fetchTasks() {
         return;
     }
 
-    // 1. Active: Pending or Done
-    const activeData = data.filter(t => t.status === 'Pending' || t.status === 'Done');
-    renderActive(activeData);
+    // 1. Filter Active (Pending) - Shows what you are currently working on
+    const activeTasks = data.filter(t => t.status === 'Pending');
+    renderTable('tableBody', activeTasks, true);
 
-    // 2. Pending Payment: EVERYTHING marked 'Invoiced'
-    const invoicedData = data.filter(t => t.status === 'Invoiced');
-    renderPendingPayment(invoicedData);
+    // 2. Filter Completed (Done) - Shows tasks ready to be invoiced
+    const doneTasks = data.filter(t => t.status === 'Done');
+    renderTable('doneTableBody', doneTasks, false);
+    
+    // 3. Filter Invoiced - This MUST include all 'Invoiced' items
+    // This passes the data to your renderPendingPayment function, 
+    // which handles the "Legacy/Unassigned" grouping logic.
+    const invoicedTasks = data.filter(t => t.status === 'Invoiced');
+    renderPendingPayment(invoicedTasks);
 
-    // 3. History: Everything marked 'Paid'
-    const paidData = data.filter(t => t.status === 'Paid');
-    renderHistory(paidData);
-
-    if (typeof checkDeadlines === 'function') checkDeadlines(data);
+    // 4. Optional: If you have a History/Paid section
+    const paidTasks = data.filter(t => t.status === 'Paid');
+    if (typeof renderHistory === 'function') {
+        renderHistory(paidTasks);
+    }
 }
 
 async function renderActive(tasks) {
@@ -709,73 +733,138 @@ async function renderActive(tasks) {
     document.getElementById('grandTotal').innerText = gross + advances;
 }
 
+async function renderEmployers() {
+    const list = document.getElementById('employersList');
+    if (!list) return;
+
+    const { data: employers, error } = await supabaseClient.from('employers').select('*');
+    if (error) return;
+
+    list.innerHTML = employers.map(emp => `
+        <div class="employer-card" style="border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; background: #fff;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0;">👤 ${emp.employer_name}</h3>
+                <button onclick="toggleAddForm('${emp.id}')" style="background:var(--success); color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">+ Add Order</button>
+            </div>
+            
+            <div id="form-${emp.id}" style="display:none; margin-top:15px; background:#f9f9f9; padding:10px; border-radius:5px;">
+                <input type="text" id="detail-${emp.id}" placeholder="Task Detail" style="width:100%; margin-bottom:5px;">
+                <div style="display:flex; gap:5px;">
+                    <input type="number" id="units-${emp.id}" placeholder="Units" style="flex:1;">
+                    <input type="number" id="cpp-${emp.id}" placeholder="CPP" style="flex:1;">
+                    <input type="datetime-local" id="dead-${emp.id}" style="flex:1;">
+                </div>
+                <button onclick="submitOrder('${emp.id}')" style="width:100%; margin-top:10px; background:var(--primary); color:white; border:none; padding:8px; border-radius:4px;">Save Order</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function toggleAddForm(id) {
+    const f = document.getElementById(`form-${id}`);
+    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+async function submitOrder(employerId) {
+    const detail = document.getElementById(`detail-${employerId}`).value;
+    const units = parseFloat(document.getElementById(`units-${employerId}`).value);
+    const cpp = parseFloat(document.getElementById(`cpp-${employerId}`).value);
+    const deadline = document.getElementById(`dead-${employerId}`).value;
+
+    if (!detail || !units || !cpp) return alert("Please fill all fields");
+
+    const newOrder = {
+        employer_id: employerId,
+        task_detail: detail,
+        units: units,
+        cpp: cpp,
+        payable: units * cpp,
+        deadline: deadline,
+        status: 'Pending',
+        created_at: new Date()
+    };
+
+    const { error } = await supabaseClient.from('tasks').insert([newOrder]);
+    if (!error) {
+        alert("Order added to employer!");
+        toggleAddForm(employerId);
+        fetchTasks(); // Refresh tables
+    }
+}
+
 function renderPendingPayment(tasks) {
     const body = document.getElementById('pendingPaymentBody');
     if (!body) return;
-    body.innerHTML = ''; // Clears the section first
+    body.innerHTML = '';
 
     if (!tasks || tasks.length === 0) {
-        body.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#95a5a6;">No orders awaiting payment.</td></tr>';
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No pending payments found.</td></tr>';
         return;
     }
 
-    // Grouping: If invoice_no is missing, we call it 'MANUAL_CHECK'
-    const grouped = tasks.reduce((acc, t) => {
-        const key = t.invoice_no || 'MANUAL_CHECK';
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(t);
+    // Group tasks by Invoice Number
+    const groupedInvoices = tasks.reduce((acc, t) => {
+        // If invoice_no is missing, we group them as 'Legacy'
+        const inv = t.invoice_no || 'LEGACY_UNCONFIRMED'; 
+        if (!acc[inv]) acc[inv] = [];
+        acc[inv].push(t);
         return acc;
     }, {});
 
-    for (let invNo in grouped) {
-        const invTasks = grouped[invNo];
+    for (let invNo in groupedInvoices) {
+        const invTasks = groupedInvoices[invNo];
         const total = invTasks.reduce((sum, t) => sum + t.payable, 0);
-        const title = invNo === 'MANUAL_CHECK' ? '⚠️ UNCONFIRMED (Old System)' : `Invoice: ${invNo}`;
-
+        
+        // Change the label if it's one of your old unassigned orders
+        const label = invNo === 'LEGACY_UNCONFIRMED' ? '⚠️ Legacy Orders (Unassigned)' : `Invoice: ${invNo}`;
+        
         body.innerHTML += `
-            <tr style="background:#fdf6e3; border-top:2px solid #2c3e50;">
-                <td style="font-weight:bold; color:#d35400;">${title}</td>
+            <tr style="background:#f1f2f6; border-top: 2px solid #2c3e50;">
+                <td style="font-weight:bold;">${label}</td>
                 <td colspan="2" style="font-size:11px;">${invTasks.length} items</td>
                 <td style="font-weight:bold; color:#27ae60;">${total}</td>
                 <td>
-                    <button onclick="markInvoicePaid('${invNo}')" style="background:#27ae60; color:white; border:none; padding:8px; border-radius:4px; cursor:pointer; width:100%;">
-                        Confirm Paid
+                    <button onclick="markInvoicePaid('${invNo}')" 
+                        style="background:#27ae60; color:white; border:none; padding:8px; border-radius:4px; width:100%; cursor:pointer;">
+                        Confirm All Paid
                     </button>
                 </td>
             </tr>`;
 
+        // Show the individual task rows under the header
         invTasks.forEach(t => {
             body.innerHTML += `
-                <tr style="font-size:11px; background:#fff; border-bottom:1px solid #eee;">
-                    <td style="padding-left:15px;">└ ${t.client_name}</td>
+                <tr style="font-size:11px; color:#666; background: #fff;">
+                    <td style="padding-left:15px;">└ ${t.client_name || 'Old Client'}</td>
                     <td>${t.task_detail}</td>
                     <td>${t.units || '-'}</td>
                     <td>${t.payable}</td>
-                    <td style="color:#e67e22;">Awaiting</td>
+                    <td>Awaiting Payment</td>
                 </tr>`;
         });
     }
 }
 
-	async function markInvoicePaid(invNo) {
-    if (!confirm(`Mark these orders as Paid?`)) return;
+	async function markInvoicePaid(invoiceNo) {
+    const confirmation = confirm("Confirm that payment for this entire group has been received?");
+    if (!confirmation) return;
 
     let query = supabaseClient.from('tasks').update({ status: 'Paid' });
 
-    if (invNo === 'UNCATEGORIZED_OLD_ORDERS') {
-        // Target old orders that are invoiced but have no number
+    if (invoiceNo === 'LEGACY_UNCONFIRMED') {
+        // Update all Invoiced orders that don't have an invoice number
         query = query.eq('status', 'Invoiced').is('invoice_no', null);
     } else {
-        query = query.eq('invoice_no', invNo);
+        query = query.eq('invoice_no', invoiceNo);
     }
 
     const { error } = await query;
 
     if (error) {
-        alert("Payment update failed: " + error.message);
+        alert("Error updating payment: " + error.message);
     } else {
-        alert("Payment Confirmed! Orders moved to History.");
-        fetchTasks(); // Refresh tables
+        alert("Payment confirmed! Orders moved to History.");
+        fetchTasks(); // Refresh the UI
     }
 }
 
