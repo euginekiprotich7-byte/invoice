@@ -473,7 +473,7 @@ td, th {
 				</table>
 			</div>
 			<div class="summary-box">
-				<p>Sub-Total: <span id="subTotalDisplay">
+				<p style="font-weight:bold; margin-top:10px;">Sub-Total: <span id="done-subtotal">0</span></p>
 			</div>
 
             <!-- ACTION BUTTON -->
@@ -660,14 +660,22 @@ function renderTable(tbodyId, tasks, showActions) {
     if (!body) return;
 
     body.innerHTML = '';
+    let totalPayable = 0; // 1. Initialize a counter
 
     if (!tasks || tasks.length === 0) {
-        // Adjust colspan to 8 to match the headers (Client, Detail, Units, CPP, Payable, Status, Action)
-        body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#999;">No tasks found in this section.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#999;">No tasks found.</td></tr>`;
+        // Reset subtotal to 0 if no tasks
+        if (tbodyId === 'doneTableBody') {
+            const subTotalElem = document.getElementById('done-subtotal');
+            if (subTotalElem) subTotalElem.innerText = '0';
+        }
         return;
     }
 
     tasks.forEach(t => {
+        const payable = parseFloat(t.payable) || 0;
+        totalPayable += payable; // 2. Add each task's payable to the total
+
         const timeLeft = typeof getRemainingTime === 'function' ? getRemainingTime(t.deadline) : 'N/A';
         
         body.innerHTML += `
@@ -676,7 +684,7 @@ function renderTable(tbodyId, tasks, showActions) {
                 <td>${t.task_detail}</td>
                 <td>${t.units || '-'}</td>
                 <td>${t.cpp || 0}</td>
-                <td>${t.payable || 0}</td>
+                <td>${payable}</td>
                 <td>${t.status}</td>
                 ${showActions ? `<td>${timeLeft}</td>` : ''}
                 <td>
@@ -692,6 +700,14 @@ function renderTable(tbodyId, tasks, showActions) {
             </tr>
         `;
     });
+
+    // 3. Update the Sub-Total display if we are rendering the Done table
+    if (tbodyId === 'doneTableBody') {
+        const subTotalElem = document.getElementById('done-subtotal');
+        if (subTotalElem) {
+            subTotalElem.innerText = totalPayable.toLocaleString(); // Formats with commas
+        }
+    }
 }
 
 async function renderActive(tasks) {
@@ -1570,6 +1586,23 @@ async function requestNotificationPermission() {
         }]);
     }
 }
+	
+	async function displayVersion() {
+    try {
+        const response = await fetch('./manifest.json');
+        const manifest = await response.json();
+        const versionDisplay = document.getElementById('app-version-display');
+        
+        if (versionDisplay && manifest.version) {
+            versionDisplay.innerText = `v${manifest.version}`;
+        }
+    } catch (err) {
+        console.log("Could not load version from manifest");
+    }
+}
+
+// Call it when the page loads
+displayVersion();
 	
 		let deferredPrompt;
 const installBtn = document.getElementById('installBtn');

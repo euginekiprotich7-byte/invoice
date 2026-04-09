@@ -2,6 +2,7 @@
   "id": "/invoice-manager-app",
   "name": "Order Manager",
   "short_name": "Orders",
+  "version": "1.0.4",
   "start_url": "index.html",
   "display": "standalone",
   "display_override": ["window-controls-overlay"],

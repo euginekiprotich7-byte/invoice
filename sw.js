@@ -1,4 +1,4 @@
-const CACHE_NAME = 'inv-mgr-v1';
+const CACHE_NAME = 'inv-mgr-v4';
 const ASSETS = [
 './',
   './index.html',
@@ -11,7 +11,7 @@ const ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open('v1-task-manager').then((cache) => {
+    caches.open('v4-task-manager').then((cache) => {
       return cache.addAll(ASSETS).catch(err => {
         console.error("Critical asset failed to cache:", err);
       });
