@@ -8,7 +8,7 @@
 	<link rel="manifest" href="manifest.json">
 	<meta name="apple-mobile-web-app-capable" content="yes">
 	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-	<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2821/2821637.png">
+	<link rel="icon" type="image/png" href="icon.png">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta charset="UTF-8">
     <title>Ultimate Invoice & Performance System</title>
@@ -625,73 +625,72 @@ window.onload = checkPass;
 }
 
 async function fetchTasks() {
-    const { data, error } = await supabaseClient.from('tasks').select('*').order('created_at', { ascending: false });
+    console.log("Fetching all tasks...");
+    const { data, error } = await supabaseClient
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: false });
+
     if (error) {
-        console.error("Fetch Error:", error);
+        console.error("Fetch Error:", error.message);
         return;
     }
 
-    // Filter Active (Pending)
+    // 1. Pending Section (Active Work)
     const activeTasks = data.filter(t => t.status === 'Pending');
-    renderTable('tableBody', activeTasks, true); // true = show the action buttons
+    renderTable('tableBody', activeTasks, true);
 
-    // Filter Completed (Done)
+    // 2. Done Section (Ready for Invoice)
     const doneTasks = data.filter(t => t.status === 'Done');
-    renderTable('doneTableBody', doneTasks, false); // false = slightly different buttons
+    renderTable('doneTableBody', doneTasks, false);
     
-    // Filter Invoiced (Pending Payment)
+    // 3. Invoiced Section (The "Invisible" ones)
+    // We filter for 'Invoiced' regardless of whether they have an invoice_no
     const invoicedTasks = data.filter(t => t.status === 'Invoiced');
     if (typeof renderPendingPayment === 'function') {
         renderPendingPayment(invoicedTasks);
     }
-}
 
+    // Update Totals
+    updateSummary(activeTasks);
+}
 
 function renderTable(tbodyId, tasks, showActions) {
     const body = document.getElementById(tbodyId);
     if (!body) return;
 
-    body.innerHTML = ''; // Clear existing rows
+    body.innerHTML = '';
 
     if (!tasks || tasks.length === 0) {
-        body.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#95a5a6; padding:10px;">No orders found here.</td></tr>`;
+        // Adjust colspan to 8 to match the headers (Client, Detail, Units, CPP, Payable, Status, Action)
+        body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#999;">No tasks found in this section.</td></tr>`;
         return;
     }
 
     tasks.forEach(t => {
         const timeLeft = typeof getRemainingTime === 'function' ? getRemainingTime(t.deadline) : 'N/A';
-        const statusClass = t.status === 'Pending' ? 'status-pending' : '';
         
-        // BUILD THE ROW HTML
-        // We must include the Client Name as the first column to match your header
-        let row = `
+        body.innerHTML += `
             <tr>
-                <td>${t.client_name || 'N/A'}</td>
+                <td><strong>${t.client_name || 'No Client'}</strong></td>
                 <td>${t.task_detail}</td>
-                <td>${t.task_type === 'Quiz' || t.task_type === 'Midterm' ? t.task_type : (t.units || '-')}</td>
+                <td>${t.units || '-'}</td>
                 <td>${t.cpp || 0}</td>
                 <td>${t.payable || 0}</td>
+                <td>${t.status}</td>
                 ${showActions ? `<td>${timeLeft}</td>` : ''}
-                <td class="${statusClass}">${t.status}</td>
-        `;
-
-        // Add the buttons column
-        if (showActions) {
-            row += `
                 <td>
-                    <div style="display:flex; gap:5px;">
-                        <button onclick="updateStatus('${t.id}','Done')" style="background:var(--success); color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">Done</button>
-                        <button onclick="updateStatus('${t.id}','Cancelled')" style="background:var(--danger); color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">X</button>
-                    </div>
+                    ${showActions ? `
+                        <div style="display:flex; gap:5px;">
+                            <button onclick="updateStatus('${t.id}','Done')" class="btn" style="background:var(--success); padding:4px;">Done</button>
+                            <button onclick="updateStatus('${t.id}','Cancelled')" class="btn" style="background:var(--danger); padding:4px;">X</button>
+                        </div>
+                    ` : `
+                        <button onclick="updateStatus('${t.id}','Invoiced')" class="btn" style="background:var(--warning); width:100%;">Invoice It</button>
+                    `}
                 </td>
-            `;
-        } else {
-            // This matches the "Invoice It" button seen in your screenshot
-            row += `<td><button onclick="updateStatus('${t.id}','Invoiced')" class="btn" style="background:var(--warning); padding:4px 8px; font-size:11px;">Invoice It</button></td>`;
-        }
-
-        row += `</tr>`;
-        body.innerHTML += row;
+            </tr>
+        `;
     });
 }
 
@@ -783,32 +782,47 @@ async function renderEmployers() {
     const list = document.getElementById('employersList');
     if (!list) return;
 
+    // 1. Fetch the data FIRST
     const { data: employers, error } = await supabaseClient.from('employers').select('*');
-    if (error) return;
+    
+    if (error) {
+        console.error("Error fetching employers:", error.message);
+        return;
+    }
 
+    if (!employers || employers.length === 0) {
+        list.innerHTML = '<p style="padding:20px; text-align:center;">No employers found. Add one to start.</p>';
+        return;
+    }
+
+    // 2. Now map the data to the HTML
     list.innerHTML = employers.map(emp => `
-        <div class="employer-card" style="border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; background: #fff;">
+        <div class="employer-card" style="border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="margin:0;">👤 ${emp.employer_name}</h3>
-                <button onclick="toggleAddForm('${emp.id}')" style="background:var(--success); color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">+ Add Order</button>
+                <h3 style="margin:0; font-size: 1.1rem;">👤 ${emp.employer_name}</h3>
+                <button onclick="toggleAddForm('${emp.id}')" style="background:var(--success); color:white; border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">+ Add Order</button>
             </div>
             
-            <div id="form-${emp.id}" style="display:none; margin-top:15px; background:#f9f9f9; padding:10px; border-radius:5px;">
-                <input type="text" id="detail-${emp.id}" placeholder="Task Detail" style="width:100%; margin-bottom:5px;">
+            <div id="form-${emp.id}" style="display:none; margin-top:15px; background:#f9f9f9; padding:12px; border-radius:5px; border: 1px inset #eee;">
+                <p style="margin: 0 0 10px 0; font-size: 0.8rem; color: #666;">Adding new order for ${emp.employer_name}</p>
+                <input type="text" id="detail-${emp.id}" placeholder="Task Detail" style="width:100%; margin-bottom:8px; padding:8px; border:1px solid #ccc; border-radius:4px;">
                 <div style="display:flex; gap:5px;">
-                    <input type="number" id="units-${emp.id}" placeholder="Units" style="flex:1;">
-                    <input type="number" id="cpp-${emp.id}" placeholder="CPP" style="flex:1;">
-                    <input type="datetime-local" id="dead-${emp.id}" style="flex:1;">
+                    <input type="number" id="units-${emp.id}" placeholder="Units" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                    <input type="number" id="cpp-${emp.id}" placeholder="CPP" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px;">
+                    <input type="datetime-local" id="dead-${emp.id}" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px;">
                 </div>
-                <button onclick="submitOrder('${emp.id}')" style="width:100%; margin-top:10px; background:var(--primary); color:white; border:none; padding:8px; border-radius:4px;">Save Order</button>
+                <button onclick="submitOrder('${emp.id}')" style="width:100%; margin-top:10px; background:var(--primary); color:white; border:none; padding:10px; border-radius:4px; cursor:pointer;">Save Order</button>
             </div>
         </div>
     `).join('');
 }
 
+// Global helper to show/hide the specific form
 function toggleAddForm(id) {
     const f = document.getElementById(`form-${id}`);
-    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+    if (f) {
+        f.style.display = f.style.display === 'none' ? 'block' : 'none';
+    }
 }
 
 async function submitOrder(employerId) {

@@ -3,15 +3,19 @@ const ASSETS = [
 './',
   './index.html',
   './manifest.json',
+  './icon.png',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
   'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 
 
 self.addEventListener('install', (event) => {
-  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    caches.open('v1-task-manager').then((cache) => {
+      return cache.addAll(ASSETS).catch(err => {
+        console.error("Critical asset failed to cache:", err);
+      });
+    })
   );
 });
 
