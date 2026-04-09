@@ -15,6 +15,15 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+
+th {
+  position: sticky;
+  top: 0;
+}
+
+.overdue { background: #ffe6e6; }
+.soon { background: #fff4e6; }
+
 /* =========================
    ROOT VARIABLES
 ========================= */
@@ -129,8 +138,6 @@ th {
     color: white;
     padding: 12px;
     text-align: left;
-}
-
 }
 
 td, th {
@@ -431,7 +438,7 @@ td, th {
                 <tfoot>
                     <tr style="font-weight:bold; background:#f9f9f9;">
                         <td colspan="3" align="right">TOTAL:</td>
-                        <td id="subTotal">0</td>
+                        <td id="subTotal">
                         <td colspan="2"></td>
                     </tr>
 
@@ -466,7 +473,7 @@ td, th {
 				</table>
 			</div>
 			<div class="summary-box">
-				<p>Sub-Total: <span id="subTotal">0</span></p>
+				<p>Sub-Total: <span id="subTotalDisplay">
 			</div>
 
             <!-- ACTION BUTTON -->
@@ -647,7 +654,7 @@ function renderTable(tbodyId, tasks, showActions) {
     body.innerHTML = ''; // Clear existing rows
 
     if (!tasks || tasks.length === 0) {
-        body.innerHTML = `<tr><td colspan="${showActions ? 7 : 5}" style="text-align:center; color:#95a5a6; padding:10px;">No orders found here.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#95a5a6; padding:10px;">No orders found here.</td></tr>`;
         return;
     }
 
@@ -655,18 +662,20 @@ function renderTable(tbodyId, tasks, showActions) {
         const timeLeft = typeof getRemainingTime === 'function' ? getRemainingTime(t.deadline) : 'N/A';
         const statusClass = t.status === 'Pending' ? 'status-pending' : '';
         
-        // Build the row HTML
+        // BUILD THE ROW HTML
+        // We must include the Client Name as the first column to match your header
         let row = `
             <tr>
+                <td>${t.client_name || 'N/A'}</td>
                 <td>${t.task_detail}</td>
-                <td>${t.units || '-'}</td>
-                <td>${t.cpp || '-'}</td>
+                <td>${t.task_type === 'Quiz' || t.task_type === 'Midterm' ? t.task_type : (t.units || '-')}</td>
+                <td>${t.cpp || 0}</td>
                 <td>${t.payable || 0}</td>
                 ${showActions ? `<td>${timeLeft}</td>` : ''}
                 <td class="${statusClass}">${t.status}</td>
         `;
 
-        // Add the buttons column ONLY if showActions is true
+        // Add the buttons column
         if (showActions) {
             row += `
                 <td>
@@ -677,54 +686,8 @@ function renderTable(tbodyId, tasks, showActions) {
                 </td>
             `;
         } else {
-            // For the "Completed" table, we use the "Invoice It" action
-            row += `<td><button onclick="updateStatus('${t.id}','Invoiced')" style="background:var(--warning); color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">Invoice It</button></td>`;
-        }
-
-        row += `</tr>`;
-        body.innerHTML += row;
-    }); // <--- This was the missing closing brace
-}
-
-function renderTable(tbodyId, tasks, showActions) {
-    const body = document.getElementById(tbodyId);
-    if (!body) return;
-
-    body.innerHTML = ''; // Clear existing rows
-
-    if (tasks.length === 0) {
-        body.innerHTML = `<tr><td colspan="${showActions ? 7 : 5}" style="text-align:center; color:#95a5a6; padding:10px;">No orders found here.</td></tr>`;
-        return;
-    }
-
-    tasks.forEach(t => {
-        const timeLeft = typeof getRemainingTime === 'function' ? getRemainingTime(t.deadline) : 'N/A';
-        const statusClass = t.status === 'Pending' ? 'status-pending' : '';
-        
-        // Build the row HTML
-        let row = `
-            <tr>
-                <td>${t.task_detail}</td>
-                <td>${t.units || '-'}</td>
-                <td>${t.cpp || '-'}</td>
-                <td>${t.payable || 0}</td>
-                ${showActions ? `<td>${timeLeft}</td>` : ''}
-                <td class="${statusClass}">${t.status}</td>
-        `;
-
-        // Add the buttons column ONLY if showActions is true
-        if (showActions) {
-            row += `
-                <td>
-                    <div style="display:flex; gap:5px;">
-                        <button onclick="updateStatus('${t.id}','Done')" style="background:var(--success); color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">Done</button>
-                        <button onclick="updateStatus('${t.id}','Cancelled')" style="background:var(--danger); color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">X</button>
-                    </div>
-                </td>
-            `;
-        } else {
-            // For the "Completed" table, we might want a different action (like "Invoiced")
-            row += `<td><button onclick="updateStatus('${t.id}','Invoiced')" style="background:var(--warning); color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">Invoice It</button></td>`;
+            // This matches the "Invoice It" button seen in your screenshot
+            row += `<td><button onclick="updateStatus('${t.id}','Invoiced')" class="btn" style="background:var(--warning); padding:4px 8px; font-size:11px;">Invoice It</button></td>`;
         }
 
         row += `</tr>`;
