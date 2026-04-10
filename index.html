@@ -546,7 +546,7 @@ async function fetchTasks() {
     const { data: allTasks, error } = await supabaseClient.from('tasks').select('*');
     if (error) return;
 
-    // 1. Filter Invoiced History (This part is fine)
+    // 1. Filter Invoiced History
     const historyTasks = allTasks.filter(t => t.status === 'Invoiced');
     const historyBody = document.getElementById('historyTableBody');
     if (historyBody) {
@@ -560,10 +560,14 @@ async function fetchTasks() {
             </tr>
         `).join('');
     }
-		calculateDoneTotal(doneTasks);
-    // 2. Filter DONE Tasks (THIS IS WHAT WAS MISSING)
-    const doneTasks = allTasks.filter(t => t.status === 'Done');
-    const doneBody = document.getElementById('doneTableBody'); // Make sure this ID exists in your HTML
+
+    // 2. Filter DONE Tasks
+    const doneTasks = allTasks.filter(t => t.status === 'Done'); // Define it FIRST
+    
+    // CALL THE TOTAL CALCULATION HERE (After definition)
+    calculateDoneTotal(doneTasks);
+
+    const doneBody = document.getElementById('doneTableBody');
     if (doneBody) {
         doneBody.innerHTML = doneTasks.map(t => `
             <tr>
@@ -571,16 +575,18 @@ async function fetchTasks() {
                 <td>${t.task_detail}</td>
                 <td>${t.units}</td>
                 <td>${t.payable}</td>
-                <td><button onclick="updateStatus('${t.id}', 'Pending')" 
-            class="btn" 
-            style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
-        Undo
-    </button></td>
+                <td>
+                    <button onclick="updateStatus('${t.id}', 'Pending')" 
+                            class="btn" 
+                            style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                        Undo
+                    </button>
+                </td>
             </tr>
         `).join('');
     }
 
-    // 3. Distribute Active Tasks (Filter for 'Pending')
+    // 3. Distribute Active Tasks
     const { data: employers } = await supabaseClient.from('employers').select('id');
     if (employers) {
         employers.forEach(emp => {
@@ -603,18 +609,13 @@ async function fetchTasks() {
     }
 }
 
+// 4. ADD THIS FUNCTION to ensure the total updates
 function calculateDoneTotal(doneTasks) {
     const totalDisplay = document.getElementById('done-subtotal');
     if (!totalDisplay) return;
 
-    // Sum up the payable column
-    const total = doneTasks.reduce((sum, task) => {
-        // Use parseFloat to ensure numbers like "300.50" are handled correctly
-        return sum + (parseFloat(task.payable) || 0);
-    }, 0);
-
-    // Update the UI
-    totalDisplay.innerText = total.toLocaleString(); // Adds commas (e.g., 1,000)
+    const total = doneTasks.reduce((sum, task) => sum + (parseFloat(task.payable) || 0), 0);
+    totalDisplay.innerText = total.toLocaleString(); 
 }
 
 function renderTable(tbodyId, tasks, showActions) {
