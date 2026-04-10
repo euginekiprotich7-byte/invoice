@@ -300,11 +300,9 @@ th {
         <div class="sidebar-item" onclick="showTab('active-tasks-container')">
     <span class="icon">📋</span> Active Orders
 </div>
-
 <div class="sidebar-item" onclick="showTab('done-tasks-container')">
     <span class="icon">✅</span> Completed
 </div>
-
 <div class="sidebar-item" onclick="showTab('history-section')">
     <span class="icon">📜</span> History
 </div>
@@ -583,26 +581,20 @@ th {
 window.onload = checkPass;
 
     function showTab(tabId) {
-    // These are the ACTUAL IDs found in your HTML file
-    const containers = ['active-tasks-container', 'done-tasks-container', 'history-section', 'performance-section'];
+    // These are the 3 main 'rooms' in your app
+    const sections = ['active-tasks-container', 'done-tasks-container', 'history-section'];
 
-    containers.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            // Only show the one we clicked, hide the rest
-            el.style.display = (id === tabId) ? 'block' : 'none';
+    sections.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            // If the ID matches what you clicked, show it. Otherwise, hide it.
+            if (id === tabId) {
+                element.style.display = 'block';
+            } else {
+                element.style.display = 'none';
+            }
         }
     });
-
-    // Update sidebar UI state
-    document.querySelectorAll('.sidebar-item').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    // Safety check for debugging
-    if (!document.getElementById(tabId)) {
-        console.error("The ID " + tabId + " does not exist in your HTML.");
-    }
 }
 
     async function saveTask(mode) {
