@@ -297,10 +297,10 @@ th {
         <!-- =========================
              TOP NAVIGATION (TABS)
         ========================== -->
-       <div class="sidebar">
-    <div class="sidebar-item" onclick="showTab('active-tasks-container')">📋 Active Orders</div>
-    <div class="sidebar-item" onclick="showTab('done-tasks-container')">✅ Completed</div>
-    <div class="sidebar-item" onclick="showTab('history-section')">📜 History</div>
+       <div class="sidebar" style="position: relative; z-index: 9999; background: #eee; padding: 10px;">
+    <button onclick="showTab('active-tasks-container')" style="cursor:pointer; padding:10px; margin:5px;">📋 Active Orders</button>
+    <button onclick="showTab('done-tasks-container')" style="cursor:pointer; padding:10px; margin:5px;">✅ Completed</button>
+    <button onclick="showTab('history-section')" style="cursor:pointer; padding:10px; margin:5px;">📜 History</button>
 </div>
 
 <div class="container">
@@ -1779,6 +1779,32 @@ window.addEventListener('online', syncOfflineData);
     console.log("Connection restored. Triggering auto-sync...");
     forceSync();
 });
+
+// Force this function to be global
+window.showTab = function(tabId) {
+    console.log("!!! TAB CLICKED !!! Target:", tabId);
+    
+    // 1. Hide every possible container
+    const ids = ['active-tasks-container', 'done-tasks-container', 'history-section', 'performance-section'];
+    
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.display = 'none';
+            el.style.visibility = 'hidden';
+        }
+    });
+
+    // 2. Show ONLY the one we want
+    const target = document.getElementById(tabId);
+    if (target) {
+        target.style.display = 'block';
+        target.style.visibility = 'visible';
+        console.log("Successfully showing:", tabId);
+    } else {
+        console.error("CRITICAL ERROR: Could not find element with ID:", tabId);
+    }
+};
 	
 </script>
 </body>
