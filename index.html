@@ -258,6 +258,47 @@ th {
     color: white;
     z-index: 10;
 }
+
+/* Sidebar Container */
+.sidebar {
+    display: flex;
+    gap: 8px;
+    background: #ffffff;
+    padding: 8px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    border: 1px solid #e0e0e0;
+    overflow-x: auto; /* Good for mobile */
+}
+
+/* Individual Tab Items */
+.sidebar-item {
+    cursor: pointer;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Hover Effect */
+.sidebar-item:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+/* Active Tab State */
+.sidebar-item.active {
+    background: #2c3e50; /* Matches your primary color */
+    color: white;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
 </style>
 </head>
 <body style="display:none;" id="mainBody">
@@ -274,11 +315,17 @@ th {
     </div>
 
     <div class="container">
-        <div class="sidebar" style="background: #eee; padding: 10px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 10px;">
-            <div class="sidebar-item" onclick="showTab('active-section')" style="cursor:pointer; padding: 5px 10px;">📋 Active</div>
-            <div class="sidebar-item" onclick="showTab('done-section')" style="cursor:pointer; padding: 5px 10px;">✅ Completed</div>
-            <div class="sidebar-item" onclick="showTab('history-section')" style="cursor:pointer; padding: 5px 10px;">📜 History</div>
-        </div>
+        <div class="sidebar">
+    <div class="sidebar-item active" id="tab-active" onclick="showTab('active-section')">
+        <span>📋</span> Active
+    </div>
+    <div class="sidebar-item" id="tab-done" onclick="showTab('done-section')">
+        <span>✅</span> Completed
+    </div>
+    <div class="sidebar-item" id="tab-history" onclick="showTab('history-section')">
+        <span>📜</span> History
+    </div>
+</div>
 
         <div id="setup-section" style="background: #34495e; padding: 20px; border-radius: 8px; margin-bottom: 10px; color: white;">
             <h3 style="margin-top: 0;">Register New Employer</h3>
@@ -1365,34 +1412,53 @@ let currentEmployerId = null;
 
 // This runs when the app starts to show your bosses
 async function loadEmployers() {
-    // 1. Get the list of bosses from Supabase
-    const { data: employers, error } = await supabaseClient
-        .from('employers')
-        .select('*');
+    const { data, error } = await supabaseClient.from('employers').select('*');
+    if (error) return;
     
-    if (error) {
-        console.error("Error loading employers:", error.message);
-        return;
-    }
+    const container = document.getElementById('employer-tabs');
+    container.innerHTML = ''; 
 
-    const tabContainer = document.getElementById('employer-tabs');
-    tabContainer.innerHTML = ''; // Clear old buttons
+    data.forEach(emp => {
+        // Create a wrapper for the button + delete icon
+        const wrapper = document.createElement('div');
+        wrapper.style.display = 'inline-flex';
+        wrapper.style.alignItems = 'center';
+        wrapper.style.marginRight = '10px';
+        wrapper.style.background = '#34495e';
+        wrapper.style.borderRadius = '5px';
 
-    // 2. Create a button for each employer
-    employers.forEach(emp => {
+        // Main Employer Button
         const btn = document.createElement('button');
         btn.className = 'btn';
-        btn.style.marginRight = '5px';
-        btn.style.background = '#34495e';
-        btn.innerText = emp.employer_name; // This is the boss's name
-        btn.onclick = () => switchToEmployer(emp);
-        tabContainer.appendChild(btn);
-    });
+        btn.style.background = 'transparent';
+        btn.style.border = 'none';
+        btn.style.color = 'white';
+        btn.innerText = emp.employer_name;
+        btn.onclick = () => {
+            currentEmployerId = emp.id;
+            // Update UI focus
+            document.querySelectorAll('#employer-tabs div').forEach(d => d.style.background = '#34495e');
+            wrapper.style.background = '#3498db';
+            fetchTasks();
+        };
 
-    // 3. Automatically pick the first boss if you have any
-    if (employers.length > 0) {
-        switchToEmployer(employers[0]);
-    }
+        // Delete "X" Button
+        const delBtn = document.createElement('span');
+        delBtn.innerHTML = '&times;';
+        delBtn.style.padding = '0 10px';
+        delBtn.style.cursor = 'pointer';
+        delBtn.style.color = '#e74c3c';
+        delBtn.style.fontWeight = 'bold';
+        delBtn.title = "Delete Employer";
+        delBtn.onclick = (e) => {
+            e.stopPropagation(); // Prevents clicking the tab when deleting
+            deleteEmployer(emp.id, emp.employer_name);
+        };
+
+        wrapper.appendChild(btn);
+        wrapper.appendChild(delBtn);
+        container.appendChild(wrapper);
+    });
 }
 
 function switchToEmployer(employer) {
@@ -1408,6 +1474,28 @@ function switchToEmployer(employer) {
     fetchTasksByEmployer(employer.id);
 }
 
+async function deleteEmployer(id, name) {
+    const confirmDelete = confirm(`Are you sure you want to delete "${name}"?\n\nWarning: This will NOT delete their tasks, but you won't be able to access them through this tab anymore.`);
+    
+    if (confirmDelete) {
+        const { error } = await supabaseClient
+            .from('employers')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            alert("Error deleting employer: " + error.message);
+        } else {
+            // Reset currentEmployerId if we deleted the active one
+            if (currentEmployerId === id) {
+                currentEmployerId = null;
+                document.getElementById('tableBody').innerHTML = '';
+            }
+            // Refresh the tab list
+            await loadEmployers();
+        }
+    }
+}
 
 async function fetchTasksByEmployer(empId) {
     if (!navigator.onLine) return;
@@ -1621,28 +1709,26 @@ window.addEventListener('online', syncOfflineData);
 
 // Force this function to be global
 window.showTab = function(tabId) {
-    console.log("!!! TAB CLICKED !!! Target:", tabId);
-    
-    // 1. Hide every possible container
-    const ids = ['active-tasks-container', 'done-tasks-container', 'history-section', 'performance-section'];
-    
-    ids.forEach(id => {
+    // 1. Hide all sections
+    const sections = ['active-section', 'done-section', 'history-section'];
+    sections.forEach(id => {
         const el = document.getElementById(id);
-        if (el) {
-            el.style.display = 'none';
-            el.style.visibility = 'hidden';
-        }
+        if (el) el.style.display = 'none';
     });
 
-    // 2. Show ONLY the one we want
+    // 2. Show the target section
     const target = document.getElementById(tabId);
-    if (target) {
-        target.style.display = 'block';
-        target.style.visibility = 'visible';
-        console.log("Successfully showing:", tabId);
-    } else {
-        console.error("CRITICAL ERROR: Could not find element with ID:", tabId);
-    }
+    if (target) target.style.display = 'block';
+
+    // 3. Update active tab styling
+    document.querySelectorAll('.sidebar-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    // Logic to find which tab was clicked (based on the ID or event)
+    if (tabId === 'active-section') document.getElementById('tab-active').classList.add('active');
+    if (tabId === 'done-section') document.getElementById('tab-done').classList.add('active');
+    if (tabId === 'history-section') document.getElementById('tab-history').classList.add('active');
 };
 	
 </script>
