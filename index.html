@@ -262,294 +262,138 @@ th {
 </head>
 <body style="display:none;" id="mainBody">
 
-    <!-- =========================
-         SYSTEM STATUS & ALERTS
-    ========================== -->
     <div id="statusIndicator" class="online">ONLINE</div>
 
-    <audio id="dueAlarm"
-        src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"
-        preload="auto">
-    </audio>
+    <audio id="dueAlarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
 
-    <div id="alarmBanner"
-        style="display:none; background: #e74c3c; color: white; padding: 15px; text-align: center; font-weight: bold; position: fixed; top: 0; left: 0; width: 100%; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
-
+    <div id="alarmBanner" style="display:none; background: #e74c3c; color: white; padding: 15px; text-align: center; font-weight: bold; position: fixed; top: 0; left: 0; width: 100%; z-index: 10000; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
         🚨 URGENT: ORDER DUE SOON!
         <span id="snoozeCountdown" style="margin-left: 10px; font-weight: normal;"></span>
-
-        <button onclick="snoozeAlarm()"
-            style="margin-left:20px; padding: 8px 12px; cursor:pointer; background: #f39c12; border:none; color:white; border-radius:4px;">
-            Snooze (15m)
-        </button>
-
-        <button onclick="stopAlarm()"
-            style="margin-left:10px; padding: 8px 12px; cursor:pointer; background: #2c3e50; border:none; color:white; border-radius:4px;">
-            Dismiss
-        </button>
+        <button onclick="snoozeAlarm()" style="margin-left:20px; padding: 8px 12px; cursor:pointer; background: #f39c12; border:none; color:white; border-radius:4px;">Snooze (15m)</button>
+        <button onclick="stopAlarm()" style="margin-left:10px; padding: 8px 12px; cursor:pointer; background: #2c3e50; border:none; color:white; border-radius:4px;">Dismiss</button>
     </div>
 
-    <!-- =========================
-         MAIN CONTAINER
-    ========================== -->
     <div class="container">
-
-        <!-- =========================
-             TOP NAVIGATION (TABS)
-        ========================== -->
-       <div class="sidebar" style="position: relative; z-index: 9999; background: #eee; padding: 10px;">
-    <div class="sidebar-item" onclick="showTab('active-tasks-container')">📋 Active</div>
-<div class="sidebar-item" onclick="showTab('done-tasks-container')">✅ Completed</div>
-<div class="sidebar-item" onclick="showTab('history-section')">📜 History</div>
-</div>
-
-<div class="container">
-    <div id="active-tasks-container">
+        <div class="sidebar" style="background: #eee; padding: 10px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 10px;">
+            <div class="sidebar-item" onclick="showTab('active-section')" style="cursor:pointer; padding: 5px 10px;">📋 Active</div>
+            <div class="sidebar-item" onclick="showTab('done-section')" style="cursor:pointer; padding: 5px 10px;">✅ Completed</div>
+            <div class="sidebar-item" onclick="showTab('history-section')" style="cursor:pointer; padding: 5px 10px;">📜 History</div>
         </div>
 
-    <div id="done-tasks-container" style="display:none;">
-        </div>
-
-    <div id="history-section" style="display:none;">
-        </div>
-</div>
-
-        <!-- =========================
-             EMPLOYER SETUP
-        ========================== -->
-        <div id="setup-section"
-            style="background: #34495e; padding: 20px; border-radius: 8px; margin-top: 20px; margin-bottom: 10px;">
-
-            <h3 style="color: white; margin-top: 0;">Register New Employer</h3>
-
+        <div id="setup-section" style="background: #34495e; padding: 20px; border-radius: 8px; margin-bottom: 10px; color: white;">
+            <h3 style="margin-top: 0;">Register New Employer</h3>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <input type="text" id="newEmployerName"
-                    placeholder="e.g. SmartSourcing Ltd" style="flex: 2;">
-
-                <input type="number" id="employerRate"
-                    placeholder="Rate (e.g. 500)" style="flex: 1;">
-
-                <button onclick="saveEmployer()"
-                    class="btn"
-                    style="background: #27ae60;">
-                    Add Employer
-                </button>
+                <input type="text" id="newEmployerName" placeholder="e.g. SmartSourcing Ltd" style="flex: 2; padding: 8px;">
+                <input type="number" id="employerRate" placeholder="Rate" style="flex: 1; padding: 8px;">
+                <button onclick="saveEmployer()" class="btn" style="background: #27ae60; color: white; border:none; padding: 10px; border-radius:4px; cursor:pointer;">Add Employer</button>
             </div>
         </div>
 
-        <!-- EMPLOYER TABS -->
-        <div id="employer-tabs"
-            style="display: flex; gap: 5px; overflow-x: auto; padding-bottom: 10px; margin-top:10px;">
-        </div>
+        <div id="employer-tabs" style="display: flex; gap: 5px; overflow-x: auto; padding-bottom: 10px; margin-top:10px;"></div>
 
-        <!-- =========================
-             ACTIVE SECTION
-        ========================== -->
-        <div id="activeSection">
-			<div style="margin-bottom: 10px; display: flex; gap: 10px; align-items: center;">
-				<button id="syncBtn" class="btn" style="background: #8e44ad; flex: 1;" onclick="forceSync()">
-					🔄 Sync to Cloud Now
-				</button>
-				<small id="syncStatus" style="color: #7f8c8d; font-size: 11px;"></small>
-			</div>
-            <!-- CONTROLS -->
-            <div class="controls-grid">
+        <div id="active-section" class="tab-content">
+            <div style="margin-bottom: 10px; display: flex; gap: 10px; align-items: center;">
+                <button id="syncBtn" class="btn" style="background: #8e44ad; color: white; flex: 1; border:none; padding:10px; border-radius:4px;" onclick="forceSync()">🔄 Sync to Cloud Now</button>
+                <small id="syncStatus" style="color: #7f8c8d; font-size: 11px;"></small>
+            </div>
 
-                <button id="installBtn"
-                    class="btn"
-                    style="background: #3498db; display: none;">
-                    Install App
-                </button>
-
-                <!-- Alarm Volume -->
-                <div style="background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 4px; grid-column: span 2;">
+            <div class="controls-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; background: #f9f9f9; padding: 15px; border-radius: 8px;">
+                <button id="installBtn" class="btn" style="background: #3498db; display: none; color:white;">Install App</button>
+                
+                <div style="grid-column: span 2;">
                     <label>🔔 Alarm Volume</label>
-                    <input type="range" id="volSlider" min="0" max="1" step="0.1"
-                        value="1" oninput="updateVolume(this.value)">
+                    <input type="range" id="volSlider" min="0" max="1" step="0.1" value="1" oninput="updateVolume(this.value)" style="width:100%">
                 </div>
 
-                <div>
-                    <label>Client</label>
-                    <input type="text" id="client" placeholder="Client Name">
-                </div>
-
-                <div>
-                    <label>Task Detail</label>
-                    <input type="text" id="detail" placeholder="Task Detail">
-                </div>
-
+                <div><label>Client</label><input type="text" id="client" style="width:100%"></div>
+                <div><label>Task Detail</label><input type="text" id="detail" style="width:100%"></div>
                 <div>
                     <label>Type</label>
-                    <select id="type" onchange="adjustInputs()">
+                    <select id="type" onchange="adjustInputs()" style="width:100%">
                         <option value="Pages">Pages</option>
                         <option value="Quiz">Quiz</option>
                         <option value="Midterm">Midterm</option>
-                        <option value="PPT">PPT (PowerPoint)</option>
+                        <option value="PPT">PPT</option>
                     </select>
                 </div>
-
-               
-				<div>
-					<label id="unitLabel">Units</label> 
-					<input type="number" id="unit" value="1" step="0.1">
-				</div>
+                <div><label id="unitLabel">Units</label><input type="number" id="unit" value="1" step="0.1" style="width:100%"></div>
+                <div><label>CPP / Rate</label><input type="number" id="cpp" value="300" style="width:100%"></div>
+                <div><label>Deadline</label><input type="datetime-local" id="deadline" style="width:100%"></div>
+                <div><label>Alert (Hrs)</label><input type="number" id="alertLeadTime" value="1" style="width:100%"></div>
                 
-
-                <div>
-                    <label>CPP / Rate</label>
-                    <div id="cppContainer">
-                        <input type="number" id="cpp" value="300">
-                    </div>
-                </div>
-
-                <div>
-                    <label>Deadline</label>
-                    <input type="datetime-local" id="deadline">
-                </div>
-
-                <button class="btn btn-add" onclick="addOrder()">
-                    Register Order
-                </button>
-
-                <div>
-                    <label>Alert Me Before (Hours)</label>
-                    <input type="number" id="alertLeadTime"
-                        value="1" step="0.5" placeholder="e.g. 2">
-                </div>
-
-                <button class="btn"
-                    style="background: var(--warning);"
-                    onclick="testSystem()">
-                    Test Alarm & Pop-up
-                </button>
+                <button class="btn" style="background: #27ae60; color:white;" onclick="addOrder()">Register Order</button>
+                <button class="btn" style="background: #f39c12; color:white;" onclick="testSystem()">Test Alarm</button>
             </div>
 
-            <!-- ADJUSTMENTS -->
-            <div class="adjustment-bar">
-                <div style="flex:2">
-                    <label>Adjustment Description</label>
-                    <input type="text" id="adjDetail"
-                        placeholder="e.g. Advance + refund">
-                </div>
-
-                <div style="flex:1">
-                    <label>Amount (Use - for Advances)</label>
-                    <input type="number" id="adjAmount"
-                        placeholder="e.g. -1000">
-                </div>
-
-                <button class="btn btn-adj"
-                    onclick="saveTask('Adjustment')">
-                    Add Adjustment
-                </button>
+            <div class="adjustment-bar" style="display: flex; gap: 10px; margin-top: 15px; background: #fff3e0; padding: 10px; border-radius: 8px;">
+                <div style="flex:2"><label>Adj. Description</label><input type="text" id="adjDetail" style="width:100%"></div>
+                <div style="flex:1"><label>Amount</label><input type="number" id="adjAmount" style="width:100%"></div>
+                <button class="btn" style="background:#e67e22; color:white; margin-top:18px;" onclick="saveTask('Adjustment')">Add Adjustment</button>
             </div>
 
-            <!-- MAIN TABLE -->
-            <table id="invoiceTable">
+            <table id="invoiceTable" style="width:100%; border-collapse: collapse; margin-top: 20px;">
                 <thead>
-                    <tr>
-                        <th>DETAILS</th>
-                        <th>PAGES/TYPE</th>
-                        <th>CPP</th>
-                        <th>PAYABLE</th>
-                        <th>TIME LEFT</th>
-                        <th>STATUS</th>
-                        <th>ACTIONS</th>
+                    <tr style="background:#2c3e50; color:white;">
+                        <th>DETAILS</th><th>UNITS</th><th>CPP</th><th>PAYABLE</th><th>TIME</th><th>STATUS</th><th>ACTIONS</th>
                     </tr>
                 </thead>
-
                 <tbody id="tableBody"></tbody>
-
                 <tfoot>
                     <tr style="font-weight:bold; background:#f9f9f9;">
-                        <td colspan="3" align="right">TOTAL:</td>
-                        <td id="subTotal">
-                        <td colspan="2"></td>
+                        <td colspan="3" align="right">SUBTOTAL:</td><td id="subTotal">0</td><td colspan="3"></td>
                     </tr>
-
-                    <tr style="font-weight:bold; color:var(--danger);">
-                        <td colspan="3" align="right">ADJUSTMENTS (Advances):</td>
-                        <td id="adjTotal">0</td>
-                        <td colspan="2"></td>
+                    <tr style="font-weight:bold; color:#e74c3c;">
+                        <td colspan="3" align="right">ADJUSTMENTS:</td><td id="adjTotal">0</td><td colspan="3"></td>
                     </tr>
-
                     <tr style="font-weight:bold; background:#eee; font-size:1.1em;">
-                        <td colspan="3" align="right">FINAL PAYABLE:</td>
-                        <td id="grandTotal">0</td>
-                        <td colspan="2"></td>
+                        <td colspan="3" align="right">FINAL TOTAL:</td><td id="grandTotal">0</td><td colspan="3"></td>
                     </tr>
                 </tfoot>
             </table>
-			
-			<div style="margin-top: 30px; border-top: 2px dashed #ccc; padding-top: 20px;">
-				<h3 style="color: var(--success);">✅ Completed Orders (To be Invoiced)</h3>
-				<p style="font-size: 12px; color: #666;">These tasks are marked 'Done' and are ready to be included in the next invoice.</p>
-				<table>
-					<thead>
-						<tr style="background: #f1f2f6;">
-							<th>Detail</th>
-							<th>Units</th>
-							<th>Payable</th>
-							<th>Status</th>
-							<th>Action</th>
-						</tr>
-					</thead>
-					<tbody id="doneTableBody"></tbody>
-				</table>
-			</div>
-			<div class="summary-box">
-				<p style="font-weight:bold; margin-top:10px;">Sub-Total: <span id="done-subtotal">0</span></p>
-			</div>
+        </div>
 
-            <!-- ACTION BUTTON -->
-            <button onclick="generateWordInvoice('${t.employer_id}', '${t.client_name}')">Generate Invoice</button>
+        <div id="done-section" class="tab-content" style="display:none;">
+            <h3 style="color: #27ae60;">✅ Completed Orders (Ready for Invoice)</h3>
+            <table style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f1f2f6;">
+                        <th>Detail</th><th>Units</th><th>Payable</th><th>Status</th><th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="doneTableBody"></tbody>
+            </table>
+            <div style="margin-top:15px; text-align:right;">
+                <p><b>Done Total: </b><span id="done-subtotal">0</span></p>
+                <button class="btn" style="background:#3498db; color:white;" onclick="generateWordInvoice()">Generate Word Invoice</button>
+            </div>
+            
+            <div id="invoicedSection" style="margin-top:30px;">
+                <h3 style="color: #2c3e50;">Awaiting Payment (Invoiced)</h3>
+                <table style="width:100%; border-collapse: collapse;">
+                    <thead>
+                        <tr><th>INV #</th><th>CLIENT</th><th>PAYABLE</th><th>ACTION</th></tr>
+                    </thead>
+                    <tbody id="pendingPaymentBody"></tbody>
+                </table>
+            </div>
+        </div>
 
-            <!-- PENDING PAYMENTS -->
-            <div id="invoicedSection" style="display:none;">
-				<h2 style="color: var(--primary);">Invoiced Orders (Awaiting Payment)</h2>
-				<table id="pendingPaymentTable">
-					<thead>
-						<tr>
-							<th>INV #</th>
-							<th>CLIENT</th>
-							<th>DETAILS</th> <th>PAYABLE</th>
-							<th>ACTION</th>
-						</tr>
-					</thead>
-					<tbody id="pendingPaymentBody"></tbody>
-				</table>
-			</div>
+        <div id="history-section" class="tab-content" style="display:none;">
+            <h3>📜 Payment History</h3>
+            <table style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #2c3e50; color: white;">
+                        <th>Client</th><th>Detail</th><th>Invoice #</th><th>Payable (KES)</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody"></tbody>
+            </table>
+        </div>
 
-        <!-- =========================
-             HISTORY SECTION
-        ========================== -->
-        <div id="active-orders" class="tab-content">
+    </div> <div style="text-align: center; padding: 20px; color: #999; font-size: 10px;">
+        App Version: <span id="app-version-display">Loading...</span>
     </div>
 
-<div id="completed-orders" class="tab-content" style="display:none;">
-    </div>
-
-<section id="history-section" style="display:none;">
-    <div class="table-container">
-    <table>
-        <thead>
-            <tr>
-                <th>Client</th>
-                <th>Detail</th>
-                <th>Invoice #</th>
-                <th>Payable (KES)</th>
-            </tr>
-        </thead>
-        <tbody id="historyTableBody"></tbody>
-    </table>
-</div>
-    </div>
-</section>
-
-    </div>
-	<div style="text-align: center; padding: 10px; color: #999; font-size: 10px;">
-    App Version: <span id="app-version-display">Loading...</span>
-	</div>
 </body>
 
 <script>
