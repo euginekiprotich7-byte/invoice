@@ -884,18 +884,25 @@ function renderPendingPayment(tasks) {
     }
 
     async function updateStatus(id, newStatus) {
-    const { error } = await supabaseClient
-        .from('tasks')
-        .update({ status: newStatus })
-        .eq('id', id);
+    console.log("Updating task:", id, "to", newStatus);
+    try {
+        const { error } = await supabaseClient
+            .from('tasks')
+            .update({ status: newStatus }) // This must match your Supabase column name
+            .eq('id', id);
 
-    if (error) {
-        console.error("Update failed:", error.message);
-    } else {
-        // Instead of reloading the whole page, just refresh the data
+        if (error) {
+            alert("Error: " + error.message);
+            return;
+        }
+
+        // Refresh the lists immediately
         await fetchTasks();
+        
+    } catch (err) {
+        console.error("Critical update error:", err);
     }
-	}
+}
 
     async function generateWordInvoice(employerId, clientName) {
     // 1. Fetch only the 'Done' tasks belonging to this specific Employer
