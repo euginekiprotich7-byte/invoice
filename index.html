@@ -560,7 +560,7 @@ async function fetchTasks() {
             </tr>
         `).join('');
     }
-
+		calculateDoneTotal(doneTasks);
     // 2. Filter DONE Tasks (THIS IS WHAT WAS MISSING)
     const doneTasks = allTasks.filter(t => t.status === 'Done');
     const doneBody = document.getElementById('doneTableBody'); // Make sure this ID exists in your HTML
@@ -571,7 +571,11 @@ async function fetchTasks() {
                 <td>${t.task_detail}</td>
                 <td>${t.units}</td>
                 <td>${t.payable}</td>
-                <td><button onclick="updateStatus('${t.id}', 'Pending')" class="btn">Undo</button></td>
+                <td><button onclick="updateStatus('${t.id}', 'Pending')" 
+            class="btn" 
+            style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+        Undo
+    </button></td>
             </tr>
         `).join('');
     }
@@ -597,6 +601,20 @@ async function fetchTasks() {
             }
         });
     }
+}
+
+function calculateDoneTotal(doneTasks) {
+    const totalDisplay = document.getElementById('done-subtotal');
+    if (!totalDisplay) return;
+
+    // Sum up the payable column
+    const total = doneTasks.reduce((sum, task) => {
+        // Use parseFloat to ensure numbers like "300.50" are handled correctly
+        return sum + (parseFloat(task.payable) || 0);
+    }, 0);
+
+    // Update the UI
+    totalDisplay.innerText = total.toLocaleString(); // Adds commas (e.g., 1,000)
 }
 
 function renderTable(tbodyId, tasks, showActions) {
