@@ -297,18 +297,14 @@ th {
         <!-- =========================
              TOP NAVIGATION (TABS)
         ========================== -->
-        <div class="tabs">
-			<div id="tabActive" class="tab active" onclick="showTab('active')">
-				Active Orders
-			</div>
-
-			<div id="tabInvoiced" class="tab" onclick="showTab('invoiced')">
-				Pending Payment
-			</div>
-
-			<div id="tabHistory" class="tab" onclick="showTab('history')">
-				History / Performance
-			</div>
+        <div class="sidebar-item" onclick="showTab('active-orders-section')">
+		<span class="icon">📋</span> Active Orders
+		</div>
+		<div class="sidebar-item" onclick="showTab('completed-orders-section')">
+			<span class="icon">✅</span> Completed
+		</div>
+		<div class="sidebar-item" onclick="showTab('history-section')">
+			<span class="icon">📜</span> History
 		</div>
 
         <!-- =========================
@@ -526,17 +522,23 @@ th {
 <div id="completed-orders" class="tab-content" style="display:none;">
     </div>
 
-<div id="history" class="tab-content" style="display:none;">
+<section id="history-section" style="display:none;">
     <h2>📜 Invoiced History</h2>
     <div class="table-container">
         <table>
             <thead>
-                <tr><th>Client</th><th>Detail</th><th>Invoice #</th><th>Amount</th></tr>
+                <tr>
+                    <th>Client</th>
+                    <th>Detail</th>
+                    <th>Invoice #</th>
+                    <th>Payable</th>
+                </tr>
             </thead>
-            <tbody id="historyTableBody"></tbody>
+            <tbody id="historyTableBody">
+                </tbody>
         </table>
     </div>
-</div>
+</section>
 
     </div>
 	<div style="text-align: center; padding: 10px; color: #999; font-size: 10px;">
@@ -580,20 +582,18 @@ th {
 window.onload = checkPass;
 
     function showTab(tabId) {
-    // Hide all tab contents
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.style.display = 'none';
+    // 1. Hide ALL sections (active, completed, and history)
+    const sections = ['active-orders-section', 'completed-orders-section', 'history-section'];
+    
+    sections.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
     });
 
-    // Remove active class from all buttons
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-
-    // Show the specific tab ONLY if it exists
-    const targetTab = document.getElementById(tabId);
-    if (targetTab) {
-        targetTab.style.display = 'block';
+    // 2. Show the one you clicked
+    const target = document.getElementById(tabId);
+    if (target) {
+        target.style.display = 'block';
     } else {
         console.error(`Tab with ID "${tabId}" was not found in the HTML.`);
     }
@@ -1732,7 +1732,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 document.addEventListener('click', () => {
     // Play a silent sound to unlock the audio context
-    const silentAudio = new Audio('https://actions.google.com/sounds/v1/essentials/button_click.ogg');
+    const silentAudio = new Audio('https://www.soundjay.com/buttons/button-45.mp3');
     silentAudio.volume = 0;
     silentAudio.play().catch(() => {});
 }, { once: true });
