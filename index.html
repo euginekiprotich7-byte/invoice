@@ -525,21 +525,19 @@ th {
     </div>
 
 <section id="history-section" style="display:none;">
-    <div class="card">
-        <h2>📜 Invoiced History</h2>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Client</th>
-                        <th>Detail</th>
-                        <th>Invoice #</th>
-                        <th>Payable</th>
-                    </tr>
-                </thead>
-                <tbody id="historyTableBody"></tbody> 
-            </table>
-        </div>
+    <div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Client</th>
+                <th>Detail</th>
+                <th>Invoice #</th>
+                <th>Payable (KES)</th>
+            </tr>
+        </thead>
+        <tbody id="historyTableBody"></tbody>
+    </table>
+</div>
     </div>
 </section>
 
@@ -585,25 +583,25 @@ th {
 window.onload = checkPass;
 
     function showTab(tabId) {
-    // List of your actual container IDs from the HTML
-    const containers = ['active-tasks-container', 'done-tasks-container', 'history-section'];
+    // These are the ACTUAL IDs found in your HTML file
+    const containers = ['active-tasks-container', 'done-tasks-container', 'history-section', 'performance-section'];
 
     containers.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            // If this is the ID we clicked, show it, otherwise hide it
+            // Only show the one we clicked, hide the rest
             el.style.display = (id === tabId) ? 'block' : 'none';
         }
     });
 
-    // Handle active class for sidebar styling
+    // Update sidebar UI state
     document.querySelectorAll('.sidebar-item').forEach(btn => {
         btn.classList.remove('active');
     });
     
-    // Log error if ID is missing (to help us debug further)
+    // Safety check for debugging
     if (!document.getElementById(tabId)) {
-        console.error(`Tab with ID "${tabId}" was not found in the HTML.`);
+        console.error("The ID " + tabId + " does not exist in your HTML.");
     }
 }
 
