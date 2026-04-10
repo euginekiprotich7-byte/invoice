@@ -401,15 +401,19 @@ th {
         </div>
 
         <div id="done-section" class="tab-content" style="display:none;">
-            <h3 style="color: #27ae60;">✅ Completed Orders (Ready for Invoice)</h3>
-            <table style="width:100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="background: #f1f2f6;">
-                        <th>Detail</th><th>Units</th><th>Payable</th><th>Status</th><th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="doneTableBody"></tbody>
-            </table>
+            <h2>✅ Completed Orders (Ready for Invoice)</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Client</th>
+                <th>Detail</th>
+                <th>Units</th>
+                <th>Payable</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="doneTableBody"></tbody> </table>
+</div>
 			
 			<div style="margin-top:15px; text-align:right; display: flex; gap: 10px; justify-content: flex-end;">
     <p><b>Done Total: </b><span id="done-subtotal">0</span></p>
@@ -457,7 +461,7 @@ th {
 
 function showTab(tabId) {
     // 1. Force these specific IDs to be the ONLY ones the app knows
-    const sections = ['active-tasks-container', 'done-tasks-container', 'history-section'];
+    const sections = ['active-section', 'done-tasks-container', 'history-section'];
 
     sections.forEach(id => {
         const el = document.getElementById(id);
@@ -542,38 +546,57 @@ async function fetchTasks() {
     const { data: allTasks, error } = await supabaseClient.from('tasks').select('*');
     if (error) return;
 
-    // 1. Filter Invoiced History
+    // 1. Filter Invoiced History (This part is fine)
     const historyTasks = allTasks.filter(t => t.status === 'Invoiced');
     const historyBody = document.getElementById('historyTableBody');
-    historyBody.innerHTML = historyTasks.map(t => `
-        <tr>
-            <td>${t.client_name}</td>
-            <td>${t.task_detail}</td>
-            <td>${t.invoice_no || 'N/A'}</td>
-            <td>${t.payable}</td>
-            <td style="color: var(--success); font-weight:bold;">INVOICED</td>
-        </tr>
-    `).join('');
+    if (historyBody) {
+        historyBody.innerHTML = historyTasks.map(t => `
+            <tr>
+                <td>${t.client_name}</td>
+                <td>${t.task_detail}</td>
+                <td>${t.invoice_no || 'N/A'}</td>
+                <td>${t.payable}</td>
+                <td style="color: var(--success); font-weight:bold;">INVOICED</td>
+            </tr>
+        `).join('');
+    }
 
-    // 2. Distribute Active Tasks to their specific Employer Sections
+    // 2. Filter DONE Tasks (THIS IS WHAT WAS MISSING)
+    const doneTasks = allTasks.filter(t => t.status === 'Done');
+    const doneBody = document.getElementById('doneTableBody'); // Make sure this ID exists in your HTML
+    if (doneBody) {
+        doneBody.innerHTML = doneTasks.map(t => `
+            <tr>
+                <td>${t.client_name}</td>
+                <td>${t.task_detail}</td>
+                <td>${t.units}</td>
+                <td>${t.payable}</td>
+                <td><button onclick="updateStatus('${t.id}', 'Pending')" class="btn">Undo</button></td>
+            </tr>
+        `).join('');
+    }
+
+    // 3. Distribute Active Tasks (Filter for 'Pending')
     const { data: employers } = await supabaseClient.from('employers').select('id');
-    employers.forEach(emp => {
-        const container = document.getElementById(`active-tasks-${emp.id}`);
-        if (container) {
-            const empTasks = allTasks.filter(t => t.employer_id === emp.id && t.status === 'Pending');
-            container.innerHTML = empTasks.map(t => `
-                <tr>
-                    <td>${t.task_detail}</td>
-                    <td>${t.units}</td>
-                    <td>${t.cpp}</td>
-                    <td>${t.payable}</td>
-                    <td>${getRemainingTime(t.deadline)}</td>
-                    <td><span class="status-pending">Pending</span></td>
-                    <td><button onclick="updateStatus('${t.id}', 'Done')" class="btn" style="background:var(--success);">Done</button></td>
-                </tr>
-            `).join('');
-        }
-    });
+    if (employers) {
+        employers.forEach(emp => {
+            const container = document.getElementById(`active-tasks-${emp.id}`);
+            if (container) {
+                const empTasks = allTasks.filter(t => t.employer_id === emp.id && t.status === 'Pending');
+                container.innerHTML = empTasks.map(t => `
+                    <tr>
+                        <td>${t.task_detail}</td>
+                        <td>${t.units}</td>
+                        <td>${t.cpp}</td>
+                        <td>${t.payable}</td>
+                        <td>${getRemainingTime(t.deadline)}</td>
+                        <td><span class="status-pending">Pending</span></td>
+                        <td><button onclick="updateStatus('${t.id}', 'Done')" class="btn" style="background:var(--success);">Done</button></td>
+                    </tr>
+                `).join('');
+            }
+        });
+    }
 }
 
 function renderTable(tbodyId, tasks, showActions) {
@@ -1156,6 +1179,51 @@ function checkDeadlines(tasks) {
             }
         }
     });
+}
+
+function renderDoneTable(tasks) {
+    const container = document.getElementById('done-tasks-container');
+    if (!container) return;
+
+    if (tasks.length === 0) {
+        container.innerHTML = '<h3>✅ Completed Orders</h3><p>No completed orders found.</p>';
+        return;
+    }
+
+    // Grouping by employer so it's organized for invoicing
+    const grouped = groupTasksByEmployer(tasks);
+    
+    let html = '<h3>✅ Completed Orders (Ready for Invoice)</h3>';
+    
+    for (const employerId in grouped) {
+        const eTasks = grouped[employerId];
+        const clientName = eTasks[0].client_name || "Unknown Client";
+
+        html += `
+            <div class="card">
+                <h4>${clientName}</h4>
+                <table>
+                    <thead>
+                        <tr><th>Detail</th><th>Units</th><th>Payable</th><th>Action</th></tr>
+                    </thead>
+                    <tbody>
+                        ${eTasks.map(t => `
+                            <tr>
+                                <td>${t.task_detail}</td>
+                                <td>${t.units}</td>
+                                <td>${t.payable}</td>
+                                <td><button onclick="updateStatus('${t.id}', 'Active')">Undo</button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <button class="btn-invoice" onclick="generateWordInvoice('${employerId}', '${clientName}')">
+                    Generate Word Invoice
+                </button>
+            </div>
+        `;
+    }
+    container.innerHTML = html;
 }
 
 function sendDesktopNotification(task) {
