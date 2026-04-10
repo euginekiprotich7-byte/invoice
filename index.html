@@ -14,6 +14,7 @@
     <title>Ultimate Invoice & Performance System</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
 
 th {
@@ -413,6 +414,12 @@ th {
                 <p><b>Done Total: </b><span id="done-subtotal">0</span></p>
                 <button class="btn" style="background:#3498db; color:white;" onclick="generateWordInvoice()">Generate Word Invoice</button>
             </div>
+			
+			<div style="margin-top:15px; text-align:right; display: flex; gap: 10px; justify-content: flex-end;">
+    <p><b>Done Total: </b><span id="done-subtotal">0</span></p>
+    <button class="btn" style="background:#3498db; color:white;" onclick="generateWordInvoice(currentEmployerId, 'Client')">Word Invoice</button>
+    <button class="btn" style="background:#27ae60; color:white;" onclick="generateExcelInvoice(currentEmployerId, 'Client')">Excel Invoice</button>
+		</div>
             
             <div id="invoicedSection" style="margin-top:30px;">
                 <h3 style="color: #2c3e50;">Awaiting Payment (Invoiced)</h3>
@@ -988,6 +995,68 @@ function renderPendingPayment(tasks) {
     }
 }
 
+async function generateExcelInvoice(employerId, clientName) {
+    if (!employerId) {
+        alert("Please select an employer first!");
+        return;
+    }
+
+    // 1. Fetch 'Done' tasks for this specific Employer
+    const { data: doneTasks, error } = await supabaseClient
+        .from('tasks')
+        .select('*')
+        .eq('employer_id', employerId)
+        .eq('status', 'Done');
+
+    if (error || !doneTasks || doneTasks.length === 0) {
+        alert("No completed orders found for this employer!");
+        return;
+    }
+
+    // 2. Prepare the Data Rows for Excel
+    const invoiceNo = `INV-${Date.now().toString().slice(-6)}`;
+    const rows = [
+        ["INVOICE", "", "", ""],
+        ["Invoice #:", invoiceNo, "Date:", new Date().toLocaleDateString()],
+        ["Client:", clientName, "", ""],
+        [""], // Empty row for spacing
+        ["Detail", "Units", "CPP", "Payable (KES)"] // Headers
+    ];
+
+    let total = 0;
+    doneTasks.forEach(t => {
+        const payable = parseFloat(t.payable) || 0;
+        total += payable;
+        rows.push([
+            t.task_detail,
+            t.units || "-",
+            t.cpp || 0,
+            payable
+        ]);
+    });
+
+    // Add total row
+    rows.push([""], ["", "", "GRAND TOTAL:", total]);
+
+    // 3. Create Workbook and Download
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Invoice");
+
+    // Auto-size columns (basic)
+    worksheet['!cols'] = [{ wch: 30 }, { wch: 10 }, { wch: 10 }, { wch: 15 }];
+
+    // Download file
+    XLSX.writeFile(workbook, `Invoice_${clientName}_${invoiceNo}.xlsx`);
+
+    // 4. Update status in Supabase
+    if (confirm("Excel Invoice Generated! Move these tasks to history?")) {
+        const ids = doneTasks.map(t => t.id);
+        await supabaseClient.from('tasks').update({ status: 'Invoiced', invoice_no: invoiceNo }).in('id', ids);
+        fetchTasks();
+    }
+}
+
 async function markTasksAsInvoiced(ids, invNo) {
     const { error } = await supabaseClient
         .from('tasks')
@@ -1434,13 +1503,15 @@ async function loadEmployers() {
         btn.style.border = 'none';
         btn.style.color = 'white';
         btn.innerText = emp.employer_name;
-        btn.onclick = () => {
-            currentEmployerId = emp.id;
-            // Update UI focus
-            document.querySelectorAll('#employer-tabs div').forEach(d => d.style.background = '#34495e');
-            wrapper.style.background = '#3498db';
-            fetchTasks();
-        };
+       btn.onclick = () => {
+    currentEmployerId = emp.id;
+    // Highlight the active employer tab
+    document.querySelectorAll('#employer-tabs div').forEach(d => d.style.background = '#34495e');
+    wrapper.style.background = '#3498db';
+    
+    // FETCH specifically for this employer
+    fetchTasksByEmployer(emp.id); 
+};
 
         // Delete "X" Button
         const delBtn = document.createElement('span');
@@ -1709,23 +1780,21 @@ window.addEventListener('online', syncOfflineData);
 
 // Force this function to be global
 window.showTab = function(tabId) {
-    // 1. Hide all sections
+    // 1. Updated these IDs to match your HTML exactly
     const sections = ['active-section', 'done-section', 'history-section'];
+
     sections.forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
+        if (el) {
+            el.style.display = (id === tabId) ? 'block' : 'none';
+        }
     });
 
-    // 2. Show the target section
-    const target = document.getElementById(tabId);
-    if (target) target.style.display = 'block';
-
-    // 3. Update active tab styling
+    // 2. Keep the styling logic
     document.querySelectorAll('.sidebar-item').forEach(item => {
         item.classList.remove('active');
     });
     
-    // Logic to find which tab was clicked (based on the ID or event)
     if (tabId === 'active-section') document.getElementById('tab-active').classList.add('active');
     if (tabId === 'done-section') document.getElementById('tab-done').classList.add('active');
     if (tabId === 'history-section') document.getElementById('tab-history').classList.add('active');
