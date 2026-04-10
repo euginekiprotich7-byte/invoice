@@ -297,15 +297,17 @@ th {
         <!-- =========================
              TOP NAVIGATION (TABS)
         ========================== -->
-        <div class="sidebar-item" onclick="showTab('active-orders-section')">
-		<span class="icon">📋</span> Active Orders
-		</div>
-		<div class="sidebar-item" onclick="showTab('completed-orders-section')">
-			<span class="icon">✅</span> Completed
-		</div>
-		<div class="sidebar-item" onclick="showTab('history-section')">
-			<span class="icon">📜</span> History
-		</div>
+        <div class="sidebar-item" onclick="showTab('active-tasks-container')">
+    <span class="icon">📋</span> Active Orders
+</div>
+
+<div class="sidebar-item" onclick="showTab('done-tasks-container')">
+    <span class="icon">✅</span> Completed
+</div>
+
+<div class="sidebar-item" onclick="showTab('history-section')">
+    <span class="icon">📜</span> History
+</div>
 
         <!-- =========================
              EMPLOYER SETUP
@@ -523,20 +525,21 @@ th {
     </div>
 
 <section id="history-section" style="display:none;">
-    <h2>📜 Invoiced History</h2>
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Client</th>
-                    <th>Detail</th>
-                    <th>Invoice #</th>
-                    <th>Payable</th>
-                </tr>
-            </thead>
-            <tbody id="historyTableBody">
-                </tbody>
-        </table>
+    <div class="card">
+        <h2>📜 Invoiced History</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Client</th>
+                        <th>Detail</th>
+                        <th>Invoice #</th>
+                        <th>Payable</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody"></tbody> 
+            </table>
+        </div>
     </div>
 </section>
 
@@ -582,19 +585,24 @@ th {
 window.onload = checkPass;
 
     function showTab(tabId) {
-    // 1. Hide ALL sections (active, completed, and history)
-    const sections = ['active-orders-section', 'completed-orders-section', 'history-section'];
-    
-    sections.forEach(id => {
+    // List of your actual container IDs from the HTML
+    const containers = ['active-tasks-container', 'done-tasks-container', 'history-section'];
+
+    containers.forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
+        if (el) {
+            // If this is the ID we clicked, show it, otherwise hide it
+            el.style.display = (id === tabId) ? 'block' : 'none';
+        }
     });
 
-    // 2. Show the one you clicked
-    const target = document.getElementById(tabId);
-    if (target) {
-        target.style.display = 'block';
-    } else {
+    // Handle active class for sidebar styling
+    document.querySelectorAll('.sidebar-item').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Log error if ID is missing (to help us debug further)
+    if (!document.getElementById(tabId)) {
         console.error(`Tab with ID "${tabId}" was not found in the HTML.`);
     }
 }
