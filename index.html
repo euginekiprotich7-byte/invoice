@@ -520,24 +520,23 @@ th {
         <!-- =========================
              HISTORY SECTION
         ========================== -->
-        <section id="history-section" style="margin-top: 50px; background: #f4f4f4; padding: 20px;">
-			<h2>📜 Invoiced History (Archive)</h2>
-				<div class="table-container">
-					<table>
-						<thead>
-							<tr>
-								<th>Client</th>
-								<th>Detail</th>
-								<th>Invoice #</th>
-								<th>Amount Paid</th>
-								<th>Date Invoiced</th>
-							</tr>
-						</thead>
-						<tbody id="historyTableBody">
-							</tbody>
-					</table>
-				</div>
-		</section>
+        <div id="active-orders" class="tab-content">
+    </div>
+
+<div id="completed-orders" class="tab-content" style="display:none;">
+    </div>
+
+<div id="history" class="tab-content" style="display:none;">
+    <h2>📜 Invoiced History</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr><th>Client</th><th>Detail</th><th>Invoice #</th><th>Amount</th></tr>
+            </thead>
+            <tbody id="historyTableBody"></tbody>
+        </table>
+    </div>
+</div>
 
     </div>
 	<div style="text-align: center; padding: 10px; color: #999; font-size: 10px;">
@@ -580,23 +579,25 @@ th {
 // Ensure the function runs when the window finishes loading
 window.onload = checkPass;
 
-    function showTab(t) {
-    // 1. Handle Section Visibility
-		document.getElementById('activeSection').style.display = t === 'active' ? 'block' : 'none';
-		document.getElementById('invoicedSection').style.display = t === 'invoiced' ? 'block' : 'none';
-		document.getElementById('historySection').style.display = t === 'history' ? 'block' : 'none';
+    function showTab(tabId) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.style.display = 'none';
+    });
 
-		// 2. Handle Tab Styling (Active state)
-		document.getElementById('tabActive').classList.toggle('active', t === 'active');
-		document.getElementById('tabInvoiced').classList.toggle('active', t === 'invoiced');
-		document.getElementById('tabHistory').classList.toggle('active', t === 'history');
+    // Remove active class from all buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
 
-		// 3. Initialize History charts if needed
-		if (t === 'history') {
-			if (!myChart) initChart();
-			updatePerformanceGraph();
-		}
-	}
+    // Show the specific tab ONLY if it exists
+    const targetTab = document.getElementById(tabId);
+    if (targetTab) {
+        targetTab.style.display = 'block';
+    } else {
+        console.error(`Tab with ID "${tabId}" was not found in the HTML.`);
+    }
+}
 
     async function saveTask(mode) {
     let task = {};
@@ -1701,6 +1702,19 @@ async function requestNotificationPermission() {
     }
 }
 
+async function displayVersion() {
+    try {
+        const response = await fetch('./manifest.json');
+        const manifest = await response.json();
+        const versionDisplay = document.getElementById('app-version-display');
+        if (versionDisplay && manifest.version) {
+            versionDisplay.innerText = `v${manifest.version}`;
+        }
+    } catch (err) {
+        console.log("Manifest version fetch failed.");
+    }
+}
+
 // Call it when the page loads
 displayVersion();
 	
@@ -1716,18 +1730,12 @@ window.addEventListener('beforeinstallprompt', (e) => {
     installBtn.style.display = 'block';
 });
 
-installBtn.addEventListener('click', async () => {
-    if (deferredPrompt) {
-        // Trigger the native installation prompt
-        deferredPrompt.prompt();
-        // Wait for the user to respond to the prompt
-        const { outcome } = await deferredPrompt.userChoice;
-        console.log(`User response to the install prompt: ${outcome}`);
-        // We've used the prompt, and can't use it again, throw it away
-        deferredPrompt = null;
-        installBtn.style.display = 'none';
-    }
-});
+document.addEventListener('click', () => {
+    // Play a silent sound to unlock the audio context
+    const silentAudio = new Audio('https://actions.google.com/sounds/v1/essentials/button_click.ogg');
+    silentAudio.volume = 0;
+    silentAudio.play().catch(() => {});
+}, { once: true });
 
 // Automatically trigger sync when browser goes online
 window.addEventListener('online', syncOfflineData);
