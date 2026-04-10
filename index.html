@@ -236,6 +236,28 @@ td, th {
         padding: 12px;
     }
 }
+
+/* Ensure tables don't squash on small screens */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* Make the status badges pop */
+.status-pending { background: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 12px; font-weight: bold; }
+.status-done { background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 12px; font-weight: bold; }
+
+/* Sticky headers*/
+th {
+    position: sticky;
+    top: 0;
+    background: #2c3e50;
+    color: white;
+    z-index: 10;
+}
 </style>
 </head>
 <body style="display:none;" id="mainBody">
@@ -477,11 +499,7 @@ td, th {
 			</div>
 
             <!-- ACTION BUTTON -->
-            <button class="btn"
-                style="background:var(--primary); margin-top:20px; width:100%"
-                onclick="generateAndClear()">
-                Generate Word Invoice & Clear
-            </button>
+            <button onclick="generateWordInvoice('${t.employer_id}', '${t.client_name}')">Generate Invoice</button>
 
             <!-- PENDING PAYMENTS -->
             <div id="invoicedSection" style="display:none;">
@@ -502,31 +520,29 @@ td, th {
         <!-- =========================
              HISTORY SECTION
         ========================== -->
-        <div id="historySection" style="display:none;">
-
-            <div style="margin-bottom: 30px; padding: 20px; background: #fff; border: 1px solid #ddd; border-radius: 8px;">
-                <canvas id="performanceChart" style="max-height: 400px;"></canvas>
-            </div>
-
-            <h3>Archived Records</h3>
-
-            <table id="historyTable">
-                <thead>
-                    <tr>
-                        <th>DATE</th>
-                        <th>CLIENT</th>
-                        <th>DETAILS</th>
-                        <th>AMOUNT</th>
-                    </tr>
-                </thead>
-                <tbody id="historyBody"></tbody>
-            </table>
-        </div>
+        <section id="history-section" style="margin-top: 50px; background: #f4f4f4; padding: 20px;">
+			<h2>📜 Invoiced History (Archive)</h2>
+				<div class="table-container">
+					<table>
+						<thead>
+							<tr>
+								<th>Client</th>
+								<th>Detail</th>
+								<th>Invoice #</th>
+								<th>Amount Paid</th>
+								<th>Date Invoiced</th>
+							</tr>
+						</thead>
+						<tbody id="historyTableBody">
+							</tbody>
+					</table>
+				</div>
+		</section>
 
     </div>
-		<div style="text-align: center; padding: 10px; color: #999; font-size: 10px;">
+	<div style="text-align: center; padding: 10px; color: #999; font-size: 10px;">
     App Version: <span id="app-version-display">Loading...</span>
-</div>
+	</div>
 </body>
 
 <script>
@@ -628,34 +644,41 @@ window.onload = checkPass;
 }
 
 async function fetchTasks() {
-    console.log("Fetching all tasks...");
-    const { data, error } = await supabaseClient
-        .from('tasks')
-        .select('*')
-        .order('created_at', { ascending: false });
+    const { data: allTasks, error } = await supabaseClient.from('tasks').select('*');
+    if (error) return;
 
-    if (error) {
-        console.error("Fetch Error:", error.message);
-        return;
-    }
+    // 1. Filter Invoiced History
+    const historyTasks = allTasks.filter(t => t.status === 'Invoiced');
+    const historyBody = document.getElementById('historyTableBody');
+    historyBody.innerHTML = historyTasks.map(t => `
+        <tr>
+            <td>${t.client_name}</td>
+            <td>${t.task_detail}</td>
+            <td>${t.invoice_no || 'N/A'}</td>
+            <td>${t.payable}</td>
+            <td style="color: var(--success); font-weight:bold;">INVOICED</td>
+        </tr>
+    `).join('');
 
-    // 1. Pending Section (Active Work)
-    const activeTasks = data.filter(t => t.status === 'Pending');
-    renderTable('tableBody', activeTasks, true);
-
-    // 2. Done Section (Ready for Invoice)
-    const doneTasks = data.filter(t => t.status === 'Done');
-    renderTable('doneTableBody', doneTasks, false);
-    
-    // 3. Invoiced Section (The "Invisible" ones)
-    // We filter for 'Invoiced' regardless of whether they have an invoice_no
-    const invoicedTasks = data.filter(t => t.status === 'Invoiced');
-    if (typeof renderPendingPayment === 'function') {
-        renderPendingPayment(invoicedTasks);
-    }
-
-    // Update Totals
-    updateSummary(activeTasks);
+    // 2. Distribute Active Tasks to their specific Employer Sections
+    const { data: employers } = await supabaseClient.from('employers').select('id');
+    employers.forEach(emp => {
+        const container = document.getElementById(`active-tasks-${emp.id}`);
+        if (container) {
+            const empTasks = allTasks.filter(t => t.employer_id === emp.id && t.status === 'Pending');
+            container.innerHTML = empTasks.map(t => `
+                <tr>
+                    <td>${t.task_detail}</td>
+                    <td>${t.units}</td>
+                    <td>${t.cpp}</td>
+                    <td>${t.payable}</td>
+                    <td>${getRemainingTime(t.deadline)}</td>
+                    <td><span class="status-pending">Pending</span></td>
+                    <td><button onclick="updateStatus('${t.id}', 'Done')" class="btn" style="background:var(--success);">Done</button></td>
+                </tr>
+            `).join('');
+        }
+    });
 }
 
 function renderTable(tbodyId, tasks, showActions) {
@@ -799,41 +822,42 @@ async function renderActive(tasks) {
 
 async function renderEmployers() {
     const list = document.getElementById('employersList');
-    if (!list) return;
-
-    // 1. Fetch the data FIRST
     const { data: employers, error } = await supabaseClient.from('employers').select('*');
     
-    if (error) {
-        console.error("Error fetching employers:", error.message);
-        return;
-    }
+    if (error) return;
 
-    if (!employers || employers.length === 0) {
-        list.innerHTML = '<p style="padding:20px; text-align:center;">No employers found. Add one to start.</p>';
-        return;
-    }
-
-    // 2. Now map the data to the HTML
     list.innerHTML = employers.map(emp => `
-        <div class="employer-card" style="border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="margin:0; font-size: 1.1rem;">👤 ${emp.employer_name}</h3>
-                <button onclick="toggleAddForm('${emp.id}')" style="background:var(--success); color:white; border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">+ Add Order</button>
+        <div class="employer-card" id="employer-sec-${emp.id}" style="border: 2px solid var(--primary); margin-bottom: 30px; border-radius: 12px; overflow: hidden;">
+            <div style="background: var(--primary); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin:0;">🏢 ${emp.employer_name}</h3>
+                <button onclick="toggleAddForm('${emp.id}')" class="btn" style="background:var(--success);">+ Add Order</button>
             </div>
             
-            <div id="form-${emp.id}" style="display:none; margin-top:15px; background:#f9f9f9; padding:12px; border-radius:5px; border: 1px inset #eee;">
-                <p style="margin: 0 0 10px 0; font-size: 0.8rem; color: #666;">Adding new order for ${emp.employer_name}</p>
-                <input type="text" id="detail-${emp.id}" placeholder="Task Detail" style="width:100%; margin-bottom:8px; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                <div style="display:flex; gap:5px;">
-                    <input type="number" id="units-${emp.id}" placeholder="Units" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                    <input type="number" id="cpp-${emp.id}" placeholder="CPP" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                    <input type="datetime-local" id="dead-${emp.id}" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px;">
+            <div id="form-${emp.id}" style="display:none; padding: 20px; background: #fdfdfd; border-bottom: 1px solid #eee;">
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px;">
+                    <input type="text" id="detail-${emp.id}" placeholder="Order Detail">
+                    <input type="number" id="units-${emp.id}" placeholder="Units">
+                    <input type="number" id="cpp-${emp.id}" placeholder="CPP">
+                    <input type="datetime-local" id="dead-${emp.id}">
                 </div>
-                <button onclick="submitOrder('${emp.id}')" style="width:100%; margin-top:10px; background:var(--primary); color:white; border:none; padding:10px; border-radius:4px; cursor:pointer;">Save Order</button>
+                <button onclick="submitOrder('${emp.id}', '${emp.employer_name}')" style="width: 100%; margin-top: 10px; background: var(--primary); color:white; padding: 10px; border:none; border-radius: 5px;">Save Order to ${emp.employer_name}</button>
+            </div>
+
+            <div style="padding: 10px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f4f4f4; font-size: 0.85rem;">
+                            <th>Detail</th><th>Units</th><th>CPP</th><th>Payable</th><th>Deadline</th><th>Status</th><th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="active-tasks-${emp.id}">
+                        </tbody>
+                </table>
             </div>
         </div>
     `).join('');
+
+    fetchTasks();
 }
 
 // Global helper to show/hide the specific form
@@ -846,28 +870,40 @@ function toggleAddForm(id) {
 
 async function submitOrder(employerId) {
     const detail = document.getElementById(`detail-${employerId}`).value;
-    const units = parseFloat(document.getElementById(`units-${employerId}`).value);
-    const cpp = parseFloat(document.getElementById(`cpp-${employerId}`).value);
+    const units = document.getElementById(`units-${employerId}`).value;
+    const cpp = document.getElementById(`cpp-${employerId}`).value;
     const deadline = document.getElementById(`dead-${employerId}`).value;
 
-    if (!detail || !units || !cpp) return alert("Please fill all fields");
+    if (!detail || !units || !cpp) {
+        alert("Please fill in all details");
+        return;
+    }
 
-    const newOrder = {
+    // First, get the employer's name to use as client_name
+    const { data: emp } = await supabaseClient
+        .from('employers')
+        .select('employer_name')
+        .eq('id', employerId)
+        .single();
+
+    const { error } = await supabaseClient.from('tasks').insert([{
         employer_id: employerId,
+        client_name: emp.employer_name, // This ensures the client shows up in tables
         task_detail: detail,
-        units: units,
-        cpp: cpp,
-        payable: units * cpp,
+        units: parseFloat(units),
+        cpp: parseFloat(cpp),
+        payable: parseFloat(units) * parseFloat(cpp),
         deadline: deadline,
         status: 'Pending',
-        created_at: new Date()
-    };
+        notified: false
+    }]);
 
-    const { error } = await supabaseClient.from('tasks').insert([newOrder]);
     if (!error) {
-        alert("Order added to employer!");
-        toggleAddForm(employerId);
-        fetchTasks(); // Refresh tables
+        alert("Order Added!");
+        toggleAddForm(employerId); // Close form
+        fetchTasks(); // Refresh list
+    } else {
+        alert("Error: " + error.message);
     }
 }
 
@@ -952,66 +988,127 @@ function renderPendingPayment(tasks) {
         tasks.forEach(t => hBody.innerHTML += `<tr><td>${new Date(t.created_at).toLocaleDateString()}</td><td>${t.client_name}</td><td>${t.task_detail}</td><td>${t.payable}</td></tr>`);
     }
 
-    async function updateStatus(id, s) { await supabaseClient.from('tasks').update({ status: s }).eq('id', id); fetchTasks(); }
+    async function updateStatus(id, newStatus) {
+    const { error } = await supabaseClient
+        .from('tasks')
+        .update({ status: newStatus })
+        .eq('id', id);
 
-    async function generateAndClear() {
-    const { data } = await supabaseClient.from('tasks')
+    if (error) {
+        console.error("Update failed:", error.message);
+    } else {
+        // Instead of reloading the whole page, just refresh the data
+        await fetchTasks();
+    }
+	}
+
+    async function generateWordInvoice(employerId, clientName) {
+    // 1. Fetch only the 'Done' tasks belonging to this specific Employer
+    const { data: doneTasks, error } = await supabaseClient
+        .from('tasks')
         .select('*')
+        .eq('employer_id', employerId)
         .eq('status', 'Done');
 
-    if (!data || data.length === 0) return alert("No 'Done' tasks to invoice!");
-
-    const invNo = "INV-" + Date.now().toString().slice(-6);
-    const tasks = data.filter(t => t.task_type !== 'Adjustment');
-    const adjustments = data.filter(t => t.task_type === 'Adjustment');
-
-    let html = `
-        <h2 style="text-align:center; font-family:Arial;">INVOICE: ${invNo}</h2>
-        <p style="text-align:center; font-family:Arial;">Date: ${new Date().toLocaleDateString()}</p>
-        <table border="1" style="width:100%; border-collapse:collapse; font-family:Arial;">
-            <tr style="background:#eeeeee;">
-                <th>DETAILS</th><th>PAGES/TYPE</th><th>CPP</th><th>PAYABLE</th>
-            </tr>`;
-
-    // Tasks Section
-    tasks.forEach(t => {
-        html += `<tr>
-            <td>${t.task_detail}</td>
-            <td>${t.task_type === 'Quiz' || t.task_type === 'Midterm' ? t.task_type : t.units}</td>
-            <td>${t.cpp}</td>
-            <td>${t.payable}</td>
-        </tr>`;
-    });
-
-    // Dedicated Adjustment Section at the bottom
-    if (adjustments.length > 0) {
-        html += `<tr style="background:#fdf2f2;"><td colspan="4"><b>DEDUCTIONS & ADJUSTMENTS</b></td></tr>`;
-        adjustments.forEach(a => {
-            html += `<tr style="color:#e74c3c;">
-                <td colspan="3">${a.task_detail}</td>
-                <td>${a.payable}</td>
-            </tr>`;
-        });
+    if (error || !doneTasks || doneTasks.length === 0) {
+        alert(`No completed orders found for ${clientName}!`);
+        return;
     }
 
-    const final = document.getElementById('grandTotal').innerText;
-    html += `<tr style="background:#eee;">
-        <td colspan="3" align="right"><b>TOTAL PAYABLE</b></td>
-        <td><b>${final}</b></td>
-    </tr></table>`;
+    const invoiceDate = new Date().toLocaleDateString();
+    const invoiceNo = `INV-${Date.now().toString().slice(-6)}`;
+    const totalAmount = doneTasks.reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
 
-    // Download and Update Status
-    let link = document.createElement('a');
-    link.href = URL.createObjectURL(new Blob(['\ufeff', html], { type: 'application/msword' }));
-    link.download = `Invoice_${invNo}.doc`;
+    // 2. Build the Word Document Content
+    let content = `
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <head><meta charset='utf-8'><title>Invoice - ${clientName}</title>
+        <style>
+            body { font-family: 'Calibri', 'Arial', sans-serif; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #000; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .total-row { font-weight: bold; background-color: #eee; }
+        </style>
+        </head>
+        <body>
+            <div class='header'>
+                <h1>INVOICE</h1>
+                <p><strong>Date:</strong> ${invoiceDate} | <strong>Invoice #:</strong> ${invoiceNo}</p>
+                <p><strong>Billed To:</strong> ${clientName}</p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Detail</th>
+                        <th>Units</th>
+                        <th>CPP</th>
+                        <th>Payable (KES)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${doneTasks.map(t => `
+                        <tr>
+                            <td>${t.task_detail}</td>
+                            <td>${t.units || '-'}</td>
+                            <td>${t.cpp || 0}</td>
+                            <td>${t.payable || 0}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+                <tfoot>
+                    <tr class='total-row'>
+                        <td colspan='3' style='text-align:right'>Total Payable:</td>
+                        <td>${totalAmount.toLocaleString()}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </body>
+        </html>`;
+
+    // 3. Trigger the Download
+    const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Invoice_${clientName.replace(/\s+/g, '_')}_${invoiceNo}.doc`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
 
-    const ids = data.map(t => t.id);
-    await supabaseClient.from('tasks').update({ status: 'Invoiced', invoice_no: invNo }).in('id', ids);
-    fetchTasks();
+    // 4. Update status to 'Invoiced' in Supabase
+    if (confirm(`Invoice generated for ${clientName}. Move these tasks to History?`)) {
+        const ids = doneTasks.map(t => t.id);
+        const { updateError } = await supabaseClient
+            .from('tasks')
+            .update({ 
+                status: 'Invoiced', 
+                invoice_no: invoiceNo 
+            })
+            .in('id', ids);
+
+        if (updateError) {
+            alert("Error moving to history: " + updateError.message);
+        } else {
+            fetchTasks(); // Refresh tables to show history
+        }
+    }
 }
-	
-	let myChart;
+
+async function markTasksAsInvoiced(ids, invNo) {
+    const { error } = await supabaseClient
+        .from('tasks')
+        .update({ 
+            status: 'Invoiced',
+            invoice_no: invNo,
+            notified: false // Reset for payment reminders
+        })
+        .in('id', ids);
+
+    if (error) alert("Error updating tasks: " + error.message);
+    fetchTasks(); // Refresh the UI
+}
 
 // 1. Initialize the chart when the page loads
 function initChart() {
@@ -1590,17 +1687,17 @@ async function requestNotificationPermission() {
     }
 }
 	
-	async function displayVersion() {
-    try {
-        const response = await fetch('./manifest.json');
-        const manifest = await response.json();
-        const versionDisplay = document.getElementById('app-version-display');
-        
-        if (versionDisplay && manifest.version) {
-            versionDisplay.innerText = `v${manifest.version}`;
-        }
-    } catch (err) {
-        console.log("Could not load version from manifest");
+	function updateAppVersionUI() {
+    const version = "1.0.5"; // Manually increment this as we fix things
+    const footer = document.querySelector('.sidebar-footer') || document.body;
+    
+    // Create version element if it doesn't exist
+    if (!document.getElementById('version-tag')) {
+        const tag = document.createElement('div');
+        tag.id = 'version-tag';
+        tag.style = "font-size: 10px; color: #888; text-align: center; padding: 10px;";
+        tag.innerText = `App Version: v${version}`;
+        footer.appendChild(tag);
     }
 }
 
