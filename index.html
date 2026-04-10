@@ -297,14 +297,21 @@ th {
         <!-- =========================
              TOP NAVIGATION (TABS)
         ========================== -->
-        <div class="sidebar-item" onclick="showTab('active-tasks-container')">
-    <span class="icon">📋</span> Active Orders
+       <div class="sidebar">
+    <div class="sidebar-item" onclick="showTab('active-tasks-container')">📋 Active Orders</div>
+    <div class="sidebar-item" onclick="showTab('done-tasks-container')">✅ Completed</div>
+    <div class="sidebar-item" onclick="showTab('history-section')">📜 History</div>
 </div>
-<div class="sidebar-item" onclick="showTab('done-tasks-container')">
-    <span class="icon">✅</span> Completed
-</div>
-<div class="sidebar-item" onclick="showTab('history-section')">
-    <span class="icon">📜</span> History
+
+<div class="container">
+    <div id="active-tasks-container">
+        </div>
+
+    <div id="done-tasks-container" style="display:none;">
+        </div>
+
+    <div id="history-section" style="display:none;">
+        </div>
 </div>
 
         <!-- =========================
@@ -581,17 +588,17 @@ th {
 window.onload = checkPass;
 
     function showTab(tabId) {
-    // These are the 3 main 'rooms' in your app
-    const sections = ['active-tasks-container', 'done-tasks-container', 'history-section'];
+    console.log("Tab clicked: " + tabId); // If you don't see this in F12 console, the button isn't firing.
 
-    sections.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            // If the ID matches what you clicked, show it. Otherwise, hide it.
+    const tabs = ['active-tasks-container', 'done-tasks-container', 'history-section'];
+
+    tabs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
             if (id === tabId) {
-                element.style.display = 'block';
+                el.style.setProperty('display', 'block', 'important');
             } else {
-                element.style.display = 'none';
+                el.style.setProperty('display', 'none', 'important');
             }
         }
     });
