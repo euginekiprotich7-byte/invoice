@@ -298,9 +298,9 @@ th {
              TOP NAVIGATION (TABS)
         ========================== -->
        <div class="sidebar" style="position: relative; z-index: 9999; background: #eee; padding: 10px;">
-    <button onclick="showTab('active-tasks-container')" style="cursor:pointer; padding:10px; margin:5px;">📋 Active Orders</button>
-    <button onclick="showTab('done-tasks-container')" style="cursor:pointer; padding:10px; margin:5px;">✅ Completed</button>
-    <button onclick="showTab('history-section')" style="cursor:pointer; padding:10px; margin:5px;">📜 History</button>
+    <div class="sidebar-item" onclick="showTab('active-tasks-container')">📋 Active</div>
+<div class="sidebar-item" onclick="showTab('done-tasks-container')">✅ Completed</div>
+<div class="sidebar-item" onclick="showTab('history-section')">📜 History</div>
 </div>
 
 <div class="container">
@@ -561,6 +561,18 @@ th {
 		navigator.serviceWorker.register('sw.js');
 	}
 
+function showTab(tabId) {
+    // 1. Force these specific IDs to be the ONLY ones the app knows
+    const sections = ['active-tasks-container', 'done-tasks-container', 'history-section'];
+
+    sections.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.display = (id === tabId) ? 'block' : 'none';
+        }
+    });
+}
+
 	async function checkPass() {
     if (prompt("Enter System Password:") === "E") { 
         document.getElementById('mainBody').style.display = 'block'; 
@@ -586,23 +598,6 @@ th {
 
 // Ensure the function runs when the window finishes loading
 window.onload = checkPass;
-
-    function showTab(tabId) {
-    console.log("Tab clicked: " + tabId); // If you don't see this in F12 console, the button isn't firing.
-
-    const tabs = ['active-tasks-container', 'done-tasks-container', 'history-section'];
-
-    tabs.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            if (id === tabId) {
-                el.style.setProperty('display', 'block', 'important');
-            } else {
-                el.style.setProperty('display', 'none', 'important');
-            }
-        }
-    });
-}
 
     async function saveTask(mode) {
     let task = {};
