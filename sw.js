@@ -4,6 +4,7 @@ const ASSETS = [
   './index.html',
   './manifest.json',
   './icon.png',
+  './index.ts',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
   'https://cdn.jsdelivr.net/npm/chart.js'
 ];
@@ -134,24 +135,25 @@ async function checkAndNotify() {
     });
 }
 
-	self.addEventListener('show-alarm', (event) => {
-		const options = {
-			body: '🚨 URGENT: An order is due in less than 1 hour!',
-			icon: 'https://cdn-icons-png.flaticon.com/512/2821/2821637.png',
-			badge: 'https://cdn-icons-png.flaticon.com/512/2821/2821637.png',
-			tag: 'order-alarm',
-			renotify: true,
-			vibrate: [200, 100, 200],
-			actions: [
-				{ action: 'open', title: 'Open App' },
-				{ action: 'close', title: 'Dismiss' }
-			]
-		};
+	// Inside sw.js
+self.addEventListener('show-alarm', (event) => {
+    const options = {
+        body: event.data.message || '🚨 URGENT: ORDER DUE NOW!',
+        icon: './icon.png',
+        badge: './icon.png',
+        tag: 'urgent-order', // Ensures only one alert shows if multiple trigger
+        renotify: true,      // Makes the phone/laptop vibrate/sound again even if one is already there
+        vibrate: [500, 110, 500, 110, 450, 110, 200, 110, 170, 40, 450, 110, 200, 110, 170, 40], // SOS pattern
+        requireInteraction: true, // Notification stays on screen until you physically dismiss it
+        data: {
+            url: self.registration.scope
+        }
+    };
 
-		event.waitUntil(
-			self.registration.showNotification('Order Deadline Alert', options)
-		);
-	});
+    event.waitUntil(
+        self.registration.showNotification('ORDER DEADLINE EXPIRED', options)
+    );
+});
 	
 	self.addEventListener('push', (event) => {
     const data = event.data.json();
