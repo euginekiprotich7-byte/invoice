@@ -592,29 +592,43 @@ async function fetchTasks() {
     const { data: employers } = await supabaseClient.from('employers').select('id');
     if (employers) {
         // Inside your fetchTasks function, find the employers loop:
-employers.forEach(emp => {
-    const container = document.getElementById(`active-tasks-${emp.id}`);
-    if (container) {
-        const empTasks = allTasks.filter(t => t.employer_id === emp.id && t.status === 'Pending');
-        
-        // This REWRITES the HTML every time fetchTasks is called
-        container.innerHTML = empTasks.map(t => {
-            const timeRemaining = getRemainingTime(t.deadline);
-            const isLate = timeRemaining.includes("DUE NOW") || timeRemaining.includes("Overdue");
+// 3. Distribute Active Tasks
+const { data: employers } = await supabaseClient.from('employers').select('id');
+if (employers) {
+    employers.forEach(emp => {
+        const container = document.getElementById(`active-tasks-${emp.id}`);
+        if (container) {
+            const empTasks = allTasks.filter(t => t.employer_id === emp.id && t.status === 'Pending');
+            
+            // This REWRITES the HTML every time fetchTasks is called
+            container.innerHTML = empTasks.map(t => {
+                const timeRemaining = getRemainingTime(t.deadline);
+                // Checks for "DUE NOW" or negative values in your time string
+                const isLate = timeRemaining.includes("DUE NOW") || timeRemaining.includes("-");
 
-            return `
-                <tr class="${isLate ? 'overdue-row' : ''}">
-                    <td>${t.task_detail}</td>
-                    <td>${t.units}</td>
-                    <td>${t.cpp}</td>
-                    <td>${t.payable}</td>
-                    <td class="time-column ${isLate ? 'critical-text' : ''}">${timeRemaining}</td>
-                    <td><span class="status-pending">Pending</span></td>
-                    <td><button onclick="updateStatus('${t.id}', 'Done')" class="btn" style="background:var(--success);">Done</button></td>
-                </tr>
-            `;
-        }).join('');
-    }
+                return `
+                    <tr class="${isLate ? 'overdue-row' : ''}" style="${isLate ? 'background-color: #fff0f0;' : ''}">
+                        <td>${t.task_detail}</td>
+                        <td>${t.units}</td>
+                        <td>${t.cpp}</td>
+                        <td>${Number(t.payable).toLocaleString()}</td>
+                        <td class="time-column" style="font-weight:bold; color: ${isLate ? '#e74c3c' : 'inherit'};">
+                            ${timeRemaining}
+                        </td>
+                        <td><span class="status-pending">Pending</span></td>
+                        <td>
+                            <button onclick="updateStatus('${t.id}', 'Done')" 
+                                    class="btn" 
+                                    style="background:var(--success); color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">
+                                Done
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    });
+}
 });
     }
 }
@@ -1409,83 +1423,42 @@ async function syncOfflineData() {
 		}
 		
 		async function addOrder() {
-    // 1. Check if an employer is selected
-    if (typeof currentEmployerId === 'undefined' || !currentEmployerId) {
-        alert("Select an Employer tab first so we know who this work is for!");
+    const detail = document.getElementById('task_detail').value;
+    const units = document.getElementById('units').value;
+    const employerId = document.getElementById('employer_id').value;
+    const deadline = document.getElementById('deadline').value;
+    const cpp = document.getElementById('cpp').value;
+
+    if (!detail || !deadline) {
+        alert("Please fill in the Task and Deadline.");
         return;
     }
 
-    // 2. Gather data from the form
-    const detail = document.getElementById('detail').value;
-    const deadline = document.getElementById('deadline').value;
-    const client = document.getElementById('client').value;
-    const type = document.getElementById('type').value;
-    const unit = parseFloat(document.getElementById('unit').value) || 0;
-    const cpp = parseFloat(document.getElementById('cpp').value) || 0;
-    
-    // Calculate pay based on type (Logic from your saveTask function)
-    let pay = (type === 'Quiz' || type === 'Midterm') ? cpp : unit * cpp;
-
-    // 3. Create the order object (Declared ONLY ONCE)
-    const newOrderData = {
-        task_detail: detail, // FIXED: Changed 'detail' to 'task_detail'
-        client_name: client,
-        task_type: type,
-        units: unit,
-        cpp: cpp,
-        payable: pay,
-        deadline: deadline,
-        employer_id: currentEmployerId, 
-        status: 'Pending',   // FIXED: Capital 'P' to match your status CSS
+    const newOrder = {
+        task_detail: detail,
+        units: parseInt(units),
+        employer_id: employerId,
+        deadline: new Date(deadline).toISOString(),
+        cpp: parseFloat(cpp),
+        payable: parseInt(units) * parseFloat(cpp),
+        status: 'Pending',
         created_at: new Date().toISOString()
     };
 
-    try {
-        // 4. Save to Supabase (Cloud)
-        // Note: Using 'tasks' as the table name since that is what your SQL/fetch uses
-        const { data, error } = await supabaseClient
-            .from('tasks') 
-            .insert([newOrderData])
-            .select();
+    // FIX: Use standard Supabase syntax. .transaction() does not exist in the JS library.
+    const { data, error } = await supabaseClient
+        .from('tasks')
+        .insert([newOrder]);
 
-        if (error) throw error;
-
-        // 5. Save to Phone Storage (Local Alarm)
-        if (data && data[0]) {
-            saveOrderToPhone({ ...newOrderData, id: data[0].id });
-        }
-
-        alert("Order saved to Cloud and Phone!");
-        fetchTasks(); // Refresh your table
-        
-        // Clear inputs
-        document.getElementById('detail').value = '';
-    } catch (err) {
-        console.warn("Cloud save failed, saving locally only:", err.message);
-        const tempOrder = { ...newOrderData, id: 'temp-' + Date.now() };
-        saveOrderToPhone(tempOrder);
-        alert("Saved to phone only (Offline).");
-    }
-	const newOrder = { 
-        ...newOrderData, 
-        synced: navigator.onLine // Mark as false if offline
-    };
-
-    // 1. ALWAYS save to IndexedDB first (Local Backup)
-    await supabaseClient.tasks.add(newOrder);
-
-    // 2. Try Supabase only if online
-    if (navigator.onLine) {
-        try {
-            await supabaseClient.from('tasks').insert([newOrderData]);
-        } catch (e) {
-            console.log("Supabase failed, will sync later.");
-        }
+    if (error) {
+        console.error("Supabase Error:", error);
+        // Fallback to local storage if DB fails
+        saveOrderToPhone(newOrder); 
     } else {
-        console.log("Offline: Saved to phone only.");
+        console.log("Order added successfully!");
+        document.getElementById('task_detail').value = ''; // Clear input
+        await fetchTasks(); // DIRECT REFRESH: This makes it show on screen instantly
     }
-    
-    renderActive(); 
 }
 		
 		// This saves your orders to the phone's "Internal Memory"
