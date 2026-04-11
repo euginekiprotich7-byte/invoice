@@ -591,36 +591,31 @@ async function fetchTasks() {
     // 4. Distribute ACTIVE Tasks (The part that needs live countdowns)
     const { data: employers } = await supabaseClient.from('employers').select('id');
     if (employers) {
-        employers.forEach(emp => {
-            const container = document.getElementById(`active-tasks-${emp.id}`);
-            if (container) {
-                const empTasks = allTasks.filter(t => t.employer_id === emp.id && t.status === 'Pending');
-                
-                container.innerHTML = empTasks.map(t => {
-                    const timeStr = getRemainingTime(t.deadline);
-                    // Crucial: Add 'overdue' class if the time says DUE NOW
-                    const isOverdue = timeStr.includes("DUE NOW") || timeStr.includes("Overdue");
-                    
-                    return `
-                        <tr class="${isOverdue ? 'overdue' : ''}">
-                            <td>${t.task_detail}</td>
-                            <td>${t.units}</td>
-                            <td>${t.cpp}</td>
-                            <td>${Number(t.payable).toLocaleString()}</td>
-                            <td class="time-cell ${isOverdue ? 'overdue-text' : ''}">${timeStr}</td>
-                            <td><span class="status-pending">Pending</span></td>
-                            <td>
-                                <button onclick="updateStatus('${t.id}', 'Done')" 
-                                        class="btn" 
-                                        style="background:var(--success);">
-                                    Done
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-            }
-        });
+        // Inside your fetchTasks function, find the employers loop:
+employers.forEach(emp => {
+    const container = document.getElementById(`active-tasks-${emp.id}`);
+    if (container) {
+        const empTasks = allTasks.filter(t => t.employer_id === emp.id && t.status === 'Pending');
+        
+        // This REWRITES the HTML every time fetchTasks is called
+        container.innerHTML = empTasks.map(t => {
+            const timeRemaining = getRemainingTime(t.deadline);
+            const isLate = timeRemaining.includes("DUE NOW") || timeRemaining.includes("Overdue");
+
+            return `
+                <tr class="${isLate ? 'overdue-row' : ''}">
+                    <td>${t.task_detail}</td>
+                    <td>${t.units}</td>
+                    <td>${t.cpp}</td>
+                    <td>${t.payable}</td>
+                    <td class="time-column ${isLate ? 'critical-text' : ''}">${timeRemaining}</td>
+                    <td><span class="status-pending">Pending</span></td>
+                    <td><button onclick="updateStatus('${t.id}', 'Done')" class="btn" style="background:var(--success);">Done</button></td>
+                </tr>
+            `;
+        }).join('');
+    }
+});
     }
 }
 
@@ -946,8 +941,11 @@ function renderPendingPayment(tasks) {
         .update({ status: newStatus })
         .eq('id', id);
 
-    if (!error) {
-        // This makes the update "Direct" and instant
+    if (error) {
+        console.error("Update failed");
+    } else {
+        // DIRECT REFRESH: This makes the item move/disappear immediately 
+        // without you having to click a tab or refresh the page.
         await fetchTasks(); 
     }
 }
@@ -1782,19 +1780,23 @@ async function requestNotificationPermission() {
 
 function triggerAlarm(taskName) {
     const alarm = document.getElementById('dueAlarm');
-    
-    // 1. Play the audio (Loops until stopped)
-    alarm.loop = true;
-    alarm.play().catch(err => console.log("System audio blocked. Check Chrome Site Settings."));
+    const banner = document.getElementById('alarmBanner');
 
-    // 2. Trigger the OS-level System Alert
+    // 1. Visual Alert
+    banner.innerHTML = `🚨 <b>${taskName}</b> IS DUE!`;
+    banner.style.display = 'block';
+
+    // 2. Audio Alert (May still be blocked by browser)
+    alarm.play().catch(() => console.log("Sound blocked, relying on System Notification."));
+
+    // 3. SYSTEM ALERT (This bypasses the 'user click' requirement for sound)
     if (Notification.permission === "granted") {
         navigator.serviceWorker.ready.then(registration => {
-            registration.showNotification('🚨 URGENT: ' + taskName, {
-                body: 'This order is DUE NOW. Click to open manager.',
-                vibrate: [1000, 500, 1000],
-                requireInteraction: true,
-                tag: 'urgent-task'
+            registration.showNotification('🚨 ORDER DUE NOW', {
+                body: `Task: ${taskName} has reached its deadline!`,
+                tag: 'urgent-alarm',
+                requireInteraction: true, // Notification stays until you click it
+                vibrate: [200, 100, 200, 100, 500] 
             });
         });
     }
@@ -1913,21 +1915,19 @@ window.showTab = function(tabId) {
     if (tabId === 'history-section') document.getElementById('tab-history').classList.add('active');
 };
 
-// This runs automatically in the background every minute
+// This is the main engine that keeps the screen alive
 setInterval(async () => {
-    try {
-        console.log("Heartbeat: Syncing data and checking deadlines...");
-        
-        // 1. Refresh the UI and Time strings
-        await fetchTasks(); 
-        
-        // 2. Scan the updated UI for "DUE NOW"
-        checkAlarms(); 
-        
-    } catch (err) {
-        console.error("Heartbeat crashed:", err);
+    console.log("Heartbeat: Updating live timers...");
+    
+    // 1. Re-fetch data and re-draw the entire table
+    // This forces getRemainingTime() to run again for every row
+    await fetchTasks(); 
+    
+    // 2. After redrawing, check if any NEW task hit the "DUE NOW" state
+    if (typeof checkAlarms === "function") {
+        checkAlarms();
     }
-}, 60000);
+}, 60000); // 1 minute
 	
 </script>
 </body>
