@@ -543,10 +543,14 @@ window.onload = checkPass;
 }
 
 async function fetchTasks() {
+    // 1. Fetch fresh data
     const { data: allTasks, error } = await supabaseClient.from('tasks').select('*');
-    if (error) return;
+    if (error) {
+        console.error("Fetch error:", error);
+        return;
+    }
 
-    // 1. Filter Invoiced History
+    // 2. Filter and Render Invoiced History
     const historyTasks = allTasks.filter(t => t.status === 'Invoiced');
     const historyBody = document.getElementById('historyTableBody');
     if (historyBody) {
@@ -555,17 +559,15 @@ async function fetchTasks() {
                 <td>${t.client_name}</td>
                 <td>${t.task_detail}</td>
                 <td>${t.invoice_no || 'N/A'}</td>
-                <td>${t.payable}</td>
+                <td>${Number(t.payable).toLocaleString()}</td>
                 <td style="color: var(--success); font-weight:bold;">INVOICED</td>
             </tr>
         `).join('');
     }
 
-    // 2. Filter DONE Tasks
-    const doneTasks = allTasks.filter(t => t.status === 'Done'); // Define it FIRST
-    
-    // CALL THE TOTAL CALCULATION HERE (After definition)
-    calculateDoneTotal(doneTasks);
+    // 3. Filter and Render DONE Tasks
+    const doneTasks = allTasks.filter(t => t.status === 'Done');
+    calculateDoneTotal(doneTasks); // Update the subtotal
 
     const doneBody = document.getElementById('doneTableBody');
     if (doneBody) {
@@ -574,7 +576,7 @@ async function fetchTasks() {
                 <td>${t.client_name}</td>
                 <td>${t.task_detail}</td>
                 <td>${t.units}</td>
-                <td>${t.payable}</td>
+                <td>${Number(t.payable).toLocaleString()}</td>
                 <td>
                     <button onclick="updateStatus('${t.id}', 'Pending')" 
                             class="btn" 
@@ -586,24 +588,37 @@ async function fetchTasks() {
         `).join('');
     }
 
-    // 3. Distribute Active Tasks
+    // 4. Distribute ACTIVE Tasks (The part that needs live countdowns)
     const { data: employers } = await supabaseClient.from('employers').select('id');
     if (employers) {
         employers.forEach(emp => {
             const container = document.getElementById(`active-tasks-${emp.id}`);
             if (container) {
                 const empTasks = allTasks.filter(t => t.employer_id === emp.id && t.status === 'Pending');
-                container.innerHTML = empTasks.map(t => `
-                    <tr>
-                        <td>${t.task_detail}</td>
-                        <td>${t.units}</td>
-                        <td>${t.cpp}</td>
-                        <td>${t.payable}</td>
-                        <td>${getRemainingTime(t.deadline)}</td>
-                        <td><span class="status-pending">Pending</span></td>
-                        <td><button onclick="updateStatus('${t.id}', 'Done')" class="btn" style="background:var(--success);">Done</button></td>
-                    </tr>
-                `).join('');
+                
+                container.innerHTML = empTasks.map(t => {
+                    const timeStr = getRemainingTime(t.deadline);
+                    // Crucial: Add 'overdue' class if the time says DUE NOW
+                    const isOverdue = timeStr.includes("DUE NOW") || timeStr.includes("Overdue");
+                    
+                    return `
+                        <tr class="${isOverdue ? 'overdue' : ''}">
+                            <td>${t.task_detail}</td>
+                            <td>${t.units}</td>
+                            <td>${t.cpp}</td>
+                            <td>${Number(t.payable).toLocaleString()}</td>
+                            <td class="time-cell ${isOverdue ? 'overdue-text' : ''}">${timeStr}</td>
+                            <td><span class="status-pending">Pending</span></td>
+                            <td>
+                                <button onclick="updateStatus('${t.id}', 'Done')" 
+                                        class="btn" 
+                                        style="background:var(--success);">
+                                    Done
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
             }
         });
     }
@@ -931,10 +946,8 @@ function renderPendingPayment(tasks) {
         .update({ status: newStatus })
         .eq('id', id);
 
-    if (error) {
-        alert("Update failed!");
-    } else {
-        // This is the "Direct" update: refresh the UI immediately without a page reload
+    if (!error) {
+        // This makes the update "Direct" and instant
         await fetchTasks(); 
     }
 }
@@ -1461,7 +1474,7 @@ async function syncOfflineData() {
     };
 
     // 1. ALWAYS save to IndexedDB first (Local Backup)
-    await db.tasks.add(newOrder);
+    await supabaseClient.tasks.add(newOrder);
 
     // 2. Try Supabase only if online
     if (navigator.onLine) {
@@ -1483,14 +1496,14 @@ async function syncOfflineData() {
 			
 			request.onupgradeneeded = (e) => {
 				const db = e.target.result;
-				if (!db.objectStoreNames.contains("orders")) {
-					db.createObjectStore("orders", { keyPath: "id" }); // Use Supabase ID as key
+				if (!supabaseClient.objectStoreNames.contains("orders")) {
+					supabaseClient.createObjectStore("orders", { keyPath: "id" }); // Use Supabase ID as key
 				}
 			};
 
 			request.onsuccess = (e) => {
 				const db = e.target.result;
-				const transaction = db.transaction("orders", "readwrite");
+				const transaction = supabaseClient.transaction("orders", "readwrite");
 				const store = transaction.objectStore("orders");
 				
 				// Use .put() instead of .add() - it will update if exists, or add if new
@@ -1703,7 +1716,7 @@ async function forceSync() {
     try {
         // 1. Get all unsynced tasks from your local DB
         // Assuming you have a 'synced' property in your local store
-        const unsyncedTasks = await db.tasks.where('synced').equals(0).toArray();
+        const unsyncedTasks = await supabaseClient.tasks.where('synced').equals(0).toArray();
 
         if (unsyncedTasks.length === 0) {
             syncStatus.innerText = "Everything is already up to date.";
@@ -1721,7 +1734,7 @@ async function forceSync() {
 
                 if (!error) {
                     // Update local record as synced
-                    await db.tasks.update(id, { synced: 1 });
+                    await supabaseClient.tasks.update(id, { synced: 1 });
                 } else {
                     console.error("Sync error for task:", error);
                 }
@@ -1755,19 +1768,14 @@ async function requestNotificationPermission() {
 }
 	
 	function checkAlarms() {
-    // We only look at rows in the 'active-tasks' containers
+    // Only check active tasks
     const activeRows = document.querySelectorAll('[id^="active-tasks-"] tr');
     
     activeRows.forEach(row => {
-        const detailCell = row.cells[0]; // Task Name
-        const timeCell = row.cells[4];   // Time Remaining
-        
-        if (!timeCell || !detailCell) return;
-
-        // Check for 'DUE NOW' text or 'overdue' class
-        if (timeCell.innerText.includes("DUE NOW") || timeCell.classList.contains('overdue')) {
-            const taskName = detailCell.innerText;
-            triggerAlarm(taskName); 
+        const timeCell = row.cells[4];
+        if (timeCell && (timeCell.innerText.includes("DUE NOW") || timeCell.classList.contains('overdue'))) {
+            const taskName = row.cells[0].innerText;
+            triggerAlarm(taskName);
         }
     });
 }
@@ -1851,12 +1859,12 @@ window.addEventListener('online', syncOfflineData);
     document.getElementById('statusIndicator').innerText = 'ONLINE';
     
     // Fetch all 'synced: false' items from IndexedDB and push to Supabase
-    const unsynced = await db.tasks.where('synced').equals(false).toArray();
+    const unsynced = await supabaseClient.tasks.where('synced').equals(false).toArray();
     
     for (let task of unsynced) {
         const { error } = await supabaseClient.from('tasks').insert([task]);
         if (!error) {
-            await db.tasks.update(task.id, { synced: true });
+            await supabaseClient.tasks.update(task.id, { synced: true });
         }
     }
     console.log("Offline data synced to cloud!");
@@ -1907,9 +1915,18 @@ window.showTab = function(tabId) {
 
 // This runs automatically in the background every minute
 setInterval(async () => {
-    console.log("Auto-Check: Updating countdowns...");
-    await fetchTasks(); // Re-calculates "Time Remaining" for all tasks
-    checkAlarms();      // Fires the alarm if anything hit 'DUE NOW'
+    try {
+        console.log("Heartbeat: Syncing data and checking deadlines...");
+        
+        // 1. Refresh the UI and Time strings
+        await fetchTasks(); 
+        
+        // 2. Scan the updated UI for "DUE NOW"
+        checkAlarms(); 
+        
+    } catch (err) {
+        console.error("Heartbeat crashed:", err);
+    }
 }, 60000);
 	
 </script>
