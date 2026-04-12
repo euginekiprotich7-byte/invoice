@@ -1434,15 +1434,16 @@ async function syncOfflineData() {
     }
 
     const payload = {
-        task_detail: detail,
-        units: parseFloat(units) || 0,
-        employer_id: empId,
-        deadline: new Date(deadline).toISOString(),
-        cpp: parseFloat(cpp) || 0,
-        payable: (parseFloat(units) || 0) * (parseFloat(cpp) || 0),
-        status: 'Pending',
-        created_at: new Date().toISOString()
-    };
+    client_name: document.getElementById('client').value || 'Unknown',
+    task_detail: detail,
+    units: parseFloat(units) || 0,
+    employer_id: empId,
+    deadline: new Date(deadline).toISOString(),
+    cpp: parseFloat(cpp) || 0,
+    payable: (parseFloat(units) || 0) * (parseFloat(cpp) || 0),
+    status: 'Pending',
+    created_at: new Date().toISOString()
+};
 
     const { error } = await supabaseClient.from('tasks').insert([payload]);
 
