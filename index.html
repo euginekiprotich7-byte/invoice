@@ -1421,41 +1421,41 @@ async function syncOfflineData() {
 		}
 		
 		async function addOrder() {
-    const detail = document.getElementById('task_detail').value;
-    const units = document.getElementById('units').value;
-    const empId = document.getElementById('employer_id').value;
-    const deadline = document.getElementById('deadline').value;
+    const detail = document.getElementById('detail').value;
+    const units = document.getElementById('unit').value;
     const cpp = document.getElementById('cpp').value;
+    const deadline = document.getElementById('deadline').value;
+
+    const empId = currentEmployerId; // ✅ correct source
 
     if (!detail || !deadline || !empId) {
-        alert("Please select an employer and set a deadline.");
+        alert("Please select an employer and fill all required fields.");
         return;
     }
 
     const payload = {
         task_detail: detail,
-        units: parseInt(units) || 0,
+        units: parseFloat(units) || 0,
         employer_id: empId,
         deadline: new Date(deadline).toISOString(),
         cpp: parseFloat(cpp) || 0,
-        payable: (parseInt(units) || 0) * (parseFloat(cpp) || 0),
+        payable: (parseFloat(units) || 0) * (parseFloat(cpp) || 0),
         status: 'Pending',
         created_at: new Date().toISOString()
     };
 
-    // Correct Supabase Insertion
     const { error } = await supabaseClient.from('tasks').insert([payload]);
 
     if (error) {
         console.error("Database Insert Error:", error);
-        alert("Failed to save order to database.");
+        alert("Failed to save order.");
     } else {
-        // Clear the form
-        document.getElementById('task_detail').value = '';
-        
-        // Refresh the UI immediately so the user sees the change
+        // clear form
+        document.getElementById('detail').value = '';
+        document.getElementById('unit').value = 1;
+
         await fetchTasks();
-        console.log("Order registered and UI refreshed.");
+        console.log("Order saved correctly.");
     }
 }
 		
