@@ -417,7 +417,7 @@ th {
 			
 			<div style="margin-top:15px; text-align:right; display: flex; gap: 10px; justify-content: flex-end;">
     <p><b>Done Total: </b><span id="done-subtotal">0</span></p>
-    <button class="btn" style="background:#3498db; color:white;" onclick="generateWordInvoice(currentEmployerId, 'Client')">Word Invoice</button>
+    <button class="btn" style="background:#3498db; color:white;" onclick="generateWordInvoice(currentEmployerId, document.querySelector('#employer-tabs .btn[style*=\"3498db\"]')?.innerText || 'Client')">Word Invoice</button>
     <button class="btn" style="background:#27ae60; color:white;" onclick="generateExcelInvoice(currentEmployerId, 'Client')">Excel Invoice</button>
 		</div>
             
@@ -501,7 +501,8 @@ window.onload = checkPass;
     let task = {};
     if (mode === 'Adjustment') {
         task = {
-            client_name: document.getElementById('client').value || 'General',
+            employer_id: currentEmployerId,
+			client_name: document.getElementById('client').value || 'General',
             task_detail: document.getElementById('adjDetail').value || 'Adjustment',
             task_type: 'Adjustment',
             units: 0, cpp: 0,
@@ -515,7 +516,8 @@ window.onload = checkPass;
         let pay = (type === 'Quiz' || type === 'Midterm') ? cpp : unit * cpp;
         
         task = {
-            client_name: document.getElementById('client').value || 'Unknown',
+            employer_id: currentEmployerId,
+			client_name: document.getElementById('client').value || 'Unknown',
             task_detail: document.getElementById('detail').value || 'New Task',
             task_type: type,
             units: unit, 
@@ -603,7 +605,7 @@ async function fetchTasks() {
                             <td>${t.units}</td>
                             <td>${t.cpp}</td>
                             <td>${Number(t.payable).toLocaleString()}</td>
-                            <td class="time-column" style="font-weight:bold; color: ${isLate ? '#e74c3c' : 'inherit'};">
+                            <td class="time-column" data-deadline="${t.deadline}" style="font-weight:bold; color: ${isLate ? '#e74c3c' : 'inherit'};">
                                 ${timeRemaining}
                             </td>
                             <td><span class="status-pending">Pending</span></td>
@@ -616,6 +618,17 @@ async function fetchTasks() {
             }
         });
     }
+	
+	// 🔔 Run deadline check immediately
+checkDeadlines(allTasks);
+
+// 🔁 Keep checking every minute
+if (alarmInterval) clearInterval(alarmInterval);
+
+alarmInterval = setInterval(() => {
+    checkDeadlines(allTasks);
+}, 60000);
+
 }
 
 // 4. ADD THIS FUNCTION to ensure the total updates
@@ -1889,6 +1902,15 @@ setInterval(async () => {
     // 2. Scan the new UI for any late orders to ring the alarm
     checkAlarms();
     
+}, 60000);
+
+setInterval(() => {
+    document.querySelectorAll('.time-column').forEach(cell => {
+        const deadline = cell.getAttribute('data-deadline');
+        if (deadline) {
+            cell.innerText = getRemainingTime(deadline);
+        }
+    });
 }, 60000);
 	
 </script>

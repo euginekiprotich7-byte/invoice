@@ -9,6 +9,19 @@ const ASSETS = [
   'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 
+function triggerAlarm() {
+    const alarm = document.getElementById('dueAlarm');
+    const banner = document.getElementById('alarmBanner');
+
+    if (!alarm || !banner) return;
+
+    alarm.currentTime = 0;
+    alarm.play().catch(() => console.log("Audio blocked"));
+
+    banner.style.display = 'block';
+
+    flashTitle(); // you already defined this
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
