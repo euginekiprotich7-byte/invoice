@@ -543,20 +543,20 @@ window.onload = checkPass;
 }
 
 async function fetchTasks() {
-    // 1. Fetch fresh data
+    // 1. Fetch fresh data from Supabase
     const { data: allTasks, error } = await supabaseClient.from('tasks').select('*');
     if (error) {
         console.error("Fetch error:", error);
         return;
     }
 
-    // 2. Filter and Render Invoiced History
+    // 2. Render Invoiced History (Global list)
     const historyTasks = allTasks.filter(t => t.status === 'Invoiced');
     const historyBody = document.getElementById('historyTableBody');
     if (historyBody) {
         historyBody.innerHTML = historyTasks.map(t => `
             <tr>
-                <td>${t.client_name}</td>
+                <td>${t.client_name || 'N/A'}</td>
                 <td>${t.task_detail}</td>
                 <td>${t.invoice_no || 'N/A'}</td>
                 <td>${Number(t.payable).toLocaleString()}</td>
@@ -565,70 +565,56 @@ async function fetchTasks() {
         `).join('');
     }
 
-    // 3. Filter and Render DONE Tasks
+    // 3. Render DONE Tasks (Global list for invoicing)
     const doneTasks = allTasks.filter(t => t.status === 'Done');
-    calculateDoneTotal(doneTasks); // Update the subtotal
+    if (typeof calculateDoneTotal === "function") calculateDoneTotal(doneTasks);
 
     const doneBody = document.getElementById('doneTableBody');
     if (doneBody) {
         doneBody.innerHTML = doneTasks.map(t => `
             <tr>
-                <td>${t.client_name}</td>
+                <td>${t.client_name || 'N/A'}</td>
                 <td>${t.task_detail}</td>
                 <td>${t.units}</td>
                 <td>${Number(t.payable).toLocaleString()}</td>
                 <td>
-                    <button onclick="updateStatus('${t.id}', 'Pending')" 
-                            class="btn" 
-                            style="background: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
-                        Undo
-                    </button>
+                    <button onclick="updateStatus('${t.id}', 'Pending')" class="btn" style="background:#e74c3c;">Undo</button>
                 </td>
             </tr>
         `).join('');
     }
 
-    // 4. Distribute ACTIVE Tasks (The part that needs live countdowns)
-    const { data: employers } = await supabaseClient.from('employers').select('id');
+    // 4. Distribute ACTIVE Tasks (Separated by Employer)
+    const { data: employers } = await supabaseClient.from('employers').select('*');
     if (employers) {
-        // Inside your fetchTasks function, find the employers loop:
-// 3. Distribute Active Tasks
-const { data: employers } = await supabaseClient.from('employers').select('id');
-if (employers) {
-    employers.forEach(emp => {
-        const container = document.getElementById(`active-tasks-${emp.id}`);
-        if (container) {
-            const empTasks = allTasks.filter(t => t.employer_id === emp.id && t.status === 'Pending');
-            
-            // This REWRITES the HTML every time fetchTasks is called
-            container.innerHTML = empTasks.map(t => {
-                const timeRemaining = getRemainingTime(t.deadline);
-                // Checks for "DUE NOW" or negative values in your time string
-                const isLate = timeRemaining.includes("DUE NOW") || timeRemaining.includes("-");
+        employers.forEach(emp => {
+            const container = document.getElementById(`active-tasks-${emp.id}`);
+            if (container) {
+                // IMPORTANT: Filter specifically by THIS employer_id
+                const empTasks = allTasks.filter(t => t.employer_id === emp.id && t.status === 'Pending');
+                
+                container.innerHTML = empTasks.map(t => {
+                    const timeRemaining = getRemainingTime(t.deadline);
+                    const isLate = timeRemaining.includes("DUE NOW") || timeRemaining.includes("-");
 
-                return `
-                    <tr class="${isLate ? 'overdue-row' : ''}" style="${isLate ? 'background-color: #fff0f0;' : ''}">
-                        <td>${t.task_detail}</td>
-                        <td>${t.units}</td>
-                        <td>${t.cpp}</td>
-                        <td>${Number(t.payable).toLocaleString()}</td>
-                        <td class="time-column" style="font-weight:bold; color: ${isLate ? '#e74c3c' : 'inherit'};">
-                            ${timeRemaining}
-                        </td>
-                        <td><span class="status-pending">Pending</span></td>
-                        <td>
-                            <button onclick="updateStatus('${t.id}', 'Done')" 
-                                    class="btn" 
-                                    style="background:var(--success); color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">
-                                Done
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-    });
-	}
+                    return `
+                        <tr class="${isLate ? 'overdue' : ''}">
+                            <td>${t.task_detail}</td>
+                            <td>${t.units}</td>
+                            <td>${t.cpp}</td>
+                            <td>${Number(t.payable).toLocaleString()}</td>
+                            <td class="time-column" style="font-weight:bold; color: ${isLate ? '#e74c3c' : 'inherit'};">
+                                ${timeRemaining}
+                            </td>
+                            <td><span class="status-pending">Pending</span></td>
+                            <td>
+                                <button onclick="updateStatus('${t.id}', 'Done')" class="btn" style="background:var(--success);">Done</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        });
     }
 }
 
@@ -1424,39 +1410,39 @@ async function syncOfflineData() {
 		async function addOrder() {
     const detail = document.getElementById('task_detail').value;
     const units = document.getElementById('units').value;
-    const employerId = document.getElementById('employer_id').value;
+    const empId = document.getElementById('employer_id').value;
     const deadline = document.getElementById('deadline').value;
     const cpp = document.getElementById('cpp').value;
 
-    if (!detail || !deadline) {
-        alert("Please fill in the Task and Deadline.");
+    if (!detail || !deadline || !empId) {
+        alert("Please select an employer and set a deadline.");
         return;
     }
 
-    const newOrder = {
+    const payload = {
         task_detail: detail,
-        units: parseInt(units),
-        employer_id: employerId,
+        units: parseInt(units) || 0,
+        employer_id: empId,
         deadline: new Date(deadline).toISOString(),
-        cpp: parseFloat(cpp),
-        payable: parseInt(units) * parseFloat(cpp),
+        cpp: parseFloat(cpp) || 0,
+        payable: (parseInt(units) || 0) * (parseFloat(cpp) || 0),
         status: 'Pending',
         created_at: new Date().toISOString()
     };
 
-    // FIX: Use standard Supabase syntax. .transaction() does not exist in the JS library.
-    const { data, error } = await supabaseClient
-        .from('tasks')
-        .insert([newOrder]);
+    // Correct Supabase Insertion
+    const { error } = await supabaseClient.from('tasks').insert([payload]);
 
     if (error) {
-        console.error("Supabase Error:", error);
-        // Fallback to local storage if DB fails
-        saveOrderToPhone(newOrder); 
+        console.error("Database Insert Error:", error);
+        alert("Failed to save order to database.");
     } else {
-        console.log("Order added successfully!");
-        document.getElementById('task_detail').value = ''; // Clear input
-        await fetchTasks(); // DIRECT REFRESH: This makes it show on screen instantly
+        // Clear the form
+        document.getElementById('task_detail').value = '';
+        
+        // Refresh the UI immediately so the user sees the change
+        await fetchTasks();
+        console.log("Order registered and UI refreshed.");
     }
 }
 		
@@ -1738,14 +1724,20 @@ async function requestNotificationPermission() {
 }
 	
 	function checkAlarms() {
-    // Only check active tasks
+    // Only target active tasks to prevent false alarms from History
     const activeRows = document.querySelectorAll('[id^="active-tasks-"] tr');
     
     activeRows.forEach(row => {
+        // column index 4 is the 'Time Remaining' column
         const timeCell = row.cells[4];
-        if (timeCell && (timeCell.innerText.includes("DUE NOW") || timeCell.classList.contains('overdue'))) {
-            const taskName = row.cells[0].innerText;
-            triggerAlarm(taskName);
+        const taskName = row.cells[0].innerText;
+
+        if (timeCell) {
+            const timeText = timeCell.innerText;
+            // Trigger if the text indicates the deadline has passed
+            if (timeText.includes("DUE NOW") || timeText.includes("-")) {
+                triggerAlarm(taskName);
+            }
         }
     });
 }
@@ -1887,19 +1879,17 @@ window.showTab = function(tabId) {
     if (tabId === 'history-section') document.getElementById('tab-history').classList.add('active');
 };
 
-// This is the main engine that keeps the screen alive
+// The heartbeat engine
 setInterval(async () => {
-    console.log("Heartbeat: Updating live timers...");
+    console.log("Heartbeat: Auto-refreshing UI and checking deadlines...");
     
-    // 1. Re-fetch data and re-draw the entire table
-    // This forces getRemainingTime() to run again for every row
+    // 1. Force redraw of the tables (updates countdowns on screen)
     await fetchTasks(); 
     
-    // 2. After redrawing, check if any NEW task hit the "DUE NOW" state
-    if (typeof checkAlarms === "function") {
-        checkAlarms();
-    }
-}, 60000); // 1 minute
+    // 2. Scan the new UI for any late orders to ring the alarm
+    checkAlarms();
+    
+}, 60000);
 	
 </script>
 </body>
