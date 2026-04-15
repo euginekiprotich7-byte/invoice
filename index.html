@@ -734,6 +734,7 @@ async function renderEmployerList() {
     const list = document.getElementById('employerList');
     if (!list) return;
 
+    // Fetch latest employers from the database
     const { data: employers, error } = await supabaseClient
         .from('employers')
         .select('*')
@@ -745,11 +746,11 @@ async function renderEmployerList() {
     }
 
     list.innerHTML = '';
+
     employers.forEach(emp => {
         const div = document.createElement('div');
         div.className = 'employer-card';
-        // Styled to match your UI and include the new Generate Invoice button
-        div.style = "border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; background: #fff;";
+        div.style = "border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);";
         
         div.innerHTML = `
             <div>
@@ -760,6 +761,7 @@ async function renderEmployerList() {
                     style="background: #27ae60; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-weight: bold;">
                     📄 Generate Invoice
                 </button>
+                
                 <button onclick="deleteEmployer('${emp.id}')" 
                     style="background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer;">
                     Delete
@@ -928,7 +930,19 @@ function renderPendingPayment(tasks) {
 
     const invoiceDate = new Date().toLocaleDateString();
     const invoiceNo = `INV-${Date.now().toString().slice(-6)}`;
-    const totalAmount = doneTasks.reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
+    
+    // Separate totals for clear balance reporting
+    let grossAmount = 0;
+    let adjustmentAmount = 0;
+
+    doneTasks.forEach(t => {
+        const val = parseFloat(t.payable) || 0;
+        if (t.task_type === 'Adjustment') {
+            adjustmentAmount += val;
+        } else {
+            grossAmount += val;
+        }
+    });
 
     // 2. Build the Word Document Content
     let content = `
@@ -940,40 +954,53 @@ function renderPendingPayment(tasks) {
             th, td { border: 1px solid #000; padding: 8px; text-align: left; }
             th { background-color: #f2f2f2; font-weight: bold; }
             .header { text-align: center; margin-bottom: 30px; }
-            .total-row { font-weight: bold; background-color: #eee; }
+            .summary-table { width: 50%; margin-left: auto; margin-top: 20px; border: none; }
+            .summary-table td { border: none; padding: 5px; }
+            .total-bold { font-weight: bold; font-size: 1.2em; border-top: 2px solid #000 !important; }
         </style>
         </head>
         <body>
             <div class='header'>
-                <h1>INVOICE</h1>
+                <h1>OFFICIAL INVOICE</h1>
                 <p><strong>Date:</strong> ${invoiceDate} | <strong>Invoice #:</strong> ${invoiceNo}</p>
-                <p><strong>Billed To:</strong> ${clientName}</p>
+                <p><strong>Employer:</strong> ${clientName}</p>
             </div>
             <table>
                 <thead>
                     <tr>
                         <th>Detail</th>
+                        <th>Type</th>
                         <th>Units</th>
                         <th>CPP</th>
-                        <th>Payable (KES)</th>
+                        <th>Amount (KES)</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${doneTasks.map(t => `
                         <tr>
                             <td>${t.task_detail}</td>
+                            <td>${t.task_type}</td>
                             <td>${t.units || '-'}</td>
                             <td>${t.cpp || 0}</td>
-                            <td>${t.payable || 0}</td>
+                            <td>${(parseFloat(t.payable) || 0).toLocaleString()}</td>
                         </tr>
                     `).join('')}
                 </tbody>
-                <tfoot>
-                    <tr class='total-row'>
-                        <td colspan='3' style='text-align:right'>Total Payable:</td>
-                        <td>${totalAmount.toLocaleString()}</td>
-                    </tr>
-                </tfoot>
+            </table>
+
+            <table class='summary-table'>
+                <tr>
+                    <td>Gross Total:</td>
+                    <td style='text-align:right'>${grossAmount.toLocaleString()}</td>
+                </tr>
+                <tr>
+                    <td>Adjustments/Advances:</td>
+                    <td style='text-align:right'>${adjustmentAmount.toLocaleString()}</td>
+                </tr>
+                <tr class='total-bold'>
+                    <td><strong>NET PAYABLE:</strong></td>
+                    <td style='text-align:right'><strong>${(grossAmount + adjustmentAmount).toLocaleString()} KES</strong></td>
+                </tr>
             </table>
         </body>
         </html>`;
@@ -988,22 +1015,15 @@ function renderPendingPayment(tasks) {
     link.click();
     document.body.removeChild(link);
 
-    // 4. Update status to 'Invoiced' in Supabase
-    if (confirm(`Invoice generated for ${clientName}. Move these tasks to History?`)) {
+    // 4. Update status in Supabase
+    if (confirm(`Invoice generated. Move tasks to Invoiced history?`)) {
         const ids = doneTasks.map(t => t.id);
-        const { updateError } = await supabaseClient
+        const { error: updateError } = await supabaseClient
             .from('tasks')
-            .update({ 
-                status: 'Invoiced', 
-                invoice_no: invoiceNo 
-            })
+            .update({ status: 'Invoiced', invoice_no: invoiceNo })
             .in('id', ids);
 
-        if (updateError) {
-            alert("Error moving to history: " + updateError.message);
-        } else {
-            fetchTasks(); // Refresh tables to show history
-        }
+        if (!updateError) fetchTasks();
     }
 }
 
@@ -1013,7 +1033,6 @@ async function generateExcelInvoice(employerId, clientName) {
         return;
     }
 
-    // 1. Fetch 'Done' tasks for this specific Employer
     const { data: doneTasks, error } = await supabaseClient
         .from('tasks')
         .select('*')
@@ -1025,46 +1044,55 @@ async function generateExcelInvoice(employerId, clientName) {
         return;
     }
 
-    // 2. Prepare the Data Rows for Excel
     const invoiceNo = `INV-${Date.now().toString().slice(-6)}`;
     const rows = [
-        ["INVOICE", "", "", ""],
-        ["Invoice #:", invoiceNo, "Date:", new Date().toLocaleDateString()],
-        ["Client:", clientName, "", ""],
-        [""], // Empty row for spacing
-        ["Detail", "Units", "CPP", "Payable (KES)"] // Headers
+        ["INVOICE"],
+        ["Employer:", clientName, "Date:", new Date().toLocaleDateString()],
+        ["Invoice #:", invoiceNo],
+        [""], 
+        ["Detail", "Type", "Units", "CPP", "Payable (KES)"]
     ];
 
-    let total = 0;
+    let grossTotal = 0;
+    let adjTotal = 0;
+
     doneTasks.forEach(t => {
         const payable = parseFloat(t.payable) || 0;
-        total += payable;
+        if (t.task_type === 'Adjustment') {
+            adjTotal += payable;
+        } else {
+            grossTotal += payable;
+        }
         rows.push([
             t.task_detail,
+            t.task_type,
             t.units || "-",
             t.cpp || 0,
             payable
         ]);
     });
 
-    // Add total row
-    rows.push([""], ["", "", "GRAND TOTAL:", total]);
+    // Add Spacing and Summary
+    rows.push([""]);
+    rows.push(["", "", "", "GROSS TOTAL:", grossTotal]);
+    rows.push(["", "", "", "ADJUSTMENTS:", adjTotal]);
+    rows.push(["", "", "", "NET PAYABLE:", (grossTotal + adjTotal)]);
 
-    // 3. Create Workbook and Download
     const worksheet = XLSX.utils.aoa_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Invoice");
 
-    // Auto-size columns (basic)
-    worksheet['!cols'] = [{ wch: 30 }, { wch: 10 }, { wch: 10 }, { wch: 15 }];
+    // Formatting
+    worksheet['!cols'] = [{ wch: 40 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 15 }];
 
-    // Download file
     XLSX.writeFile(workbook, `Invoice_${clientName}_${invoiceNo}.xlsx`);
 
-    // 4. Update status in Supabase
-    if (confirm("Excel Invoice Generated! Move these tasks to history?")) {
+    if (confirm("Move these tasks to invoiced history?")) {
         const ids = doneTasks.map(t => t.id);
-        await supabaseClient.from('tasks').update({ status: 'Invoiced', invoice_no: invoiceNo }).in('id', ids);
+        await supabaseClient
+            .from('tasks')
+            .update({ status: 'Invoiced', invoice_no: invoiceNo })
+            .in('id', ids);
         fetchTasks();
     }
 }
@@ -1077,16 +1105,16 @@ async function generateEmployerInvoice(employerId) {
         .eq('employer_id', employerId);
 
     if (error) {
-        alert("Database error fetching tasks.");
+        alert("Error fetching tasks for invoice.");
         return;
     }
 
     if (!tasks || tasks.length === 0) {
-        alert("No tasks marked 'Done' found for this employer.");
+        alert("No completed ('Done') tasks found for this employer.");
         return;
     }
 
-    // 2. Get Employer Name for the file
+    // 2. Fetch employer details for the filename and header
     const { data: employer } = await supabaseClient
         .from('employers')
         .eq('id', employerId)
@@ -1095,31 +1123,33 @@ async function generateEmployerInvoice(employerId) {
     const empName = employer ? employer.employer_name : "Employer";
     const dateStr = new Date().toISOString().split('T')[0];
 
-    // 3. Build the CSV content
-    let csv = `INVOICE: ${empName.toUpperCase()}\nDate: ${dateStr}\n\n`;
-    csv += "Detail,Type,Units,CPP,Payable,Status\n";
+    // 3. Build CSV content specifically for this employer
+    let csv = `INVOICE FOR: ${empName.toUpperCase()}\n`;
+    csv += `Date: ${dateStr}\n\n`;
+    csv += "Task Detail,Type,Units,CPP,Payable,Status\n";
 
-    let grossTotal = 0;
-    let adjustmentTotal = 0;
+    let employerGross = 0;
+    let employerAdj = 0;
 
     tasks.forEach(t => {
-        const amt = parseFloat(t.payable) || 0;
+        const val = parseFloat(t.payable) || 0;
         if (t.task_type === 'Adjustment') {
-            adjustmentTotal += amt;
+            employerAdj += val;
         } else {
-            grossTotal += amt;
+            employerGross += val;
         }
-        // Remove commas from details to avoid breaking CSV format
-        const cleanDetail = t.task_detail.replace(/,/g, ' ');
-        csv += `"${cleanDetail}",${t.task_type},${t.units},${t.cpp},${amt},${t.status}\n`;
+        // Sanitize commas to prevent CSV breakage
+        const cleanDetail = t.task_detail.replace(/,/g, ' '); 
+        csv += `"${cleanDetail}",${t.task_type},${t.units},${t.cpp},${val},${t.status}\n`;
     });
 
-    csv += `\n--- SUMMARY ---\n`;
-    csv += `Gross Total,,, ,${grossTotal}\n`;
-    csv += `Adjustments/Advances,,, ,${adjustmentTotal}\n`;
-    csv += `NET PAYABLE,,, ,${grossTotal + adjustmentTotal}\n`;
+    // 4. Add the per-employer summary at the bottom
+    csv += `\n--- BALANCE SUMMARY ---\n`;
+    csv += `Gross Earned,,, ,${employerGross}\n`;
+    csv += `Adjustments/Advances,,, ,${employerAdj}\n`;
+    csv += `NET TOTAL DUE,,, ,${employerGross + employerAdj}\n`;
 
-    // 4. Trigger download
+    // 5. Trigger the individual CSV download
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -1128,15 +1158,17 @@ async function generateEmployerInvoice(employerId) {
     link.click();
     document.body.removeChild(link);
 
-    // 5. Ask to move to 'Invoiced' status so they don't appear in next invoice
-    if (confirm(`Invoice for ${empName} saved. Mark these tasks as 'Invoiced' in the system?`)) {
-        await supabaseClient
+    // 6. Confirm moving tasks to 'Invoiced' status
+    if (confirm(`Invoice for ${empName} downloaded. Mark these ${tasks.length} tasks as 'Invoiced'?`)) {
+        const { error: updateError } = await supabaseClient
             .from('tasks')
             .update({ status: 'Invoiced' })
             .eq('status', 'Done')
             .eq('employer_id', employerId);
         
-        if (typeof fetchTasks === 'function') fetchTasks();
+        if (!updateError && typeof fetchTasks === 'function') {
+            fetchTasks(); // Refresh tables
+        }
     }
 }
 
