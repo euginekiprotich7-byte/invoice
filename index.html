@@ -460,8 +460,8 @@ th {
 	}
 
 function showTab(tabId) {
-    // 1. Force these specific IDs to be the ONLY ones the app knows
-    const sections = ['active-section', 'done-tasks-container', 'history-section'];
+    // These IDs must match the 'id' attributes in your <div> elements exactly
+    const sections = ['active-section', 'done-section', 'history-section'];
 
     sections.forEach(id => {
         const el = document.getElementById(id);
@@ -469,6 +469,16 @@ function showTab(tabId) {
             el.style.display = (id === tabId) ? 'block' : 'none';
         }
     });
+
+    // Update sidebar UI styling
+    document.querySelectorAll('.sidebar-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    // Map the section ID back to the tab ID to highlight the active tab
+    if (tabId === 'active-section') document.getElementById('tab-active').classList.add('active');
+    if (tabId === 'done-section') document.getElementById('tab-done').classList.add('active');
+    if (tabId === 'history-section') document.getElementById('tab-history').classList.add('active');
 }
 
 	async function checkPass() {
@@ -640,81 +650,21 @@ function calculateDoneTotal(doneTasks) {
     totalDisplay.innerText = total.toLocaleString(); 
 }
 
-function renderTable(tbodyId, tasks, showActions) {
-    const body = document.getElementById(tbodyId);
-    if (!body) return;
-
-    body.innerHTML = '';
-    let totalPayable = 0; // 1. Initialize a counter
-
-    if (!tasks || tasks.length === 0) {
-        body.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#999;">No tasks found.</td></tr>`;
-        // Reset subtotal to 0 if no tasks
-        if (tbodyId === 'doneTableBody') {
-            const subTotalElem = document.getElementById('done-subtotal');
-            if (subTotalElem) subTotalElem.innerText = '0';
-        }
-        return;
-    }
-
-    tasks.forEach(t => {
-        const payable = parseFloat(t.payable) || 0;
-        totalPayable += payable; // 2. Add each task's payable to the total
-
-        const timeLeft = typeof getRemainingTime === 'function' ? getRemainingTime(t.deadline) : 'N/A';
-        
-        body.innerHTML += `
-            <tr>
-                <td><strong>${t.client_name || 'No Client'}</strong></td>
-                <td>${t.task_detail}</td>
-                <td>${t.units || '-'}</td>
-                <td>${t.cpp || 0}</td>
-                <td>${payable}</td>
-                <td>${t.status}</td>
-                ${showActions ? `<td>${timeLeft}</td>` : ''}
-                <td>
-                    ${showActions ? `
-                        <div style="display:flex; gap:5px;">
-                            <button onclick="updateStatus('${t.id}','Done')" class="btn" style="background:var(--success); padding:4px;">Done</button>
-                            <button onclick="updateStatus('${t.id}','Cancelled')" class="btn" style="background:var(--danger); padding:4px;">X</button>
-                        </div>
-                    ` : `
-                        <button onclick="updateStatus('${t.id}','Invoiced')" class="btn" style="background:var(--warning); width:100%;">Invoice It</button>
-                    `}
-                </td>
-            </tr>
-        `;
-    });
-
-    // 3. Update the Sub-Total display if we are rendering the Done table
-    if (tbodyId === 'doneTableBody') {
-        const subTotalElem = document.getElementById('done-subtotal');
-        if (subTotalElem) {
-            subTotalElem.innerText = totalPayable.toLocaleString(); // Formats with commas
-        }
-    }
-}
-
 async function renderActive(tasks) {
     const body = document.getElementById('tableBody');
     if (!body) return;
-    
-    // 1. Clear the table once to prevent duplication
+
+    // Clear the table first to prevent row duplication
     body.innerHTML = ''; 
-    
-    // 2. Initialize totals correctly (only declare them ONCE)
+
     let gross = 0;
     let advances = 0;
 
-    // 3. Fetch all employers to map names to IDs
+    // Fetch employers to map IDs to names
     const { data: employersList } = await supabaseClient.from('employers').select('id, employer_name');
-    
-    // Create the HTML options for the dropdown
-    let employerOptions = (employersList || []).map(e => 
-        `<option value="${e.id}">${e.employer_name}</option>`
-    ).join('');
+    let employerOptions = (employersList || []).map(e => `<option value="${e.id}">${e.employer_name}</option>`).join('');
 
-    // 4. Group tasks by client name
+    // Group tasks by client name
     const grouped = tasks.reduce((acc, t) => {
         const client = t.client_name || 'Unassigned';
         if (!acc[client]) acc[client] = [];
@@ -722,61 +672,53 @@ async function renderActive(tasks) {
         return acc;
     }, {});
 
-    // 5. Loop through client groups
     for (let client in grouped) {
         body.innerHTML += `<tr class="client-header"><td colspan="7" style="background:#dfe6e9; font-weight:bold;">${client.toUpperCase()}</td></tr>`;
         
         grouped[client].forEach(t => {
             if (t.status !== 'Cancelled') {
                 if (t.task_type === 'Adjustment') {
-                    advances += t.payable;
+                    advances += (parseFloat(t.payable) || 0);
                 } else {
-                    gross += t.payable;
+                    gross += (parseFloat(t.payable) || 0);
                 }
             }
             
             const timeLeft = getRemainingTime(t.deadline);
             const statusClass = t.status === 'Pending' ? 'status-pending' : '';
-            
-            // Logic: Check if employer is already assigned
             const assignedEmp = (employersList || []).find(e => e.id === t.employer_id);
             
-            let moveControls = "";
-            if (assignedEmp) {
-                moveControls = `<div style="margin-top:8px; color:#27ae60; font-size:11px; font-weight:bold;">
-                                    👤 Boss: ${assignedEmp.employer_name}
-                                </div>`;
-            } else {
-                moveControls = `<div style="margin-top:8px; border-top:1px solid #ddd; padding-top:5px;">
-                                    <select id="move-to-${t.id}" style="width:100px; font-size:11px; height:30px;">
-                                        <option value="">Move to...</option>
-                                        ${employerOptions}
-                                    </select>
-                                    <button onclick="moveOrder('${t.id}')" style="background:#f39c12; color:white; border:none; padding:4px; font-size:10px; border-radius:3px;">Go</button>
-                                </div>`;
-            }
+            let moveControls = assignedEmp 
+                ? `<div style="margin-top:8px; color:#27ae60; font-size:11px; font-weight:bold;">👤 Boss: ${assignedEmp.employer_name}</div>`
+                : `<div style="margin-top:8px; border-top:1px solid #ddd; padding-top:5px;">
+                    <select id="move-to-${t.id}" style="width:100px; font-size:11px; height:30px;">
+                        <option value="">Move to...</option>
+                        ${employerOptions}
+                    </select>
+                    <button onclick="moveOrder('${t.id}')" style="background:#f39c12; color:white; border:none; padding:4px; font-size:10px; border-radius:3px;">Go</button>
+                   </div>`;
 
             body.innerHTML += `
                 <tr>
                     <td>${t.task_detail}</td>
                     <td>${t.task_type === 'Adjustment' ? '-' : (t.task_type === 'Quiz' ? 'quiz' : t.units)}</td>
                     <td>${t.cpp}</td>
-                    <td>${t.payable}</td>
-                    <td>${timeLeft}</td> 
+                    <td>${Number(t.payable).toLocaleString()}</td>
+                    <td>${timeLeft}</td>
                     <td class="${statusClass}">${t.status}</td>
                     <td>
-                        <button onclick="updateStatus('${t.id}','Done')">Done</button>
-                        <button onclick="updateStatus('${t.id}','Cancelled')">X</button>
+                        <button onclick="updateStatus('${t.id}','Done')" class="btn" style="background:var(--success); padding:5px;">Done</button>
+                        <button onclick="updateStatus('${t.id}','Cancelled')" class="btn" style="background:var(--danger); padding:5px;">X</button>
                         ${moveControls}
                     </td>
                 </tr>`;
         });
     }
 
-    // 6. Update the footer totals
-    document.getElementById('subTotal').innerText = gross;
-    document.getElementById('adjTotal').innerText = advances;
-    document.getElementById('grandTotal').innerText = gross + advances;
+    // Update footer totals
+    document.getElementById('subTotal').innerText = gross.toLocaleString();
+    document.getElementById('adjTotal').innerText = advances.toLocaleString();
+    document.getElementById('grandTotal').innerText = (gross + advances).toLocaleString();
 }
 
 async function renderEmployers() {
@@ -1871,17 +1813,6 @@ window.addEventListener('online', syncOfflineData);
     forceSync();
 });
 
-// Force this function to be global
-window.showTab = function(tabId) {
-    // 1. Updated these IDs to match your HTML exactly
-    const sections = ['active-section', 'done-section', 'history-section'];
-
-    sections.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.style.display = (id === tabId) ? 'block' : 'none';
-        }
-    });
 
     // 2. Keep the styling logic
     document.querySelectorAll('.sidebar-item').forEach(item => {

@@ -47,8 +47,8 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('show-notification', (event) => {
     const options = {
         body: event.data.body,
-        icon: './https://cdn-icons-png.flaticon.com/512/2821/2821637.png',
-        badge: './https://cdn-icons-png.flaticon.com/512/2821/2821637.png',
+        icon: 'https://cdn-icons-png.flaticon.com/512/2821/2821637.png',
+        badge: 'https://cdn-icons-png.flaticon.com/512/2821/2821637.png',
         vibrate: [200, 100, 200],
         tag: 'deadline-alert',
         renotify: true,
