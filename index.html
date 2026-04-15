@@ -545,110 +545,112 @@ window.onload = checkPass;
         } else {
             alert("Task added successfully!");
             
-            // 1. Clear the form fields
+            // 1. Clear the form so it's ready for the next entry
             document.getElementById('taskForm').reset();
             
-            // 2. IMMEDIATE REFRESH: This makes the task appear in the table right away
+            // 2. IMMEDIATE REFRESH: This triggers the grouping and redraws the table
             await fetchTasks(); 
         }
     } else {
+        // Offline handling
         const offlineTasks = JSON.parse(localStorage.getItem('offlineTasks') || '[]');
         offlineTasks.push(taskData);
         localStorage.setItem('offlineTasks', JSON.stringify(offlineTasks));
         
-        alert("Saved locally (Offline)");
+        alert("Saved locally (Offline mode)");
         document.getElementById('taskForm').reset();
         
-        // Refresh UI from local data
+        // Refresh UI even if offline to show the local entry
         await fetchTasks();
     }
 }
 
 async function fetchTasks() {
-    // 1. Fetch fresh data from Supabase
-    const { data: allTasks, error } = await supabaseClient.from('tasks').select('*');
-    if (error) {
-        console.error("Fetch error:", error);
+    console.log("Fetching tasks from Supabase...");
+
+    // 1. Clear any local storage tasks that were successfully synced
+    if (navigator.onLine) {
+        localStorage.removeItem('offlineTasks'); 
+    }
+
+    // 2. Fetch Active (Pending) Tasks
+    const { data: activeTasks, error: activeError } = await supabaseClient
+        .from('tasks')
+        .select('*')
+        .eq('status', 'Pending')
+        .order('deadline', { ascending: true });
+
+    // 3. Fetch Completed (Done) Tasks
+    const { data: doneTasks, error: doneError } = await supabaseClient
+        .from('tasks')
+        .select('*')
+        .eq('status', 'Done');
+
+    // 4. Fetch History (Invoiced) Tasks
+    const { data: historyTasks, error: historyError } = await supabaseClient
+        .from('tasks')
+        .select('*')
+        .eq('status', 'Invoiced');
+
+    if (activeError || doneError || historyError) {
+        console.error("Error fetching tasks:", activeError || doneError || historyError);
         return;
     }
 
-    // 2. Render Invoiced History (Global list)
-    const historyTasks = allTasks.filter(t => t.status === 'Invoiced');
-    const historyBody = document.getElementById('historyTableBody');
-    if (historyBody) {
-        historyBody.innerHTML = historyTasks.map(t => `
-            <tr>
-                <td>${t.client_name || 'N/A'}</td>
-                <td>${t.task_detail}</td>
-                <td>${t.invoice_no || 'N/A'}</td>
-                <td>${Number(t.payable).toLocaleString()}</td>
-                <td style="color: var(--success); font-weight:bold;">INVOICED</td>
-            </tr>
-        `).join('');
-    }
+    // 5. SEND DATA TO THE GROUPING RENDERER
+    // These IDs must match your <tbody> IDs in the HTML
+    renderTableGroupedByClient(activeTasks || [], 'activeTaskTableBody');
+    renderTableGroupedByClient(doneTasks || [], 'doneTaskTableBody');
+    renderTableGroupedByClient(historyTasks || [], 'historyTaskTableBody');
+    
+    console.log("UI Redrawn with Client Grouping.");
+}
 
-    // 3. Render DONE Tasks (Global list for invoicing)
-    const doneTasks = allTasks.filter(t => t.status === 'Done');
-    if (typeof calculateDoneTotal === "function") calculateDoneTotal(doneTasks);
+function renderTableGroupedByClient(tasks, tableBodyId) {
+    const tableBody = document.getElementById(tableBodyId);
+    if (!tableBody) return;
+    tableBody.innerHTML = '';
 
-    const doneBody = document.getElementById('doneTableBody');
-    if (doneBody) {
-        doneBody.innerHTML = doneTasks.map(t => `
-            <tr>
-                <td>${t.client_name || 'N/A'}</td>
-                <td>${t.task_detail}</td>
-                <td>${t.units}</td>
-                <td>${Number(t.payable).toLocaleString()}</td>
+    // Group tasks by client_name
+    const groups = tasks.reduce((acc, task) => {
+        const name = task.client_name || 'General Client';
+        if (!acc[name]) acc[name] = [];
+        acc[name].push(task);
+        return acc;
+    }, {});
+
+    // Loop through groups and create the UI
+    for (const client in groups) {
+        // Add the Blue Client Header row
+        const header = document.createElement('tr');
+        header.innerHTML = `
+            <td colspan="7" style="background: #ebf5fb; font-weight: bold; color: #2980b9; padding: 12px; border-left: 5px solid #3498db; font-size: 0.95em;">
+                👤 CLIENT: ${client.toUpperCase()}
+            </td>
+        `;
+        tableBody.appendChild(header);
+
+        // Add the individual tasks for this client
+        groups[client].forEach(task => {
+            const row = document.createElement('tr');
+            
+            row.innerHTML = `
+                <td>${task.task_detail}</td>
+                <td>${task.task_type}</td>
+                <td>${task.units}</td>
+                <td>${task.cpp}</td>
+                <td>${task.payable}</td>
+                <td class="time-column" data-deadline="${task.deadline}">...</td>
                 <td>
-                    <button onclick="updateStatus('${t.id}', 'Pending')" class="btn" style="background:#e74c3c;">Undo</button>
+                    ${task.status === 'Pending' ? 
+                        `<button class="btn-done" onclick="markAsDone('${task.id}')">Done</button>` : 
+                        `<span style="color:#27ae60; font-weight:bold;">${task.status}</span>`
+                    }
                 </td>
-            </tr>
-        `).join('');
-    }
-
-    // 4. Distribute ACTIVE Tasks (Separated by Employer)
-    const { data: employers } = await supabaseClient.from('employers').select('*');
-    if (employers) {
-        employers.forEach(emp => {
-            const container = document.getElementById(`active-tasks-${emp.id}`);
-            if (container) {
-                // IMPORTANT: Filter specifically by THIS employer_id
-                const empTasks = allTasks.filter(t => t.employer_id === emp.id && t.status === 'Pending');
-                
-                container.innerHTML = empTasks.map(t => {
-                    const timeRemaining = getRemainingTime(t.deadline);
-                    const isLate = timeRemaining.includes("DUE NOW") || timeRemaining.includes("-");
-
-                    return `
-                        <tr class="${isLate ? 'overdue' : ''}">
-                            <td>${t.task_detail}</td>
-                            <td>${t.units}</td>
-                            <td>${t.cpp}</td>
-                            <td>${Number(t.payable).toLocaleString()}</td>
-                            <td class="time-column" data-deadline="${t.deadline}" style="font-weight:bold; color: ${isLate ? '#e74c3c' : 'inherit'};">
-                                ${timeRemaining}
-                            </td>
-                            <td><span class="status-pending">Pending</span></td>
-                            <td>
-                                <button onclick="updateStatus('${t.id}', 'Done')" class="btn" style="background:var(--success);">Done</button>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-            }
+            `;
+            tableBody.appendChild(row);
         });
     }
-	
-	// 🔔 Run deadline check immediately
-checkDeadlines(allTasks);
-
-// 🔁 Keep checking every minute
-if (alarmInterval) clearInterval(alarmInterval);
-
-alarmInterval = setInterval(() => {
-    checkDeadlines(allTasks);
-}, 60000);
-
 }
 
 // 4. ADD THIS FUNCTION to ensure the total updates
