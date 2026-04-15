@@ -731,10 +731,9 @@ async function renderActive(tasks) {
 }
 
 async function renderEmployerList() {
-    const listContainer = document.getElementById('employerList'); // Ensure this ID exists in your HTML
-    if (!listContainer) return;
+    const list = document.getElementById('employerList');
+    if (!list) return;
 
-    // Fetch the latest list of employers from Supabase
     const { data: employers, error } = await supabaseClient
         .from('employers')
         .select('*')
@@ -745,30 +744,29 @@ async function renderEmployerList() {
         return;
     }
 
-    listContainer.innerHTML = '';
-
+    list.innerHTML = '';
     employers.forEach(emp => {
-        const card = document.createElement('div');
-        card.className = 'employer-card';
-        card.style = "border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);";
+        const div = document.createElement('div');
+        div.className = 'employer-card';
+        // Styled to match your UI and include the new Generate Invoice button
+        div.style = "border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; background: #fff;";
         
-        card.innerHTML = `
+        div.innerHTML = `
             <div>
                 <strong style="font-size: 1.1em; color: #2c3e50;">${emp.employer_name}</strong>
-                <div style="font-size: 0.85em; color: #7f8c8d;">ID: ${emp.id.substring(0,8)}...</div>
             </div>
-            <div style="display: flex; gap: 10px;">
+            <div style="display: flex; gap: 8px;">
                 <button onclick="generateEmployerInvoice('${emp.id}')" 
-                    style="background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px;">
+                    style="background: #27ae60; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-weight: bold;">
                     📄 Generate Invoice
                 </button>
                 <button onclick="deleteEmployer('${emp.id}')" 
-                    style="background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">
+                    style="background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer;">
                     Delete
                 </button>
             </div>
         `;
-        listContainer.appendChild(card);
+        list.appendChild(div);
     });
 }
 
@@ -1078,52 +1076,67 @@ async function generateEmployerInvoice(employerId) {
         .eq('status', 'Done')
         .eq('employer_id', employerId);
 
-    if (error || !tasks || tasks.length === 0) {
-        alert("No completed tasks found for this employer to invoice.");
+    if (error) {
+        alert("Database error fetching tasks.");
         return;
     }
 
-    // 2. Fetch employer details for the header
+    if (!tasks || tasks.length === 0) {
+        alert("No tasks marked 'Done' found for this employer.");
+        return;
+    }
+
+    // 2. Get Employer Name for the file
     const { data: employer } = await supabaseClient
         .from('employers')
         .eq('id', employerId)
         .single();
 
     const empName = employer ? employer.employer_name : "Employer";
-    const dateStr = new Date().toLocaleDateString().replace(/\//g, '-');
-    const invoiceFileName = `Invoice_${empName}_${dateStr}.csv`;
+    const dateStr = new Date().toISOString().split('T')[0];
 
-    // 3. Prepare CSV Content (Separate for this employer)
-    let csvContent = "Detail,Units,CPP,Payable,Status\n";
-    let total = 0;
+    // 3. Build the CSV content
+    let csv = `INVOICE: ${empName.toUpperCase()}\nDate: ${dateStr}\n\n`;
+    csv += "Detail,Type,Units,CPP,Payable,Status\n";
+
+    let grossTotal = 0;
+    let adjustmentTotal = 0;
 
     tasks.forEach(t => {
-        const val = parseFloat(t.payable) || 0;
-        total += val;
-        csvContent += `"${t.task_detail}",${t.units},${t.cpp},${val},${t.status}\n`;
+        const amt = parseFloat(t.payable) || 0;
+        if (t.task_type === 'Adjustment') {
+            adjustmentTotal += amt;
+        } else {
+            grossTotal += amt;
+        }
+        // Remove commas from details to avoid breaking CSV format
+        const cleanDetail = t.task_detail.replace(/,/g, ' ');
+        csv += `"${cleanDetail}",${t.task_type},${t.units},${t.cpp},${amt},${t.status}\n`;
     });
 
-    csvContent += `\n,TOTAL DUE,,${total},\n`;
+    csv += `\n--- SUMMARY ---\n`;
+    csv += `Gross Total,,, ,${grossTotal}\n`;
+    csv += `Adjustments/Advances,,, ,${adjustmentTotal}\n`;
+    csv += `NET PAYABLE,,, ,${grossTotal + adjustmentTotal}\n`;
 
-    // 4. Trigger Download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    // 4. Trigger download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", invoiceFileName);
-    link.style.visibility = 'hidden';
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `Invoice_${empName.replace(/\s+/g, '_')}_${dateStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    // 5. Optional: Ask to mark as 'Invoiced'
-    if (confirm(`Mark ${tasks.length} tasks as 'Invoiced' for ${empName}?`)) {
+    // 5. Ask to move to 'Invoiced' status so they don't appear in next invoice
+    if (confirm(`Invoice for ${empName} saved. Mark these tasks as 'Invoiced' in the system?`)) {
         await supabaseClient
             .from('tasks')
             .update({ status: 'Invoiced' })
             .eq('status', 'Done')
             .eq('employer_id', employerId);
-        fetchTasks(); // Refresh UI
+        
+        if (typeof fetchTasks === 'function') fetchTasks();
     }
 }
 
