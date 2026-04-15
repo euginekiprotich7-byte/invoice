@@ -1813,27 +1813,19 @@ window.addEventListener('online', syncOfflineData);
     forceSync();
 });
 
-
-    // 2. Keep the styling logic
-    document.querySelectorAll('.sidebar-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    
-    if (tabId === 'active-section') document.getElementById('tab-active').classList.add('active');
-    if (tabId === 'done-section') document.getElementById('tab-done').classList.add('active');
-    if (tabId === 'history-section') document.getElementById('tab-history').classList.add('active');
-};
-
 // The heartbeat engine
 setInterval(async () => {
     console.log("Heartbeat: Auto-refreshing UI and checking deadlines...");
     
-    // 1. Force redraw of the tables (updates countdowns on screen)
-    await fetchTasks(); 
+    // Refresh data from Supabase
+    if (typeof fetchTasks === 'function') {
+        await fetchTasks(); 
+    }
     
-    // 2. Scan the new UI for any late orders to ring the alarm
-    checkAlarms();
-    
+    // Trigger alarm if any orders are overdue
+    if (typeof checkAlarms === 'function') {
+        checkAlarms();
+    }
 }, 60000);
 
 setInterval(() => {
