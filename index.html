@@ -734,34 +734,32 @@ async function renderEmployerList() {
     const list = document.getElementById('employerList');
     if (!list) return;
 
-    // Fetch latest employers from the database
     const { data: employers, error } = await supabaseClient
         .from('employers')
         .select('*')
         .order('employer_name', { ascending: true });
 
-    if (error) {
-        console.error("Error fetching employers:", error);
-        return;
-    }
+    if (error) return;
 
     list.innerHTML = '';
-
     employers.forEach(emp => {
         const div = document.createElement('div');
         div.className = 'employer-card';
-        div.style = "border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);";
+        div.style = "border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; background: #fff;";
         
         div.innerHTML = `
             <div>
-                <strong style="font-size: 1.1em; color: #2c3e50;">${emp.employer_name}</strong>
+                <strong>${emp.employer_name}</strong>
             </div>
             <div style="display: flex; gap: 8px;">
-                <button onclick="generateEmployerInvoice('${emp.id}')" 
-                    style="background: #27ae60; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                    📄 Generate Invoice
+                <button onclick="generateWordInvoice('${emp.id}', '${emp.employer_name}')" 
+                    style="background: #2980b9; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer;">
+                    Word
                 </button>
-                
+                <button onclick="generateExcelInvoice('${emp.id}', '${emp.employer_name}')" 
+                    style="background: #27ae60; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer;">
+                    Excel
+                </button>
                 <button onclick="deleteEmployer('${emp.id}')" 
                     style="background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer;">
                     Delete
@@ -915,8 +913,7 @@ function renderPendingPayment(tasks) {
     }
 }
 
-    async function generateWordInvoice(employerId, clientName) {
-    // 1. Fetch only the 'Done' tasks belonging to this specific Employer
+    async function generateWordInvoice(employerId, empName) {
     const { data: doneTasks, error } = await supabaseClient
         .from('tasks')
         .select('*')
@@ -924,115 +921,58 @@ function renderPendingPayment(tasks) {
         .eq('status', 'Done');
 
     if (error || !doneTasks || doneTasks.length === 0) {
-        alert(`No completed orders found for ${clientName}!`);
+        alert(`No 'Done' tasks found for ${empName}`);
         return;
     }
 
-    const invoiceDate = new Date().toLocaleDateString();
-    const invoiceNo = `INV-${Date.now().toString().slice(-6)}`;
-    
-    // Separate totals for clear balance reporting
-    let grossAmount = 0;
-    let adjustmentAmount = 0;
+    const invoiceNo = `INV-${Date.now().toString().slice(-4)}`;
+    let gross = 0;
+    let adjustments = 0;
 
-    doneTasks.forEach(t => {
+    const tableRows = doneTasks.map(t => {
         const val = parseFloat(t.payable) || 0;
-        if (t.task_type === 'Adjustment') {
-            adjustmentAmount += val;
-        } else {
-            grossAmount += val;
-        }
-    });
+        if (t.task_type === 'Adjustment') adjustments += val;
+        else gross += val;
+        
+        return `<tr>
+            <td>${t.task_detail}</td>
+            <td>${t.units || '-'}</td>
+            <td>${t.cpp}</td>
+            <td>${val.toLocaleString()}</td>
+        </tr>`;
+    }).join('');
 
-    // 2. Build the Word Document Content
     let content = `
         <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-        <head><meta charset='utf-8'><title>Invoice - ${clientName}</title>
-        <style>
-            body { font-family: 'Calibri', 'Arial', sans-serif; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #000; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; font-weight: bold; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .summary-table { width: 50%; margin-left: auto; margin-top: 20px; border: none; }
-            .summary-table td { border: none; padding: 5px; }
-            .total-bold { font-weight: bold; font-size: 1.2em; border-top: 2px solid #000 !important; }
-        </style>
-        </head>
         <body>
-            <div class='header'>
-                <h1>OFFICIAL INVOICE</h1>
-                <p><strong>Date:</strong> ${invoiceDate} | <strong>Invoice #:</strong> ${invoiceNo}</p>
-                <p><strong>Employer:</strong> ${clientName}</p>
+            <h2 style='text-align:center'>INVOICE</h2>
+            <p><strong>Billed To:</strong> ${empName}</p>
+            <p><strong>Invoice #:</strong> ${invoiceNo} | <strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+            <table border='1' style='width:100%; border-collapse:collapse;'>
+                <tr style='background:#eee'><th>Detail</th><th>Units</th><th>CPP</th><th>Amount</th></tr>
+                ${tableRows}
+            </table>
+            <div style='margin-top:20px; text-align:right;'>
+                <p>Gross: ${gross.toLocaleString()}</p>
+                <p>Adjustments: ${adjustments.toLocaleString()}</p>
+                <p><strong>Net Total: ${(gross + adjustments).toLocaleString()} KES</strong></p>
             </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Detail</th>
-                        <th>Type</th>
-                        <th>Units</th>
-                        <th>CPP</th>
-                        <th>Amount (KES)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${doneTasks.map(t => `
-                        <tr>
-                            <td>${t.task_detail}</td>
-                            <td>${t.task_type}</td>
-                            <td>${t.units || '-'}</td>
-                            <td>${t.cpp || 0}</td>
-                            <td>${(parseFloat(t.payable) || 0).toLocaleString()}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-
-            <table class='summary-table'>
-                <tr>
-                    <td>Gross Total:</td>
-                    <td style='text-align:right'>${grossAmount.toLocaleString()}</td>
-                </tr>
-                <tr>
-                    <td>Adjustments/Advances:</td>
-                    <td style='text-align:right'>${adjustmentAmount.toLocaleString()}</td>
-                </tr>
-                <tr class='total-bold'>
-                    <td><strong>NET PAYABLE:</strong></td>
-                    <td style='text-align:right'><strong>${(grossAmount + adjustmentAmount).toLocaleString()} KES</strong></td>
-                </tr>
-            </table>
         </body>
         </html>`;
 
-    // 3. Trigger the Download
     const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
-    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = url;
-    link.download = `Invoice_${clientName.replace(/\s+/g, '_')}_${invoiceNo}.doc`;
-    document.body.appendChild(link);
+    link.href = URL.createObjectURL(blob);
+    link.download = `Invoice_${empName}_${invoiceNo}.doc`;
     link.click();
-    document.body.removeChild(link);
 
-    // 4. Update status in Supabase
-    if (confirm(`Invoice generated. Move tasks to Invoiced history?`)) {
-        const ids = doneTasks.map(t => t.id);
-        const { error: updateError } = await supabaseClient
-            .from('tasks')
-            .update({ status: 'Invoiced', invoice_no: invoiceNo })
-            .in('id', ids);
-
-        if (!updateError) fetchTasks();
+    if (confirm("Move tasks to Invoiced history?")) {
+        await supabaseClient.from('tasks').update({ status: 'Invoiced', invoice_no: invoiceNo }).eq('employer_id', employerId).eq('status', 'Done');
+        fetchTasks();
     }
 }
 
-async function generateExcelInvoice(employerId, clientName) {
-    if (!employerId) {
-        alert("Please select an employer first!");
-        return;
-    }
-
+async function generateExcelInvoice(employerId, empName) {
     const { data: doneTasks, error } = await supabaseClient
         .from('tasks')
         .select('*')
@@ -1040,59 +980,34 @@ async function generateExcelInvoice(employerId, clientName) {
         .eq('status', 'Done');
 
     if (error || !doneTasks || doneTasks.length === 0) {
-        alert("No completed orders found for this employer!");
+        alert(`No completed orders found for ${empName}!`);
         return;
     }
 
-    const invoiceNo = `INV-${Date.now().toString().slice(-6)}`;
+    const invoiceNo = `INV-${Date.now().toString().slice(-4)}`;
     const rows = [
-        ["INVOICE"],
-        ["Employer:", clientName, "Date:", new Date().toLocaleDateString()],
-        ["Invoice #:", invoiceNo],
-        [""], 
-        ["Detail", "Type", "Units", "CPP", "Payable (KES)"]
+        ["INVOICE - " + empName.toUpperCase()],
+        ["Invoice #", invoiceNo, "Date", new Date().toLocaleDateString()],
+        [],
+        ["Detail", "Units", "CPP", "Payable"]
     ];
 
-    let grossTotal = 0;
-    let adjTotal = 0;
-
+    let net = 0;
     doneTasks.forEach(t => {
-        const payable = parseFloat(t.payable) || 0;
-        if (t.task_type === 'Adjustment') {
-            adjTotal += payable;
-        } else {
-            grossTotal += payable;
-        }
-        rows.push([
-            t.task_detail,
-            t.task_type,
-            t.units || "-",
-            t.cpp || 0,
-            payable
-        ]);
+        const val = parseFloat(t.payable) || 0;
+        net += val;
+        rows.push([t.task_detail, t.units || "-", t.cpp, val]);
     });
 
-    // Add Spacing and Summary
-    rows.push([""]);
-    rows.push(["", "", "", "GROSS TOTAL:", grossTotal]);
-    rows.push(["", "", "", "ADJUSTMENTS:", adjTotal]);
-    rows.push(["", "", "", "NET PAYABLE:", (grossTotal + adjTotal)]);
+    rows.push([], ["", "", "NET TOTAL:", net]);
 
     const worksheet = XLSX.utils.aoa_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Invoice");
+    XLSX.writeFile(workbook, `Invoice_${empName}_${invoiceNo}.xlsx`);
 
-    // Formatting
-    worksheet['!cols'] = [{ wch: 40 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 15 }];
-
-    XLSX.writeFile(workbook, `Invoice_${clientName}_${invoiceNo}.xlsx`);
-
-    if (confirm("Move these tasks to invoiced history?")) {
-        const ids = doneTasks.map(t => t.id);
-        await supabaseClient
-            .from('tasks')
-            .update({ status: 'Invoiced', invoice_no: invoiceNo })
-            .in('id', ids);
+    if (confirm("Move tasks to history?")) {
+        await supabaseClient.from('tasks').update({ status: 'Invoiced', invoice_no: invoiceNo }).eq('employer_id', employerId).eq('status', 'Done');
         fetchTasks();
     }
 }
