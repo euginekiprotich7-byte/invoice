@@ -507,50 +507,60 @@ function showTab(tabId) {
 // Ensure the function runs when the window finishes loading
 window.onload = checkPass;
 
-    async function saveTask(mode) {
-    let task = {};
-    if (mode === 'Adjustment') {
-        task = {
-            employer_id: currentEmployerId,
-			client_name: document.getElementById('client').value || 'General',
-            task_detail: document.getElementById('adjDetail').value || 'Adjustment',
-            task_type: 'Adjustment',
-            units: 0, cpp: 0,
-            payable: parseFloat(document.getElementById('adjAmount').value) || 0,
-            status: 'Done'
-        };
-    } else {
-        const type = document.getElementById('type').value;
-        const unit = parseFloat(document.getElementById('unit').value) || 0;
-        const cpp = parseFloat(document.getElementById('cpp').value) || 0;
-        let pay = (type === 'Quiz' || type === 'Midterm') ? cpp : unit * cpp;
-        
-        task = {
-            employer_id: currentEmployerId,
-			client_name: document.getElementById('client').value || 'Unknown',
-            task_detail: document.getElementById('detail').value || 'New Task',
-            task_type: type,
-            units: unit, 
-            cpp: cpp,
-            deadline: document.getElementById('deadline').value || null,
-            alert_lead_hours: parseFloat(document.getElementById('alertLeadTime').value) || 1,
-            payable: pay,
-            status: 'Pending'
-        };
+    async function saveTask() {
+    const client_name = document.getElementById('client_name').value;
+    const task_detail = document.getElementById('task_detail').value;
+    const task_type = document.getElementById('task_type').value;
+    const units = parseFloat(document.getElementById('units').value) || 0;
+    const cpp = parseFloat(document.getElementById('cpp').value) || 0;
+    const deadline = document.getElementById('deadline').value;
+    const employer_id = document.getElementById('employer_id').value;
+
+    if (!task_detail || !deadline) {
+        alert("Please fill in the task details and deadline.");
+        return;
     }
 
-    // CHECK CONNECTION STATUS
+    const payable = units * cpp;
+
+    const taskData = {
+        client_name,
+        task_detail,
+        task_type,
+        units,
+        cpp,
+        payable,
+        deadline,
+        employer_id: employer_id || null,
+        status: 'Pending'
+    };
+
     if (navigator.onLine) {
-        const { error } = await supabaseClient.from('tasks').insert([task]);
-        if (error) alert(error.message); else { fetchTasks(); }
+        const { data, error } = await supabaseClient
+            .from('tasks')
+            .insert([taskData]);
+
+        if (error) {
+            alert("Error adding task: " + error.message);
+        } else {
+            alert("Task added successfully!");
+            
+            // 1. Clear the form fields
+            document.getElementById('taskForm').reset();
+            
+            // 2. IMMEDIATE REFRESH: This makes the task appear in the table right away
+            await fetchTasks(); 
+        }
     } else {
-        // SAVE LOCALLY IF OFFLINE
-        let offlineTasks = JSON.parse(localStorage.getItem('offlineTasks') || "[]");
-        offlineTasks.push(task);
+        const offlineTasks = JSON.parse(localStorage.getItem('offlineTasks') || '[]');
+        offlineTasks.push(taskData);
         localStorage.setItem('offlineTasks', JSON.stringify(offlineTasks));
         
-        alert("Offline: Task saved to browser storage. It will sync automatically when internet returns.");
-        // Optional: Refresh local table view if you've built an offline renderer
+        alert("Saved locally (Offline)");
+        document.getElementById('taskForm').reset();
+        
+        // Refresh UI from local data
+        await fetchTasks();
     }
 }
 
