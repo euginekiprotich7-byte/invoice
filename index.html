@@ -654,17 +654,17 @@ async function renderActive(tasks) {
     const body = document.getElementById('tableBody');
     if (!body) return;
 
-    // Clear the table first to prevent row duplication
+    // 1. Clear the table to prevent duplicate rows
     body.innerHTML = ''; 
 
     let gross = 0;
     let advances = 0;
 
-    // Fetch employers to map IDs to names
+    // 2. Fetch employers for the dropdown mapping
     const { data: employersList } = await supabaseClient.from('employers').select('id, employer_name');
     let employerOptions = (employersList || []).map(e => `<option value="${e.id}">${e.employer_name}</option>`).join('');
 
-    // Group tasks by client name
+    // 3. Grouping tasks by client name
     const grouped = tasks.reduce((acc, t) => {
         const client = t.client_name || 'Unassigned';
         if (!acc[client]) acc[client] = [];
@@ -673,9 +673,11 @@ async function renderActive(tasks) {
     }, {});
 
     for (let client in grouped) {
-        body.innerHTML += `<tr class="client-header"><td colspan="7" style="background:#dfe6e9; font-weight:bold;">${client.toUpperCase()}</td></tr>`;
+        // Add a header row for each client
+        body.innerHTML += `<tr class="client-header"><td colspan="7" style="background:#dfe6e9; font-weight:bold; padding:10px;">${client.toUpperCase()}</td></tr>`;
         
         grouped[client].forEach(t => {
+            // Logic for totals
             if (t.status !== 'Cancelled') {
                 if (t.task_type === 'Adjustment') {
                     advances += (parseFloat(t.payable) || 0);
@@ -684,12 +686,10 @@ async function renderActive(tasks) {
                 }
             }
             
-            const timeLeft = getRemainingTime(t.deadline);
-            const statusClass = t.status === 'Pending' ? 'status-pending' : '';
+            // Check if task is assigned to an employer
             const assignedEmp = (employersList || []).find(e => e.id === t.employer_id);
-            
             let moveControls = assignedEmp 
-                ? `<div style="margin-top:8px; color:#27ae60; font-size:11px; font-weight:bold;">👤 Boss: ${assignedEmp.employer_name}</div>`
+                ? `<div style="margin-top:8px; color:#27ae60; font-size:11px; font-weight:bold;">👤 Assigned: ${assignedEmp.employer_name}</div>`
                 : `<div style="margin-top:8px; border-top:1px solid #ddd; padding-top:5px;">
                     <select id="move-to-${t.id}" style="width:100px; font-size:11px; height:30px;">
                         <option value="">Move to...</option>
@@ -698,14 +698,15 @@ async function renderActive(tasks) {
                     <button onclick="moveOrder('${t.id}')" style="background:#f39c12; color:white; border:none; padding:4px; font-size:10px; border-radius:3px;">Go</button>
                    </div>`;
 
+            // Build the row - Note the 'time-column' class and 'data-deadline' attribute
             body.innerHTML += `
                 <tr>
                     <td>${t.task_detail}</td>
                     <td>${t.task_type === 'Adjustment' ? '-' : (t.task_type === 'Quiz' ? 'quiz' : t.units)}</td>
                     <td>${t.cpp}</td>
                     <td>${Number(t.payable).toLocaleString()}</td>
-                    <td>${timeLeft}</td>
-                    <td class="${statusClass}">${t.status}</td>
+                    <td class="time-column" data-deadline="${t.deadline}">Loading...</td>
+                    <td class="${t.status === 'Pending' ? 'status-pending' : ''}">${t.status}</td>
                     <td>
                         <button onclick="updateStatus('${t.id}','Done')" class="btn" style="background:var(--success); padding:5px;">Done</button>
                         <button onclick="updateStatus('${t.id}','Cancelled')" class="btn" style="background:var(--danger); padding:5px;">X</button>
@@ -715,10 +716,14 @@ async function renderActive(tasks) {
         });
     }
 
-    // Update footer totals
-    document.getElementById('subTotal').innerText = gross.toLocaleString();
-    document.getElementById('adjTotal').innerText = advances.toLocaleString();
-    document.getElementById('grandTotal').innerText = (gross + advances).toLocaleString();
+    // 4. Update the visual totals in the footer
+    const subTotalEl = document.getElementById('subTotal');
+    const adjTotalEl = document.getElementById('adjTotal');
+    const grandTotalEl = document.getElementById('grandTotal');
+
+    if (subTotalEl) subTotalEl.innerText = gross.toLocaleString();
+    if (adjTotalEl) adjTotalEl.innerText = advances.toLocaleString();
+    if (grandTotalEl) grandTotalEl.innerText = (gross + advances).toLocaleString();
 }
 
 async function renderEmployers() {
@@ -1830,12 +1835,35 @@ setInterval(async () => {
 
 setInterval(() => {
     document.querySelectorAll('.time-column').forEach(cell => {
-        const deadline = cell.getAttribute('data-deadline');
-        if (deadline) {
-            cell.innerText = getRemainingTime(deadline);
+        const deadlineStr = cell.getAttribute('data-deadline');
+        if (!deadlineStr) return;
+
+        const deadline = new Date(deadlineStr);
+        const now = new Date();
+        const diff = deadline - now;
+
+        if (diff <= 0) {
+            cell.innerText = "DUE NOW";
+            cell.style.color = "red";
+            cell.style.fontWeight = "bold";
+            cell.classList.add('overdue');
+        } else {
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+            // Formats as 02h 05m 10s
+            cell.innerText = `${hours}h ${mins}m ${secs}s`;
+            
+            // Add visual warning if less than 1 hour remains
+            if (hours < 1) {
+                cell.style.color = "orange";
+            } else {
+                cell.style.color = "black";
+            }
         }
     });
-}, 60000);
+}, 1000);
 	
 </script>
 </body>
