@@ -654,116 +654,122 @@ async function renderActive(tasks) {
     const body = document.getElementById('tableBody');
     if (!body) return;
 
-    // 1. Clear the table to prevent duplicate rows
     body.innerHTML = ''; 
 
-    let gross = 0;
-    let advances = 0;
+    // Global trackers (optional, if you still want a grand total)
+    let totalGross = 0;
+    let totalAdj = 0;
 
-    // 2. Fetch employers for the dropdown mapping
+    // Fetch employer list for mapping
     const { data: employersList } = await supabaseClient.from('employers').select('id, employer_name');
     let employerOptions = (employersList || []).map(e => `<option value="${e.id}">${e.employer_name}</option>`).join('');
 
-    // 3. Grouping tasks by client name
-    const grouped = tasks.reduce((acc, t) => {
-        const client = t.client_name || 'Unassigned';
-        if (!acc[client]) acc[client] = [];
-        acc[client].push(t);
+    // Group tasks by Employer first, then by Client
+    const employerGroups = tasks.reduce((acc, t) => {
+        const empId = t.employer_id || 'unassigned';
+        if (!acc[empId]) acc[empId] = { tasks: [], name: 'Unassigned/Direct' };
+        acc[empId].tasks.push(t);
+        
+        const empMatch = (employersList || []).find(e => e.id === t.employer_id);
+        if (empMatch) acc[empId].name = empMatch.employer_name;
+        
         return acc;
     }, {});
 
-    for (let client in grouped) {
-        // Add a header row for each client
-        body.innerHTML += `<tr class="client-header"><td colspan="7" style="background:#dfe6e9; font-weight:bold; padding:10px;">${client.toUpperCase()}</td></tr>`;
-        
-        grouped[client].forEach(t => {
-            // Logic for totals
-            if (t.status !== 'Cancelled') {
-                if (t.task_type === 'Adjustment') {
-                    advances += (parseFloat(t.payable) || 0);
-                } else {
-                    gross += (parseFloat(t.payable) || 0);
-                }
-            }
-            
-            // Check if task is assigned to an employer
-            const assignedEmp = (employersList || []).find(e => e.id === t.employer_id);
-            let moveControls = assignedEmp 
-                ? `<div style="margin-top:8px; color:#27ae60; font-size:11px; font-weight:bold;">👤 Assigned: ${assignedEmp.employer_name}</div>`
-                : `<div style="margin-top:8px; border-top:1px solid #ddd; padding-top:5px;">
-                    <select id="move-to-${t.id}" style="width:100px; font-size:11px; height:30px;">
-                        <option value="">Move to...</option>
-                        ${employerOptions}
-                    </select>
-                    <button onclick="moveOrder('${t.id}')" style="background:#f39c12; color:white; border:none; padding:4px; font-size:10px; border-radius:3px;">Go</button>
-                   </div>`;
+    for (let empId in employerGroups) {
+        let empGross = 0;
+        let empAdj = 0;
+        const empName = employerGroups[empId].name;
 
-            // Build the row - Note the 'time-column' class and 'data-deadline' attribute
+        // Render Employer Header and Table Start
+        body.innerHTML += `
+            <tr class="employer-header">
+                <td colspan="7" style="background:#2c3e50; color:white; font-weight:bold; padding:12px;">
+                    EMPLOYER: ${empName.toUpperCase()}
+                </td>
+            </tr>`;
+
+        employerGroups[empId].tasks.forEach(t => {
+            const isAdj = t.task_type === 'Adjustment';
+            const val = parseFloat(t.payable) || 0;
+
+            if (t.status !== 'Cancelled') {
+                if (isAdj) { empAdj += val; totalAdj += val; }
+                else { empGross += val; totalGross += val; }
+            }
+
             body.innerHTML += `
                 <tr>
                     <td>${t.task_detail}</td>
-                    <td>${t.task_type === 'Adjustment' ? '-' : (t.task_type === 'Quiz' ? 'quiz' : t.units)}</td>
+                    <td>${isAdj ? '-' : (t.task_type === 'Quiz' ? 'quiz' : t.units)}</td>
                     <td>${t.cpp}</td>
-                    <td>${Number(t.payable).toLocaleString()}</td>
+                    <td>${val.toLocaleString()}</td>
                     <td class="time-column" data-deadline="${t.deadline}">Loading...</td>
-                    <td class="${t.status === 'Pending' ? 'status-pending' : ''}">${t.status}</td>
+                    <td>${t.status}</td>
                     <td>
-                        <button onclick="updateStatus('${t.id}','Done')" class="btn" style="background:var(--success); padding:5px;">Done</button>
-                        <button onclick="updateStatus('${t.id}','Cancelled')" class="btn" style="background:var(--danger); padding:5px;">X</button>
-                        ${moveControls}
+                        <button onclick="updateStatus('${t.id}','Done')" class="btn" style="background:var(--success);">Done</button>
+                        <button onclick="updateStatus('${t.id}','Cancelled')" class="btn" style="background:var(--danger);">X</button>
                     </td>
                 </tr>`;
         });
+
+        // Add a Summary Row for THIS Employer
+        body.innerHTML += `
+            <tr style="background:#f9f9f9; font-weight:bold; border-bottom: 3px solid #2c3e50;">
+                <td colspan="3" style="text-align:right;">${empName} Balance:</td>
+                <td colspan="4" style="color:#27ae60;">
+                    Gross: ${empGross.toLocaleString()} | Adj: ${empAdj.toLocaleString()} | 
+                    Total: ${(empGross + empAdj).toLocaleString()}
+                </td>
+            </tr>`;
     }
 
-    // 4. Update the visual totals in the footer
-    const subTotalEl = document.getElementById('subTotal');
-    const adjTotalEl = document.getElementById('adjTotal');
-    const grandTotalEl = document.getElementById('grandTotal');
-
-    if (subTotalEl) subTotalEl.innerText = gross.toLocaleString();
-    if (adjTotalEl) adjTotalEl.innerText = advances.toLocaleString();
-    if (grandTotalEl) grandTotalEl.innerText = (gross + advances).toLocaleString();
+    // Update Global Footer
+    document.getElementById('subTotal').innerText = totalGross.toLocaleString();
+    document.getElementById('adjTotal').innerText = totalAdj.toLocaleString();
+    document.getElementById('grandTotal').innerText = (totalGross + totalAdj).toLocaleString();
 }
 
-async function renderEmployers() {
-    const list = document.getElementById('employersList');
-    const { data: employers, error } = await supabaseClient.from('employers').select('*');
-    
-    if (error) return;
+async function renderEmployerList() {
+    const listContainer = document.getElementById('employerList'); // Ensure this ID exists in your HTML
+    if (!listContainer) return;
 
-    list.innerHTML = employers.map(emp => `
-        <div class="employer-card" id="employer-sec-${emp.id}" style="border: 2px solid var(--primary); margin-bottom: 30px; border-radius: 12px; overflow: hidden;">
-            <div style="background: var(--primary); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin:0;">🏢 ${emp.employer_name}</h3>
-                <button onclick="toggleAddForm('${emp.id}')" class="btn" style="background:var(--success);">+ Add Order</button>
-            </div>
-            
-            <div id="form-${emp.id}" style="display:none; padding: 20px; background: #fdfdfd; border-bottom: 1px solid #eee;">
-                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px;">
-                    <input type="text" id="detail-${emp.id}" placeholder="Order Detail">
-                    <input type="number" id="units-${emp.id}" placeholder="Units">
-                    <input type="number" id="cpp-${emp.id}" placeholder="CPP">
-                    <input type="datetime-local" id="dead-${emp.id}">
-                </div>
-                <button onclick="submitOrder('${emp.id}', '${emp.employer_name}')" style="width: 100%; margin-top: 10px; background: var(--primary); color:white; padding: 10px; border:none; border-radius: 5px;">Save Order to ${emp.employer_name}</button>
-            </div>
+    // Fetch the latest list of employers from Supabase
+    const { data: employers, error } = await supabaseClient
+        .from('employers')
+        .select('*')
+        .order('employer_name', { ascending: true });
 
-            <div style="padding: 10px;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background: #f4f4f4; font-size: 0.85rem;">
-                            <th>Detail</th><th>Units</th><th>CPP</th><th>Payable</th><th>Deadline</th><th>Status</th><th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="active-tasks-${emp.id}">
-                        </tbody>
-                </table>
-            </div>
-        </div>
-    `).join('');
+    if (error) {
+        console.error("Error fetching employers:", error);
+        return;
+    }
 
-    fetchTasks();
+    listContainer.innerHTML = '';
+
+    employers.forEach(emp => {
+        const card = document.createElement('div');
+        card.className = 'employer-card';
+        card.style = "border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);";
+        
+        card.innerHTML = `
+            <div>
+                <strong style="font-size: 1.1em; color: #2c3e50;">${emp.employer_name}</strong>
+                <div style="font-size: 0.85em; color: #7f8c8d;">ID: ${emp.id.substring(0,8)}...</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="generateEmployerInvoice('${emp.id}')" 
+                    style="background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px;">
+                    📄 Generate Invoice
+                </button>
+                <button onclick="deleteEmployer('${emp.id}')" 
+                    style="background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">
+                    Delete
+                </button>
+            </div>
+        `;
+        listContainer.appendChild(card);
+    });
 }
 
 // Global helper to show/hide the specific form
@@ -1062,6 +1068,62 @@ async function generateExcelInvoice(employerId, clientName) {
         const ids = doneTasks.map(t => t.id);
         await supabaseClient.from('tasks').update({ status: 'Invoiced', invoice_no: invoiceNo }).in('id', ids);
         fetchTasks();
+    }
+}
+
+async function generateEmployerInvoice(employerId) {
+    // 1. Fetch only "Done" tasks for this specific employer
+    const { data: tasks, error } = await supabaseClient
+        .from('tasks')
+        .eq('status', 'Done')
+        .eq('employer_id', employerId);
+
+    if (error || !tasks || tasks.length === 0) {
+        alert("No completed tasks found for this employer to invoice.");
+        return;
+    }
+
+    // 2. Fetch employer details for the header
+    const { data: employer } = await supabaseClient
+        .from('employers')
+        .eq('id', employerId)
+        .single();
+
+    const empName = employer ? employer.employer_name : "Employer";
+    const dateStr = new Date().toLocaleDateString().replace(/\//g, '-');
+    const invoiceFileName = `Invoice_${empName}_${dateStr}.csv`;
+
+    // 3. Prepare CSV Content (Separate for this employer)
+    let csvContent = "Detail,Units,CPP,Payable,Status\n";
+    let total = 0;
+
+    tasks.forEach(t => {
+        const val = parseFloat(t.payable) || 0;
+        total += val;
+        csvContent += `"${t.task_detail}",${t.units},${t.cpp},${val},${t.status}\n`;
+    });
+
+    csvContent += `\n,TOTAL DUE,,${total},\n`;
+
+    // 4. Trigger Download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", invoiceFileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // 5. Optional: Ask to mark as 'Invoiced'
+    if (confirm(`Mark ${tasks.length} tasks as 'Invoiced' for ${empName}?`)) {
+        await supabaseClient
+            .from('tasks')
+            .update({ status: 'Invoiced' })
+            .eq('status', 'Done')
+            .eq('employer_id', employerId);
+        fetchTasks(); // Refresh UI
     }
 }
 
