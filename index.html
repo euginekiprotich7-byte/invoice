@@ -611,29 +611,28 @@ function renderTableGroupedByClient(tasks, tableBodyId) {
     if (!tableBody) return;
     tableBody.innerHTML = '';
 
-    // Group tasks by client_name
-    const groups = tasks.reduce((acc, task) => {
-        const name = task.client_name || 'General Client';
-        if (!acc[name]) acc[name] = [];
-        acc[name].push(task);
+    // 1. Group tasks by Client Name (The sub-category)
+    const clientGroups = tasks.reduce((acc, task) => {
+        const cName = task.client_name || 'Direct Order';
+        if (!acc[cName]) acc[cName] = [];
+        acc[cName].push(task);
         return acc;
     }, {});
 
-    // Loop through groups and create the UI
-    for (const client in groups) {
-        // Add the Blue Client Header row
-        const header = document.createElement('tr');
-        header.innerHTML = `
-            <td colspan="7" style="background: #ebf5fb; font-weight: bold; color: #2980b9; padding: 12px; border-left: 5px solid #3498db; font-size: 0.95em;">
-                👤 CLIENT: ${client.toUpperCase()}
+    // 2. Render the groups
+    for (const clientName in clientGroups) {
+        // Add a Header row for the Client
+        const headerRow = document.createElement('tr');
+        headerRow.innerHTML = `
+            <td colspan="7" style="background: #f1f8ff; font-weight: bold; color: #0366d6; padding: 10px; border-left: 5px solid #0366d6;">
+                📁 Client: ${clientName}
             </td>
         `;
-        tableBody.appendChild(header);
+        tableBody.appendChild(headerRow);
 
-        // Add the individual tasks for this client
-        groups[client].forEach(task => {
+        // Add the tasks belonging to that specific Client
+        clientGroups[clientName].forEach(task => {
             const row = document.createElement('tr');
-            
             row.innerHTML = `
                 <td>${task.task_detail}</td>
                 <td>${task.task_type}</td>
