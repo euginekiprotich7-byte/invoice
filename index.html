@@ -571,73 +571,76 @@ await fetchTasks();
 
 async function fetchTasks() {
     console.log("Fetching tasks from Supabase...");
-
-    // 1. Clear any local storage tasks that were successfully synced
-    if (navigator.onLine) {
-        localStorage.removeItem('offlineTasks'); 
-    }
-
-    const groupedActive = activeTasks.reduce((acc, task) => {
-    const client = task.client_name || 'General Client';
-    if (!acc[client]) acc[client] = [];
-    acc[client].push(task);
-    return acc;
-}, {});
-
-// 2. Clear the table and render the groups
-activeTableBody.innerHTML = '';
-for (const client in groupedActive) {
-    // Add the Client Header Row
-    const headerRow = document.createElement('tr');
-    headerRow.innerHTML = `
-        <td colspan="7" style="background: #f0f7ff; font-weight: bold; color: #0056b3; padding: 12px; border-left: 5px solid #0056b3;">
-            📁 CLIENT: ${client.toUpperCase()}
-        </td>
-    `;
-    activeTableBody.appendChild(headerRow);
-
-    // Add the specific tasks for this client
-    groupedActive[client].forEach(task => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${task.task_detail}</td>
-            <td>${task.task_type}</td>
-            <td>${task.units}</td>
-            <td>${task.cpp}</td>
-            <td>${task.payable}</td>
-            <td class="time-column" data-deadline="${task.deadline}">...</td>
-            <td>
-                <button class="btn-done" onclick="markAsDone('${task.id}')">Done</button>
-            </td>
-        `;
-        activeTableBody.appendChild(row);
-    });
-}
-
-    // 3. Fetch Completed (Done) Tasks
-    const { data: doneTasks, error: doneError } = await supabaseClient
+    
+    // 1. Fetch data from Supabase
+    const { data: allTasks, error } = await supabaseClient
         .from('tasks')
         .select('*')
-        .eq('status', 'Done');
+        .order('deadline', { ascending: true });
 
-    // 4. Fetch History (Invoiced) Tasks
-    const { data: historyTasks, error: historyError } = await supabaseClient
-        .from('tasks')
-        .select('*')
-        .eq('status', 'Invoiced');
-
-    if (activeError || doneError || historyError) {
-        console.error("Error fetching tasks:", activeError || doneError || historyError);
+    if (error) {
+        console.error("Error fetching tasks:", error);
         return;
     }
 
-    // 5. SEND DATA TO THE GROUPING RENDERER
-    // These IDs must match your <tbody> IDs in the HTML
-    renderTableGroupedByClient(activeTasks || [], 'activeTaskTableBody');
-    renderTableGroupedByClient(doneTasks || [], 'doneTaskTableBody');
-    renderTableGroupedByClient(historyTasks || [], 'historyTaskTableBody');
-    
-    console.log("UI Redrawn with Client Grouping.");
+    // 2. Separate tasks by their status
+    const pendingTasks = allTasks.filter(t => t.status === 'Pending');
+    const doneTasks = allTasks.filter(t => t.status === 'Done');
+    const invoicedTasks = allTasks.filter(t => t.status === 'Invoiced');
+
+    // 3. Clear and Render each table with Grouping
+    renderGroupedRows(pendingTasks, 'activeTaskTableBody');
+    renderGroupedRows(doneTasks, 'doneTaskTableBody');
+    renderGroupedRows(invoicedTasks, 'historyTaskTableBody');
+
+    console.log("Tables updated and grouped by client.");
+}
+
+// Helper function to handle the "Grouping by Client" logic
+function renderGroupedRows(tasks, tableBodyId) {
+    const tableBody = document.getElementById(tableBodyId);
+    if (!tableBody) return;
+    tableBody.innerHTML = '';
+
+    // Group tasks by client_name
+    const groups = tasks.reduce((acc, task) => {
+        const client = task.client_name || 'General Client';
+        if (!acc[client]) acc[client] = [];
+        acc[client].push(task);
+        return acc;
+    }, {});
+
+    // Draw the grouped rows
+    for (const client in groups) {
+        // Client Header Row
+        const header = document.createElement('tr');
+        header.innerHTML = `
+            <td colspan="7" style="background: #f1f8ff; font-weight: bold; color: #0056b3; padding: 10px; border-left: 5px solid #0056b3;">
+                👤 CLIENT: ${client.toUpperCase()}
+            </td>
+        `;
+        tableBody.appendChild(header);
+
+        // Individual Task Rows
+        groups[client].forEach(task => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${task.task_detail}</td>
+                <td>${task.task_type}</td>
+                <td>${task.units}</td>
+                <td>${task.cpp}</td>
+                <td>${task.payable}</td>
+                <td class="time-column" data-deadline="${task.deadline}">Calculating...</td>
+                <td>
+                    ${task.status === 'Pending' ? 
+                        `<button onclick="markAsDone('${task.id}')" style="background:#27ae60; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Done</button>` : 
+                        `<span style="color:#27ae60; font-weight:bold;">${task.status}</span>`
+                    }
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
 }
 
 function renderTableGroupedByClient(tasks, tableBodyId) {
