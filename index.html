@@ -541,16 +541,12 @@ window.onload = checkPass;
             .insert([taskData]);
 
         if (error) {
-            alert("Error adding task: " + error.message);
-        } else {
-            alert("Task added successfully!");
-            
-            // 1. Clear the form so it's ready for the next entry
-            document.getElementById('taskForm').reset();
-            
-            // 2. IMMEDIATE REFRESH: This triggers the grouping and redraws the table
-            await fetchTasks(); 
-        }
+    alert("Error: " + error.message);
+} else {
+    alert("Task added!");
+    document.getElementById('taskForm').reset(); // Clears the form
+    await fetchTasks(); // <--- THIS REFRESHES THE GROUPED TABLE IMMEDIATELY
+}
     } else {
         // Offline handling
         const offlineTasks = JSON.parse(localStorage.getItem('offlineTasks') || '[]');
@@ -569,10 +565,56 @@ document.getElementById('taskForm').reset();
 await fetchTasks();
 }
 
+function renderGroupedTable(tasks, tableBodyId) {
+    const tableBody = document.getElementById(tableBodyId);
+    if (!tableBody) return;
+    tableBody.innerHTML = '';
+
+    // Group tasks by Client Name
+    const groups = tasks.reduce((acc, task) => {
+        const client = task.client_name || 'Unassigned Client';
+        if (!acc[client]) acc[client] = [];
+        acc[client].push(task);
+        return acc;
+    }, {});
+
+    // Render the groups
+    for (const clientName in groups) {
+        // Create the Client Section Header
+        const headerRow = document.createElement('tr');
+        headerRow.innerHTML = `
+            <td colspan="7" style="background: #eef2f7; font-weight: bold; color: #2c3e50; padding: 12px; border-left: 5px solid #3498db;">
+                👤 CLIENT: ${clientName.toUpperCase()}
+            </td>
+        `;
+        tableBody.appendChild(headerRow);
+
+        // Add each task belonging to this client
+        groups[clientName].forEach(task => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${task.task_detail}</td>
+                <td>${task.task_type}</td>
+                <td>${task.units}</td>
+                <td>${task.cpp}</td>
+                <td>${task.payable}</td>
+                <td class="time-column" data-deadline="${task.deadline}">...</td>
+                <td>
+                    ${task.status === 'Pending' ? 
+                        `<button class="btn-done" onclick="markAsDone('${task.id}')">Done</button>` : 
+                        `<span style="color:#27ae60; font-weight:bold;">${task.status}</span>`
+                    }
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+}
+
 async function fetchTasks() {
     console.log("Fetching tasks from Supabase...");
-    
-    // 1. Fetch data from Supabase
+
+    // 1. Fetch all tasks at once to avoid "undefined" errors
     const { data: allTasks, error } = await supabaseClient
         .from('tasks')
         .select('*')
@@ -583,17 +625,23 @@ async function fetchTasks() {
         return;
     }
 
-    // 2. Separate tasks by their status
-    const pendingTasks = allTasks.filter(t => t.status === 'Pending');
-    const doneTasks = allTasks.filter(t => t.status === 'Done');
-    const invoicedTasks = allTasks.filter(t => t.status === 'Invoiced');
+    // 2. Clear local sync cache if online
+    if (navigator.onLine) {
+        localStorage.removeItem('offlineTasks');
+    }
 
-    // 3. Clear and Render each table with Grouping
-    renderGroupedRows(pendingTasks, 'activeTaskTableBody');
-    renderGroupedRows(doneTasks, 'doneTaskTableBody');
-    renderGroupedRows(invoicedTasks, 'historyTaskTableBody');
+    // 3. Filter tasks by status
+    const pending = allTasks.filter(t => t.status === 'Pending');
+    const done = allTasks.filter(t => t.status === 'Done');
+    const invoiced = allTasks.filter(t => t.status === 'Invoiced');
 
-    console.log("Tables updated and grouped by client.");
+    // 4. Draw the tables using the grouping helper
+    renderGroupedTable(pending, 'activeTaskTableBody');
+    renderGroupedTable(done, 'doneTaskTableBody');
+    renderGroupedTable(invoiced, 'historyTaskTableBody');
+    
+    // Update dashboard stats
+    updateStats(allTasks);
 }
 
 // Helper function to handle the "Grouping by Client" logic
