@@ -508,61 +508,54 @@ function showTab(tabId) {
 window.onload = checkPass;
 
     async function saveTask() {
-    const client_name = document.getElementById('client_name').value;
-    const task_detail = document.getElementById('task_detail').value;
-    const task_type = document.getElementById('task_type').value;
-    const units = parseFloat(document.getElementById('units').value) || 0;
-    const cpp = parseFloat(document.getElementById('cpp').value) || 0;
-    const deadline = document.getElementById('deadline').value;
-    const employer_id = document.getElementById('employer_id').value;
-
-    if (!task_detail || !deadline) {
-        alert("Please fill in the task details and deadline.");
-        return;
-    }
-
-    const payable = units * cpp;
-
+    // Collect data
     const taskData = {
-        client_name,
-        task_detail,
-        task_type,
-        units,
-        cpp,
-        payable,
-        deadline,
-        employer_id: employer_id || null,
+        client_name: document.getElementById('client_name').value,
+        task_detail: document.getElementById('task_detail').value,
+        task_type: document.getElementById('task_type').value,
+        units: parseFloat(document.getElementById('units').value) || 0,
+        cpp: parseFloat(document.getElementById('cpp').value) || 0,
+        deadline: document.getElementById('deadline').value,
+        employer_id: document.getElementById('employer_id').value || null,
         status: 'Pending'
     };
 
-    if (navigator.onLine) {
-        const { data, error } = await supabaseClient
-            .from('tasks')
-            .insert([taskData]);
+    if (!taskData.task_detail || !taskData.deadline) {
+        alert("Missing details!");
+        return;
+    }
 
+    taskData.payable = taskData.units * taskData.cpp;
+
+    if (navigator.onLine) {
+        const { error } = await supabaseClient.from('tasks').insert([taskData]);
         if (error) {
-    alert("Error: " + error.message);
-} else {
-    alert("Task added!");
-    document.getElementById('taskForm').reset(); // Clears the form
-    await fetchTasks(); // <--- THIS REFRESHES THE GROUPED TABLE IMMEDIATELY
-}
+            alert("Error: " + error.message);
+        } else {
+            document.getElementById('taskForm').reset();
+            await fetchTasks(); // THIS triggers the immediate grouping
+        }
     } else {
-        // Offline handling
-        const offlineTasks = JSON.parse(localStorage.getItem('offlineTasks') || '[]');
-        offlineTasks.push(taskData);
-        localStorage.setItem('offlineTasks', JSON.stringify(offlineTasks));
-        
-        alert("Saved locally (Offline mode)");
+        const offline = JSON.parse(localStorage.getItem('offlineTasks') || '[]');
+        offline.push(taskData);
+        localStorage.setItem('offlineTasks', JSON.stringify(offline));
         document.getElementById('taskForm').reset();
-        
-        // Refresh UI even if offline to show the local entry
         await fetchTasks();
     }
-	
-	alert("Task added successfully!");
-document.getElementById('taskForm').reset();
-await fetchTasks();
+}
+
+async function markAsDone(taskId) {
+    const { error } = await supabaseClient
+        .from('tasks')
+        .update({ status: 'Done' })
+        .eq('id', taskId);
+
+    if (error) {
+        alert("Update failed: " + error.message);
+    } else {
+        // This forces the "Done Total" to increase and the task to move tables instantly
+        await fetchTasks(); 
+    }
 }
 
 function renderGroupedTable(tasks, tableBodyId) {
@@ -570,27 +563,26 @@ function renderGroupedTable(tasks, tableBodyId) {
     if (!tableBody) return;
     tableBody.innerHTML = '';
 
-    // Group tasks by Client Name
+    // Group tasks by client_name
     const groups = tasks.reduce((acc, task) => {
-        const client = task.client_name || 'Unassigned Client';
+        const client = task.client_name || 'No Client Name';
         if (!acc[client]) acc[client] = [];
         acc[client].push(task);
         return acc;
     }, {});
 
-    // Render the groups
-    for (const clientName in groups) {
-        // Create the Client Section Header
-        const headerRow = document.createElement('tr');
-        headerRow.innerHTML = `
-            <td colspan="7" style="background: #eef2f7; font-weight: bold; color: #2c3e50; padding: 12px; border-left: 5px solid #3498db;">
-                👤 CLIENT: ${clientName.toUpperCase()}
+    for (const client in groups) {
+        // Create Section Header for Client
+        const header = document.createElement('tr');
+        header.innerHTML = `
+            <td colspan="7" style="background: #f1f8ff; font-weight: bold; color: #0056b3; padding: 10px; border-left: 5px solid #0056b3; font-size: 0.85rem;">
+                👤 CLIENT: ${client.toUpperCase()}
             </td>
         `;
-        tableBody.appendChild(headerRow);
+        tableBody.appendChild(header);
 
-        // Add each task belonging to this client
-        groups[clientName].forEach(task => {
+        // Add the tasks
+        groups[client].forEach(task => {
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${task.task_detail}</td>
@@ -612,36 +604,60 @@ function renderGroupedTable(tasks, tableBodyId) {
 }
 
 async function fetchTasks() {
-    console.log("Fetching tasks from Supabase...");
-
-    // 1. Fetch all tasks at once to avoid "undefined" errors
+    console.log("Syncing data and updating UI...");
+    
+    // 1. Fetch EVERYTHING from Supabase
     const { data: allTasks, error } = await supabaseClient
         .from('tasks')
         .select('*')
         .order('deadline', { ascending: true });
 
     if (error) {
-        console.error("Error fetching tasks:", error);
+        console.error("Fetch error:", error);
         return;
     }
 
-    // 2. Clear local sync cache if online
-    if (navigator.onLine) {
-        localStorage.removeItem('offlineTasks');
-    }
+    // 2. Update the Green/Blue Dashboard boxes (Fixes the "Zero" issue)
+    const activeSum = allTasks
+        .filter(t => t.status === 'Pending')
+        .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
 
-    // 3. Filter tasks by status
+    const doneSum = allTasks
+        .filter(t => t.status === 'Done')
+        .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
+
+    // Ensure these IDs match your HTML exactly
+    if (document.getElementById('activeTotal')) document.getElementById('activeTotal').innerText = activeSum.toFixed(2);
+    if (document.getElementById('doneTotal')) document.getElementById('doneTotal').innerText = doneSum.toFixed(2);
+
+    // 3. Filter for tables
     const pending = allTasks.filter(t => t.status === 'Pending');
     const done = allTasks.filter(t => t.status === 'Done');
-    const invoiced = allTasks.filter(t => t.status === 'Invoiced');
+    const history = allTasks.filter(t => t.status === 'Invoiced');
 
-    // 4. Draw the tables using the grouping helper
+    // 4. Render Grouped Tables
     renderGroupedTable(pending, 'activeTaskTableBody');
     renderGroupedTable(done, 'doneTaskTableBody');
-    renderGroupedTable(invoiced, 'historyTaskTableBody');
-    
-    // Update dashboard stats
-    updateStats(allTasks);
+    renderGroupedTable(history, 'historyTaskTableBody');
+}
+
+function updateStats(tasks) {
+    // 1. Calculate Active (Pending) Total
+    const activeTotal = tasks
+        .filter(t => t.status === 'Pending')
+        .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
+
+    // 2. Calculate Done (Completed) Total - THIS IS THE FIX
+    const doneTotal = tasks
+        .filter(t => t.status === 'Done')
+        .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
+
+    // Update the UI elements
+    const activeEl = document.getElementById('activeTotal');
+    const doneEl = document.getElementById('doneTotal');
+
+    if (activeEl) activeEl.innerText = activeTotal.toFixed(2);
+    if (doneEl) doneEl.innerText = doneTotal.toFixed(2);
 }
 
 // Helper function to handle the "Grouping by Client" logic
