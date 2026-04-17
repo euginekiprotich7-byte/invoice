@@ -1,0 +1,27 @@
+{
+  "id": "/invoice-manager-app",
+  "name": "Order Manager",
+  "short_name": "Orders",
+  "version": "1.0.4",
+  "start_url": "index.html",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay"],
+  "orientation": "portrait",
+  "background_color": "#43f0e1",
+  "theme_color": "#43f063",
+  "description": "Professional Invoice and Task Management System",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2821/2821637.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }, 
+	{
+		"src": "https://cdn-icons-png.flaticon.com/512/2821/2821637.png",
+		"sizes": "512x512",
+		"type": "image/png",
+		"purpose": "maskable"
+	}
+  ]
+}
