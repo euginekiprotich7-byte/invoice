@@ -563,26 +563,27 @@ function renderGroupedTable(tasks, tableBodyId) {
     if (!tableBody) return;
     tableBody.innerHTML = '';
 
-    // Group tasks by client_name
+    // 1. Sort tasks into groups by client_name
     const groups = tasks.reduce((acc, task) => {
-        const client = task.client_name || 'No Client Name';
+        const client = task.client_name || 'Direct Order';
         if (!acc[client]) acc[client] = [];
         acc[client].push(task);
         return acc;
     }, {});
 
-    for (const client in groups) {
-        // Create Section Header for Client
-        const header = document.createElement('tr');
-        header.innerHTML = `
-            <td colspan="7" style="background: #f1f8ff; font-weight: bold; color: #0056b3; padding: 10px; border-left: 5px solid #0056b3; font-size: 0.85rem;">
-                👤 CLIENT: ${client.toUpperCase()}
+    // 2. Loop through the groups and build the table
+    for (const clientName in groups) {
+        // Create the blue Client Header Row
+        const headerRow = document.createElement('tr');
+        headerRow.innerHTML = `
+            <td colspan="7" style="background: #ebf5fb; font-weight: bold; color: #2980b9; padding: 10px; border-left: 5px solid #3498db; text-transform: uppercase;">
+                👤 Client: ${clientName}
             </td>
         `;
-        tableBody.appendChild(header);
+        tableBody.appendChild(headerRow);
 
-        // Add the tasks
-        groups[client].forEach(task => {
+        // Add each task under this client
+        groups[clientName].forEach(task => {
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${task.task_detail}</td>
@@ -604,9 +605,8 @@ function renderGroupedTable(tasks, tableBodyId) {
 }
 
 async function fetchTasks() {
-    console.log("Syncing data and updating UI...");
+    console.log("Fetching and grouping tasks...");
     
-    // 1. Fetch EVERYTHING from Supabase
     const { data: allTasks, error } = await supabaseClient
         .from('tasks')
         .select('*')
@@ -617,47 +617,33 @@ async function fetchTasks() {
         return;
     }
 
-    // 2. Update the Green/Blue Dashboard boxes (Fixes the "Zero" issue)
-    const activeSum = allTasks
-        .filter(t => t.status === 'Pending')
-        .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
-
-    const doneSum = allTasks
-        .filter(t => t.status === 'Done')
-        .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
-
-    // Ensure these IDs match your HTML exactly
-    if (document.getElementById('activeTotal')) document.getElementById('activeTotal').innerText = activeSum.toFixed(2);
-    if (document.getElementById('doneTotal')) document.getElementById('doneTotal').innerText = doneSum.toFixed(2);
-
-    // 3. Filter for tables
+    // Filter tasks by status
     const pending = allTasks.filter(t => t.status === 'Pending');
     const done = allTasks.filter(t => t.status === 'Done');
     const history = allTasks.filter(t => t.status === 'Invoiced');
 
-    // 4. Render Grouped Tables
+    // Render each table with grouping
     renderGroupedTable(pending, 'activeTaskTableBody');
     renderGroupedTable(done, 'doneTaskTableBody');
     renderGroupedTable(history, 'historyTaskTableBody');
+
+    // Update the dashboard totals (Fixes the 0.00 issue)
+    updateStats(allTasks);
 }
 
 function updateStats(tasks) {
-    // 1. Calculate Active (Pending) Total
     const activeTotal = tasks
         .filter(t => t.status === 'Pending')
         .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
 
-    // 2. Calculate Done (Completed) Total - THIS IS THE FIX
     const doneTotal = tasks
         .filter(t => t.status === 'Done')
         .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
 
-    // Update the UI elements
-    const activeEl = document.getElementById('activeTotal');
-    const doneEl = document.getElementById('doneTotal');
-
-    if (activeEl) activeEl.innerText = activeTotal.toFixed(2);
-    if (doneEl) doneEl.innerText = doneTotal.toFixed(2);
+    if (document.getElementById('activeTotal')) 
+        document.getElementById('activeTotal').innerText = activeTotal.toFixed(2);
+    if (document.getElementById('doneTotal')) 
+        document.getElementById('doneTotal').innerText = doneTotal.toFixed(2);
 }
 
 // Helper function to handle the "Grouping by Client" logic

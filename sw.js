@@ -4,7 +4,6 @@ const ASSETS = [
   './index.html',
   './manifest.json',
   './icon.png',
-  './index.ts',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
   'https://cdn.jsdelivr.net/npm/chart.js'
 ];
