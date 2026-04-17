@@ -510,15 +510,15 @@ window.onload = checkPass;
     async function saveTask() {
     // Collect data
     const taskData = {
-        client_name: document.getElementById('client_name').value,
-        task_detail: document.getElementById('task_detail').value,
-        task_type: document.getElementById('task_type').value,
-        units: parseFloat(document.getElementById('units').value) || 0,
-        cpp: parseFloat(document.getElementById('cpp').value) || 0,
-        deadline: document.getElementById('deadline').value,
-        employer_id: document.getElementById('employer_id').value || null,
-        status: 'Pending'
-    };
+    client_name: document.getElementById('client').value,
+    task_detail: document.getElementById('detail').value,
+    task_type: document.getElementById('type').value,
+    units: parseFloat(document.getElementById('unit').value) || 0,
+    cpp: parseFloat(document.getElementById('cpp').value) || 0,
+    deadline: document.getElementById('deadline').value,
+    employer_id: currentEmployerId || null,
+    status: 'Pending'
+};
 
     if (!taskData.task_detail || !taskData.deadline) {
         alert("Missing details!");
@@ -604,32 +604,7 @@ function renderGroupedTable(tasks, tableBodyId) {
     }
 }
 
-async function fetchTasks() {
-    console.log("Fetching and grouping tasks...");
-    
-    const { data: allTasks, error } = await supabaseClient
-        .from('tasks')
-        .select('*')
-        .order('deadline', { ascending: true });
 
-    if (error) {
-        console.error("Fetch error:", error);
-        return;
-    }
-
-    // Filter tasks by status
-    const pending = allTasks.filter(t => t.status === 'Pending');
-    const done = allTasks.filter(t => t.status === 'Done');
-    const history = allTasks.filter(t => t.status === 'Invoiced');
-
-    // Render each table with grouping
-    renderGroupedTable(pending, 'activeTaskTableBody');
-    renderGroupedTable(done, 'doneTaskTableBody');
-    renderGroupedTable(history, 'historyTaskTableBody');
-
-    // Update the dashboard totals (Fixes the 0.00 issue)
-    updateStats(allTasks);
-}
 
 function updateStats(tasks) {
     const activeTotal = tasks
@@ -646,98 +621,6 @@ function updateStats(tasks) {
         document.getElementById('doneTotal').innerText = doneTotal.toFixed(2);
 }
 
-// Helper function to handle the "Grouping by Client" logic
-function renderGroupedRows(tasks, tableBodyId) {
-    const tableBody = document.getElementById(tableBodyId);
-    if (!tableBody) return;
-    tableBody.innerHTML = '';
-
-    // Group tasks by client_name
-    const groups = tasks.reduce((acc, task) => {
-        const client = task.client_name || 'General Client';
-        if (!acc[client]) acc[client] = [];
-        acc[client].push(task);
-        return acc;
-    }, {});
-
-    // Draw the grouped rows
-    for (const client in groups) {
-        // Client Header Row
-        const header = document.createElement('tr');
-        header.innerHTML = `
-            <td colspan="7" style="background: #f1f8ff; font-weight: bold; color: #0056b3; padding: 10px; border-left: 5px solid #0056b3;">
-                👤 CLIENT: ${client.toUpperCase()}
-            </td>
-        `;
-        tableBody.appendChild(header);
-
-        // Individual Task Rows
-        groups[client].forEach(task => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${task.task_detail}</td>
-                <td>${task.task_type}</td>
-                <td>${task.units}</td>
-                <td>${task.cpp}</td>
-                <td>${task.payable}</td>
-                <td class="time-column" data-deadline="${task.deadline}">Calculating...</td>
-                <td>
-                    ${task.status === 'Pending' ? 
-                        `<button onclick="markAsDone('${task.id}')" style="background:#27ae60; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Done</button>` : 
-                        `<span style="color:#27ae60; font-weight:bold;">${task.status}</span>`
-                    }
-                </td>
-            `;
-            tableBody.appendChild(row);
-        });
-    }
-}
-
-function renderTableGroupedByClient(tasks, tableBodyId) {
-    const tableBody = document.getElementById(tableBodyId);
-    if (!tableBody) return;
-    tableBody.innerHTML = '';
-
-    // 1. Group tasks by Client Name (The sub-category)
-    const clientGroups = tasks.reduce((acc, task) => {
-        const cName = task.client_name || 'Direct Order';
-        if (!acc[cName]) acc[cName] = [];
-        acc[cName].push(task);
-        return acc;
-    }, {});
-
-    // 2. Render the groups
-    for (const clientName in clientGroups) {
-        // Add a Header row for the Client
-        const headerRow = document.createElement('tr');
-        headerRow.innerHTML = `
-            <td colspan="7" style="background: #f1f8ff; font-weight: bold; color: #0366d6; padding: 10px; border-left: 5px solid #0366d6;">
-                📁 Client: ${clientName}
-            </td>
-        `;
-        tableBody.appendChild(headerRow);
-
-        // Add the tasks belonging to that specific Client
-        clientGroups[clientName].forEach(task => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${task.task_detail}</td>
-                <td>${task.task_type}</td>
-                <td>${task.units}</td>
-                <td>${task.cpp}</td>
-                <td>${task.payable}</td>
-                <td class="time-column" data-deadline="${task.deadline}">...</td>
-                <td>
-                    ${task.status === 'Pending' ? 
-                        `<button class="btn-done" onclick="markAsDone('${task.id}')">Done</button>` : 
-                        `<span style="color:#27ae60; font-weight:bold;">${task.status}</span>`
-                    }
-                </td>
-            `;
-            tableBody.appendChild(row);
-        });
-    }
-}
 
 // 4. ADD THIS FUNCTION to ensure the total updates
 function calculateDoneTotal(doneTasks) {
@@ -1418,14 +1301,7 @@ function testSystem() {
     }, 5000);
 }
 
-async function requestNotificationPermission() {
-    const permission = await Notification.requestPermission();
-    if (permission === "granted") {
-        console.log("Background alerts enabled.");
-    } else {
-        alert("Please enable notifications in your phone settings to receive alarms while the app is closed.");
-    }
-}
+
 
 async function enableBackgroundAlarms() {
     const permission = await Notification.requestPermission();
@@ -1518,9 +1394,7 @@ async function syncOfflineData() {
         console.error("Database Insert Error:", error);
         alert("Failed to save order.");
     } else {
-        // clear form
-        document.getElementById('detail').value = '';
-        document.getElementById('unit').value = 1;
+        
 
         await fetchTasks();
         console.log("Order saved correctly.");
@@ -1533,14 +1407,14 @@ async function syncOfflineData() {
 			
 			request.onupgradeneeded = (e) => {
 				const db = e.target.result;
-				if (!supabaseClient.objectStoreNames.contains("orders")) {
-					supabaseClient.createObjectStore("orders", { keyPath: "id" }); // Use Supabase ID as key
-				}
+				if (!db.objectStoreNames.contains("orders")) {
+    db.createObjectStore("orders", { keyPath: "id" });
+}
 			};
 
 			request.onsuccess = (e) => {
 				const db = e.target.result;
-				const transaction = supabaseClient.transaction("orders", "readwrite");
+				const transaction = db.transaction("orders", "readwrite");
 				const store = transaction.objectStore("orders");
 				
 				// Use .put() instead of .add() - it will update if exists, or add if new
