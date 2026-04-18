@@ -17,14 +17,6 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
 
-th {
-  position: sticky;
-  top: 0;
-}
-
-.overdue { background: #ffe6e6; }
-.soon { background: #fff4e6; }
-
 /* =========================
    ROOT VARIABLES
 ========================= */
@@ -34,19 +26,22 @@ th {
     --danger: #e74c3c;
     --warning: #f39c12;
     --bg: #f4f7f6;
+    --client-bg: #f8fafc; /* Color for Client Dividers */
+    --client-text: #0366d6; /* Blue for Client Headers */
 }
 
 /* =========================
    BASE STYLES
 ========================= */
 body {
-    font-family: 'Segoe UI', sans-serif;
+    font-family: 'Segoe UI', -apple-system, sans-serif;
     background: var(--bg);
     margin: 20px;
+    color: #333;
 }
 
 .container {
-    max-width: 1200px;
+    max-width: 1400px; /* Slightly wider for better table fit */
     margin: auto;
     background: white;
     padding: 25px;
@@ -55,212 +50,8 @@ body {
 }
 
 /* =========================
-   TABS
+   SIDEBAR / TABS
 ========================= */
-.tabs {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-    border-bottom: 2px solid #ddd;
-}
-
-.tab {
-    padding: 10px 20px;
-    cursor: pointer;
-    background: #eee;
-    border-radius: 8px 8px 0 0;
-    font-weight: bold;
-    transition: 0.3s;
-}
-
-.tab.active {
-    background: var(--primary);
-    color: white;
-}
-
-/* =========================
-   FORM CONTROLS
-========================= */
-label {
-    display: block;
-    font-size: 11px;
-    font-weight: bold;
-    margin-bottom: 5px;
-    color: #555;
-}
-
-input, select {
-    width: 100%;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
-
-    height: 44px;
-    font-size: 16px !important;
-}
-
-/* =========================
-   GRID & LAYOUT
-========================= */
-.controls-grid {
-    display: grid;
-    grid-template-columns: 1fr 1.5fr 1fr 0.8fr 0.8fr 1.2fr auto;
-    gap: 10px;
-    background: #eee;
-    padding: 15px;
-    border-radius: 4px;
-    align-items: end;
-    margin-bottom: 10px;
-}
-
-.adjustment-bar {
-    background: #fdf2f2;
-    border: 1px solid #fab1a0;
-    padding: 15px;
-    border-radius: 4px;
-    display: flex;
-    gap: 10px;
-    align-items: end;
-    margin-bottom: 20px;
-}
-
-/* =========================
-   TABLE STYLES
-========================= */
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-}
-
-th {
-    background: var(--primary);
-    color: white;
-    padding: 12px;
-    text-align: left;
-}
-
-td, th {
-    padding: 8px 4px;
-    font-size: 13px;
-}
-
-.client-header {
-    background: #dfe6e9;
-    font-weight: bold;
-    color: #2c3e50;
-    text-transform: uppercase;
-}
-
-.client-header td {
-    font-size: 12px;
-    padding: 5px;
-}
-
-/* =========================
-   BUTTONS
-========================= */
-.btn {
-    padding: 10px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-    color: white;
-}
-
-.btn-add { background: var(--success); }
-.btn-adj { background: var(--danger); }
-
-/* =========================
-   STATUS & ALERTS
-========================= */
-.status-pending {
-    color: #e74c3c !important;
-    font-weight: bold;
-    background-color: #fdf2f2;
-    padding: 2px 6px;
-    border-radius: 4px;
-}
-
-.status-pending::after {
-    content: " 🚨";
-}
-
-#statusIndicator {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    padding: 10px;
-    border-radius: 50px;
-    font-size: 12px;
-    font-weight: bold;
-    z-index: 1000;
-}
-
-.online { background: #27ae60; color: white; }
-.offline { background: #e74c3c; color: white; }
-
-/* =========================
-   RESPONSIVE DESIGN
-========================= */
-@media (max-width: 768px) {
-    .container {
-        margin: 10px;
-        padding: 15px;
-    }
-
-    .controls-grid {
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-    }
-
-    .controls-grid div:nth-child(2),
-    .controls-grid button {
-        grid-column: span 2;
-    }
-
-    .adjustment-bar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    table {
-        display: block;
-        overflow-x: auto;
-        white-space: nowrap;
-    }
-
-    .btn {
-        width: 100%;
-        padding: 12px;
-    }
-}
-
-/* Ensure tables don't squash on small screens */
-.table-container {
-    width: 100%;
-    overflow-x: auto;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-/* Make the status badges pop */
-.status-pending { background: #fff3cd; color: #856404; padding: 4px 8px; border-radius: 12px; font-weight: bold; }
-.status-done { background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 12px; font-weight: bold; }
-
-/* Sticky headers*/
-th {
-    position: sticky;
-    top: 0;
-    background: #2c3e50;
-    color: white;
-    z-index: 10;
-}
-
-/* Sidebar Container */
 .sidebar {
     display: flex;
     gap: 8px;
@@ -270,10 +61,9 @@ th {
     margin-bottom: 20px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     border: 1px solid #e0e0e0;
-    overflow-x: auto; /* Good for mobile */
+    overflow-x: auto;
 }
 
-/* Individual Tab Items */
 .sidebar-item {
     cursor: pointer;
     padding: 10px 18px;
@@ -288,18 +78,120 @@ th {
     gap: 8px;
 }
 
-/* Hover Effect */
-.sidebar-item:hover {
-    background: #f1f5f9;
-    color: #1e293b;
+.sidebar-item:hover { background: #f1f5f9; color: #1e293b; }
+.sidebar-item.active { background: var(--primary); color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+
+/* =========================
+   FORM CONTROLS
+========================= */
+.controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr 1fr 0.8fr 0.8fr 1.2fr auto;
+    gap: 10px;
+    background: #eee;
+    padding: 15px;
+    border-radius: 4px;
+    align-items: end;
+    margin-bottom: 10px;
 }
 
-/* Active Tab State */
-.sidebar-item.active {
-    background: #2c3e50; /* Matches your primary color */
-    color: white;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+label { font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #555; display: block; }
+
+input, select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    height: 44px;
+    font-size: 16px !important; /* Prevents mobile zoom */
 }
+
+/* =========================
+   TABLE STYLES
+========================= */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #eee;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    position: sticky;
+    top: 0;
+    background: var(--primary);
+    color: white;
+    padding: 12px 10px;
+    text-align: left;
+    z-index: 10;
+}
+
+td {
+    padding: 10px;
+    border-bottom: 1px solid #f1f1f1;
+    font-size: 14px;
+}
+
+/* THE FIX: Client Separator Styling */
+.client-header-row {
+    background: var(--client-bg) !important;
+}
+
+.client-header-cell {
+    padding: 12px 15px !important;
+    font-weight: 800;
+    color: var(--client-text);
+    text-transform: uppercase;
+    font-size: 12px;
+    border-left: 5px solid var(--client-text);
+    background: #f1f8ff;
+}
+
+/* =========================
+   STATUS & BADGES
+========================= */
+.status-pending { background: #fff3cd; color: #856404; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 11px; }
+.status-done { background: #d4edda; color: #155724; padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 11px; }
+
+.overdue { background: #ffe6e6 !important; }
+.soon { background: #fff4e6 !important; }
+
+/* =========================
+   BUTTONS
+========================= */
+.btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    color: white;
+    transition: 0.2s;
+}
+
+.btn-add { background: var(--success); width: 100%; }
+.btn-done { background: var(--success); font-size: 12px; padding: 5px 10px; }
+
+/* Status Indicator (Online/Offline) */
+#statusIndicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 8px 15px;
+    border-radius: 50px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 1000;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+.online { background: #27ae60; color: white; }
+.offline { background: #e74c3c; color: white; }
 </style>
 </head>
 <body style="display:none;" id="mainBody">
@@ -317,16 +209,16 @@ th {
 
     <div class="container">
         <div class="sidebar">
-    <div class="sidebar-item active" id="tab-active" onclick="showTab('active-section')">
-        <span>📋</span> Active
-    </div>
-    <div class="sidebar-item" id="tab-done" onclick="showTab('done-section')">
-        <span>✅</span> Completed
-    </div>
-    <div class="sidebar-item" id="tab-history" onclick="showTab('history-section')">
-        <span>📜</span> History
-    </div>
-</div>
+            <div class="sidebar-item active" id="tab-active" onclick="showTab('active-section')">
+                <span>📋</span> Active
+            </div>
+            <div class="sidebar-item" id="tab-done" onclick="showTab('done-section')">
+                <span>✅</span> Completed
+            </div>
+            <div class="sidebar-item" id="tab-history" onclick="showTab('history-section')">
+                <span>📜</span> History
+            </div>
+        </div>
 
         <div id="setup-section" style="background: #34495e; padding: 20px; border-radius: 8px; margin-bottom: 10px; color: white;">
             <h3 style="margin-top: 0;">Register New Employer</h3>
@@ -345,7 +237,18 @@ th {
                 <small id="syncStatus" style="color: #7f8c8d; font-size: 11px;"></small>
             </div>
 
-            <div class="controls-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; background: #f9f9f9; padding: 15px; border-radius: 8px;">
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <div style="flex:1; background:#e1f5fe; padding:15px; border-radius:8px; border-left:5px solid #0288d1;">
+                    <label>PENDING TOTAL</label>
+                    <div id="activeTotal" style="font-size: 20px; font-weight: bold; color: #0288d1;">0.00</div>
+                </div>
+                <div style="flex:1; background:#e8f5e9; padding:15px; border-radius:8px; border-left:5px solid #2e7d32;">
+                    <label>DONE TOTAL</label>
+                    <div id="doneTotal" style="font-size: 20px; font-weight: bold; color: #2e7d32;">0.00</div>
+                </div>
+            </div>
+
+            <div class="controls-grid">
                 <button id="installBtn" class="btn" style="background: #3498db; display: none; color:white;">Install App</button>
                 
                 <div style="grid-column: span 2;">
@@ -353,116 +256,125 @@ th {
                     <input type="range" id="volSlider" min="0" max="1" step="0.1" value="1" oninput="updateVolume(this.value)" style="width:100%">
                 </div>
 
-                <div><label>Client</label><input type="text" id="client" style="width:100%"></div>
-                <div><label>Task Detail</label><input type="text" id="detail" style="width:100%"></div>
+                <div><label>Client Name</label><input type="text" id="client" placeholder="Client Name"></div>
+                <div><label>Task Detail</label><input type="text" id="detail" placeholder="What is the task?"></div>
                 <div>
                     <label>Type</label>
-                    <select id="type" onchange="adjustInputs()" style="width:100%">
+                    <select id="type" onchange="adjustInputs()">
                         <option value="Pages">Pages</option>
                         <option value="Quiz">Quiz</option>
                         <option value="Midterm">Midterm</option>
                         <option value="PPT">PPT</option>
                     </select>
                 </div>
-                <div><label id="unitLabel">Units</label><input type="number" id="unit" value="1" step="0.1" style="width:100%"></div>
-                <div><label>CPP / Rate</label><input type="number" id="cpp" value="300" style="width:100%"></div>
-                <div><label>Deadline</label><input type="datetime-local" id="deadline" style="width:100%"></div>
-                <div><label>Alert (Hrs)</label><input type="number" id="alertLeadTime" value="1" style="width:100%"></div>
+                <div><label id="unitLabel">Units</label><input type="number" id="unit" value="1" step="0.1"></div>
+                <div><label>CPP</label><input type="number" id="cpp" value="300"></div>
+                <div><label>Deadline</label><input type="datetime-local" id="deadline"></div>
                 
-                <button class="btn" style="background: #27ae60; color:white;" onclick="addOrder()">Register Order</button>
-                <button class="btn" style="background: #f39c12; color:white;" onclick="testSystem()">Test Alarm</button>
+                <button class="btn btn-add" onclick="addOrder()">Register Order</button>
             </div>
 
-            <div class="adjustment-bar" style="display: flex; gap: 10px; margin-top: 15px; background: #fff3e0; padding: 10px; border-radius: 8px;">
-                <div style="flex:2"><label>Adj. Description</label><input type="text" id="adjDetail" style="width:100%"></div>
-                <div style="flex:1"><label>Amount</label><input type="number" id="adjAmount" style="width:100%"></div>
-                <button class="btn" style="background:#e67e22; color:white; margin-top:18px;" onclick="saveTask('Adjustment')">Add Adjustment</button>
+            <div class="table-container">
+                <table id="invoiceTable">
+                    <thead>
+                        <tr>
+                            <th>DETAILS</th><th>UNITS</th><th>CPP</th><th>PAYABLE</th><th>TIME</th><th>STATUS</th><th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody> </table>
             </div>
-
-            <table id="invoiceTable" style="width:100%; border-collapse: collapse; margin-top: 20px;">
-                <thead>
-                    <tr style="background:#2c3e50; color:white;">
-                        <th>DETAILS</th><th>UNITS</th><th>CPP</th><th>PAYABLE</th><th>TIME</th><th>STATUS</th><th>ACTIONS</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody"></tbody>
-                <tfoot>
-                    <tr style="font-weight:bold; background:#f9f9f9;">
-                        <td colspan="3" align="right">SUBTOTAL:</td><td id="subTotal">0</td><td colspan="3"></td>
-                    </tr>
-                    <tr style="font-weight:bold; color:#e74c3c;">
-                        <td colspan="3" align="right">ADJUSTMENTS:</td><td id="adjTotal">0</td><td colspan="3"></td>
-                    </tr>
-                    <tr style="font-weight:bold; background:#eee; font-size:1.1em;">
-                        <td colspan="3" align="right">FINAL TOTAL:</td><td id="grandTotal">0</td><td colspan="3"></td>
-                    </tr>
-                </tfoot>
-            </table>
         </div>
 
         <div id="done-section" class="tab-content" style="display:none;">
-            <h2>✅ Completed Orders (Ready for Invoice)</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Client</th>
-                <th>Detail</th>
-                <th>Units</th>
-                <th>Payable</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody id="doneTableBody"></tbody> </table>
-</div>
-			
-			<div style="margin-top:15px; text-align:right; display: flex; gap: 10px; justify-content: flex-end;">
-    <p><b>Done Total: </b><span id="done-subtotal">0</span></p>
-    <button class="btn" style="background:#3498db; color:white;" onclick="generateWordInvoice(currentEmployerId, document.querySelector('#employer-tabs .btn[style*=\"3498db\"]')?.innerText || 'Client')">Word Invoice</button>
-    <button class="btn" style="background:#27ae60; color:white;" onclick="generateExcelInvoice(currentEmployerId, 'Client')">Excel Invoice</button>
-		</div>
-            
-            <div id="invoicedSection" style="margin-top:30px;">
-                <h3 style="color: #2c3e50;">Awaiting Payment (Invoiced)</h3>
-                <table style="width:100%; border-collapse: collapse;">
+            <h2>✅ Completed Orders</h2>
+            <div class="table-container">
+                <table>
                     <thead>
-                        <tr><th>INV #</th><th>CLIENT</th><th>PAYABLE</th><th>ACTION</th></tr>
+                        <tr><th>Client</th><th>Detail</th><th>Units</th><th>Payable</th><th>Action</th></tr>
                     </thead>
-                    <tbody id="pendingPaymentBody"></tbody>
+                    <tbody id="doneTableBody"></tbody>
                 </table>
+            </div>
+            
+            <div style="margin-top:15px; text-align:right; display: flex; gap: 10px; justify-content: flex-end; align-items: center;">
+                <p><b>Done Subtotal: </b> KES <span id="done-subtotal-display">0.00</span></p>
+                <button class="btn" style="background:#3498db;" onclick="generateWordInvoice()">Word Invoice</button>
+                <button class="btn" style="background:#27ae60;" onclick="generateExcelInvoice()">Excel Invoice</button>
             </div>
         </div>
 
         <div id="history-section" class="tab-content" style="display:none;">
             <h3>📜 Payment History</h3>
-            <table style="width:100%; border-collapse: collapse;">
-                <thead>
-                    <tr style="background: #2c3e50; color: white;">
-                        <th>Client</th><th>Detail</th><th>Invoice #</th><th>Payable (KES)</th>
-                    </tr>
-                </thead>
-                <tbody id="historyTableBody"></tbody>
-            </table>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr style="background: #2c3e50; color: white;">
+                            <th>Client</th><th>Detail</th><th>Invoice #</th><th>Payable (KES)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody"></tbody>
+                </table>
+            </div>
         </div>
 
-    </div> <div style="text-align: center; padding: 20px; color: #999; font-size: 10px;">
-        App Version: <span id="app-version-display">Loading...</span>
+    </div> 
+    
+    <div style="text-align: center; padding: 20px; color: #999; font-size: 10px;">
+        App Version: <span id="app-version-display">1.0.4</span>
     </div>
-
 </body>
 
 <script>
-    const SUPABASE_URL = 'https://xzxpwbkjhazvsaxxgqws.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6eHB3YmtqaGF6dnNheHhncXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgzMjEsImV4cCI6MjA5MDAyNDMyMX0.RDfNx5pUUhm6dZKf_F1Ada3rH6-rVxdPnrYXcrwyZi0';
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // =========================
+//   CORE CONFIGURATION
+// =========================
+const SUPABASE_URL = 'https://xzxpwbkjhazvsaxxgqws.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6eHB3YmtqaGF6dnNheHhncXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgzMjEsImV4cCI6MjA5MDAyNDMyMX0.RDfNx5pUUhm6dZKf_F1Ada3rH6-rVxdPnrYXcrwyZi0';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-	if ('serviceWorker' in navigator) {
-		navigator.serviceWorker.register('sw.js');
-	}
+// Global Variables to track app state
+let currentEmployerId = null;
+let currentEmployerRate = 300; // Default fallback rate
+let isAlarmSnoozed = false;
+let alarmSnoozeUntil = null;
+
+// Register Service Worker for PWA/Offline support
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(() => {
+        console.log("Service Worker Registered");
+    }).catch(err => {
+        console.error("SW Registration Failed:", err);
+    });
+}
+
+// Initializing the app display
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('mainBody').style.display = 'block';
+    // Initialize standard UI state
+    updateStatus();
+    loadEmployers(); // We will write this function next
+});
+
+// Simple Online/Offline Tracker
+function updateStatus() {
+    const indicator = document.getElementById('statusIndicator');
+    if (navigator.onLine) {
+        indicator.innerText = "ONLINE";
+        indicator.className = "online";
+    } else {
+        indicator.innerText = "OFFLINE";
+        indicator.className = "offline";
+    }
+}
+
+window.addEventListener('online', updateStatus);
+window.addEventListener('offline', updateStatus);
 
 function showTab(tabId) {
-    // These IDs must match the 'id' attributes in your <div> elements exactly
+    // 1. Define all possible sections
     const sections = ['active-section', 'done-section', 'history-section'];
 
+    // 2. Loop through sections to show only the selected one
     sections.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -470,91 +382,156 @@ function showTab(tabId) {
         }
     });
 
-    // Update sidebar UI styling
+    // 3. Update Sidebar UI highlights
     document.querySelectorAll('.sidebar-item').forEach(item => {
         item.classList.remove('active');
     });
     
-    // Map the section ID back to the tab ID to highlight the active tab
-    if (tabId === 'active-section') document.getElementById('tab-active').classList.add('active');
-    if (tabId === 'done-section') document.getElementById('tab-done').classList.add('active');
-    if (tabId === 'history-section') document.getElementById('tab-history').classList.add('active');
+    // Dynamically find and highlight the clicked tab based on the section it opens
+    const activeTab = document.querySelector(`.sidebar-item[onclick*="${tabId}"]`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+    }
+
+    // 4. CRITICAL: Refresh data when switching tabs 
+    // This ensures that moving from 'Active' to 'Completed' updates the totals immediately.
+    if (typeof fetchTasks === 'function') {
+        fetchTasks();
+    }
 }
 
 	async function checkPass() {
-    if (prompt("Enter System Password:") === "E") { 
+    // 1. Prompt for password
+    const pass = prompt("Enter System Password:");
+    
+    if (pass === "E") { 
+        // Show the app container
         document.getElementById('mainBody').style.display = 'block'; 
         
-        // Load the bosses first so 'currentEmployerId' gets set
+        // 2. Load Employers FIRST (Essential so currentEmployerId exists)
         await loadEmployers(); 
         
-        // Wake up the audio element
+        // 3. Priming the Alarm Audio
+        // Browsers block sound unless the user interacts. This "wakes it up".
         const alarm = document.getElementById('dueAlarm');
-        alarm.play().then(() => {
-            alarm.pause(); 
-            alarm.currentTime = 0;
-        }).catch(() => console.log("Audio waiting for user click"));
-
-        if (Notification.permission !== "granted") {
-            await Notification.requestPermission();
+        if (alarm) {
+            alarm.play().then(() => {
+                alarm.pause(); 
+                alarm.currentTime = 0;
+            }).catch(() => console.log("Audio primed and waiting for first interaction."));
         }
-        fetchTasks(); 
+
+        // 4. Request Push Notification Permissions
+        if ("Notification" in window) {
+            if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                await Notification.requestPermission();
+            }
+        }
+
+        // 5. Initial Data Fetch (Populates tables and calculates totals)
+        if (typeof fetchTasks === 'function') {
+            await fetchTasks();
+        }
+
     } else { 
-        document.body.innerHTML = "<h1 style='color:red; text-align:center;'>Unauthorized Access</h1>"; 
+        // Lock out unauthorized users
+        document.body.innerHTML = `
+            <div style="height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; font-family:sans-serif;">
+                <h1 style="color:#e74c3c;">⚠️ Unauthorized Access</h1>
+                <p>Please refresh and enter the correct credentials.</p>
+                <button onclick="location.reload()" style="padding:10px 20px; cursor:pointer;">Retry</button>
+            </div>
+        `; 
     }
 }
 
-// Ensure the function runs when the window finishes loading
+// Attach the check to the window load event
 window.onload = checkPass;
 
     async function saveTask() {
-    // Collect data
+    // 1. Collect data from UI
+    // Note: We use the IDs from your HTML ('client', 'detail', 'unit', etc.)
     const taskData = {
-    client_name: document.getElementById('client').value,
-    task_detail: document.getElementById('detail').value,
-    task_type: document.getElementById('type').value,
-    units: parseFloat(document.getElementById('unit').value) || 0,
-    cpp: parseFloat(document.getElementById('cpp').value) || 0,
-    deadline: document.getElementById('deadline').value,
-    employer_id: currentEmployerId || null,
-    status: 'Pending'
-};
+        client_name: document.getElementById('client').value.trim(),
+        task_detail: document.getElementById('detail').value.trim(),
+        task_type: document.getElementById('type').value,
+        units: parseFloat(document.getElementById('unit').value) || 0,
+        cpp: parseFloat(document.getElementById('cpp').value) || 0,
+        deadline: document.getElementById('deadline').value,
+        employer_id: currentEmployerId, // Assigned when you click an employer tab
+        status: 'Pending',
+        notified: false // Important for the alarm system
+    };
 
-    if (!taskData.task_detail || !taskData.deadline) {
-        alert("Missing details!");
+    // 2. Validation
+    if (!taskData.task_detail || !taskData.deadline || !taskData.client_name) {
+        alert("Please fill in Client, Task Detail, and Deadline!");
         return;
     }
 
+    if (!taskData.employer_id) {
+        alert("Please select or register an Employer first!");
+        return;
+    }
+
+    // 3. Calculate Payable
     taskData.payable = taskData.units * taskData.cpp;
 
+    // 4. Save Logic
     if (navigator.onLine) {
         const { error } = await supabaseClient.from('tasks').insert([taskData]);
         if (error) {
-            alert("Error: " + error.message);
+            alert("Upload Error: " + error.message);
         } else {
-            document.getElementById('taskForm').reset();
-            await fetchTasks(); // THIS triggers the immediate grouping
+            console.log("Task saved to cloud.");
+            clearTaskInputs();
+            await fetchTasks(); // Refresh UI immediately
         }
     } else {
+        // Offline handling
         const offline = JSON.parse(localStorage.getItem('offlineTasks') || '[]');
         offline.push(taskData);
         localStorage.setItem('offlineTasks', JSON.stringify(offline));
-        document.getElementById('taskForm').reset();
-        await fetchTasks();
+        console.log("Task saved locally (Offline mode).");
+        clearTaskInputs();
+        await fetchTasks(); // Show the locally added task in the list
     }
 }
 
-async function markAsDone(taskId) {
-    const { error } = await supabaseClient
-        .from('tasks')
-        .update({ status: 'Done' })
-        .eq('id', taskId);
+// Helper to clear inputs since you aren't using a form reset
+function clearTaskInputs() {
+    document.getElementById('client').value = '';
+    document.getElementById('detail').value = '';
+    document.getElementById('unit').value = '1';
+    document.getElementById('deadline').value = '';
+    // We keep CPP and Type as they usually stay the same for a batch
+}
 
-    if (error) {
-        alert("Update failed: " + error.message);
-    } else {
-        // This forces the "Done Total" to increase and the task to move tables instantly
-        await fetchTasks(); 
+async function markAsDone(taskId) {
+    // 1. Optional: Add a confirmation for accidental clicks
+    if (!confirm("Mark this task as completed?")) return;
+
+    try {
+        // 2. Perform the update in Supabase
+        const { error } = await supabaseClient
+            .from('tasks')
+            .update({ 
+                status: 'Done',
+                notified: true // Prevents the alarm from triggering for a finished task
+            })
+            .eq('id', taskId);
+
+        if (error) throw error;
+
+        console.log(`Task ${taskId} marked as Done.`);
+
+        // 3. CRITICAL: Refresh the UI immediately
+        // This moves the task to the "Completed" tab and updates the Green Total box
+        await fetchTasks();
+
+    } catch (error) {
+        console.error("Update failed:", error);
+        alert("Failed to update status. Please check your connection.");
     }
 }
 
@@ -563,39 +540,57 @@ function renderGroupedTable(tasks, tableBodyId) {
     if (!tableBody) return;
     tableBody.innerHTML = '';
 
+    if (tasks.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#999;">No tasks found in this section.</td></tr>';
+        return;
+    }
+
     // 1. Sort tasks into groups by client_name
     const groups = tasks.reduce((acc, task) => {
-        const client = task.client_name || 'Direct Order';
+        const client = task.client_name || 'Uncategorized Client';
         if (!acc[client]) acc[client] = [];
         acc[client].push(task);
         return acc;
     }, {});
 
-    // 2. Loop through the groups and build the table
+    // 2. Loop through the groups and build the table rows
     for (const clientName in groups) {
-        // Create the blue Client Header Row
+        // Calculate subtotal for this specific client
+        const clientSubtotal = groups[clientName].reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
+
+        // Create the Client Header Divider
         const headerRow = document.createElement('tr');
+        headerRow.className = 'client-header-row';
         headerRow.innerHTML = `
-            <td colspan="7" style="background: #ebf5fb; font-weight: bold; color: #2980b9; padding: 10px; border-left: 5px solid #3498db; text-transform: uppercase;">
-                👤 Client: ${clientName}
+            <td colspan="7" class="client-header-cell">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>👤 CLIENT: ${clientName.toUpperCase()}</span>
+                    <span style="font-size:11px; color:#666;">SUBTOTAL: KES ${clientSubtotal.toFixed(2)}</span>
+                </div>
             </td>
         `;
         tableBody.appendChild(headerRow);
 
-        // Add each task under this client
+        // 3. Add each task belonging to this client
         groups[clientName].forEach(task => {
             const row = document.createElement('tr');
+            
+            // Check if it's an adjustment or a standard task
+            const isAdjustment = task.task_detail.toLowerCase().includes('adjustment');
+            
             row.innerHTML = `
-                <td>${task.task_detail}</td>
-                <td>${task.task_type}</td>
-                <td>${task.units}</td>
-                <td>${task.cpp}</td>
-                <td>${task.payable}</td>
-                <td class="time-column" data-deadline="${task.deadline}">...</td>
+                <td style="${isAdjustment ? 'font-style:italic; color:#e67e22;' : ''}">${task.task_detail}</td>
+                <td>${task.task_type || '-'}</td>
+                <td>${task.units || '-'}</td>
+                <td>${task.cpp || '-'}</td>
+                <td style="font-weight:bold;">${parseFloat(task.payable).toFixed(2)}</td>
+                <td class="time-column" data-deadline="${task.deadline || ''}">
+                    ${task.status === 'Pending' ? 'Calculating...' : '—'}
+                </td>
                 <td>
                     ${task.status === 'Pending' ? 
                         `<button class="btn-done" onclick="markAsDone('${task.id}')">Done</button>` : 
-                        `<span style="color:#27ae60; font-weight:bold;">${task.status}</span>`
+                        `<span class="status-done">COMPLETED</span>`
                     }
                 </td>
             `;
@@ -604,261 +599,403 @@ function renderGroupedTable(tasks, tableBodyId) {
     }
 }
 
-
-
 function updateStats(tasks) {
+    // 1. Calculate PENDING (Active) Total
     const activeTotal = tasks
         .filter(t => t.status === 'Pending')
         .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
 
+    // 2. Calculate COMPLETED (Done) Total
     const doneTotal = tasks
         .filter(t => t.status === 'Done')
         .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
+        
+    // 3. Calculate Adjustments (if you have specific 'Adjustment' status or detail)
+    const adjustmentTotal = tasks
+        .filter(t => t.task_detail.toLowerCase().includes('adjustment'))
+        .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
 
-    if (document.getElementById('activeTotal')) 
-        document.getElementById('activeTotal').innerText = activeTotal.toFixed(2);
-    if (document.getElementById('doneTotal')) 
-        document.getElementById('doneTotal').innerText = doneTotal.toFixed(2);
+    // 4. Update the Dashboard Stat Boxes (Top of page)
+    const activeEl = document.getElementById('activeTotal');
+    const doneEl = document.getElementById('doneTotal');
+    
+    if (activeEl) activeEl.innerText = activeTotal.toLocaleString('en-KE', { minimumFractionDigits: 2 });
+    if (doneEl) doneEl.innerText = doneTotal.toLocaleString('en-KE', { minimumFractionDigits: 2 });
+
+    // 5. Update the "Done Subtotal" in the Completed Tab
+    const doneTabSubtotal = document.getElementById('done-subtotal-display');
+    if (doneTabSubtotal) doneTabSubtotal.innerText = doneTotal.toFixed(2);
+
+    // 6. Update the Table Footers (Active Tab)
+    const subTotalEl = document.getElementById('subTotal');
+    const adjTotalEl = document.getElementById('adjTotal');
+    const grandTotalEl = document.getElementById('grandTotal');
+
+    if (subTotalEl) subTotalEl.innerText = (activeTotal - adjustmentTotal).toFixed(2);
+    if (adjTotalEl) adjTotalEl.innerText = adjustmentTotal.toFixed(2);
+    if (grandTotalEl) grandTotalEl.innerText = activeTotal.toFixed(2);
 }
 
 
-// 4. ADD THIS FUNCTION to ensure the total updates
 function calculateDoneTotal(doneTasks) {
-    const totalDisplay = document.getElementById('done-subtotal');
-    if (!totalDisplay) return;
+    const totalDisplay = document.getElementById('done-subtotal-display');
+    const dashboardDoneDisplay = document.getElementById('doneTotal');
 
-    const total = doneTasks.reduce((sum, task) => sum + (parseFloat(task.payable) || 0), 0);
-    totalDisplay.innerText = total.toLocaleString(); 
+    if (!doneTasks || doneTasks.length === 0) {
+        if (totalDisplay) totalDisplay.innerText = "0.00";
+        if (dashboardDoneDisplay) dashboardDoneDisplay.innerText = "0.00";
+        return 0;
+    }
+
+    // Calculate total
+    const total = doneTasks.reduce((sum, task) => {
+        return sum + (parseFloat(task.payable) || 0);
+    }, 0);
+
+    // Update the "Completed" Tab Total
+    if (totalDisplay) {
+        totalDisplay.innerText = total.toLocaleString('en-KE', { 
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2 
+        });
+    }
+
+    // Update the Dashboard (Top Box) Total
+    if (dashboardDoneDisplay) {
+        dashboardDoneDisplay.innerText = total.toLocaleString('en-KE', { 
+            minimumFractionDigits: 2 
+        });
+    }
+
+    return total;
 }
 
 async function renderActive(tasks) {
     const body = document.getElementById('tableBody');
     if (!body) return;
 
-    body.innerHTML = ''; 
-
-    // Global trackers (optional, if you still want a grand total)
+    // 1. Fetch employer names for the headers
+    const { data: employersList } = await supabaseClient.from('employers').select('id, employer_name');
+    
+    let tableHTML = ''; 
     let totalGross = 0;
     let totalAdj = 0;
 
-    // Fetch employer list for mapping
-    const { data: employersList } = await supabaseClient.from('employers').select('id, employer_name');
-    let employerOptions = (employersList || []).map(e => `<option value="${e.id}">${e.employer_name}</option>`).join('');
-
-    // Group tasks by Employer first, then by Client
+    // 2. Group tasks by Employer ID
     const employerGroups = tasks.reduce((acc, t) => {
         const empId = t.employer_id || 'unassigned';
-        if (!acc[empId]) acc[empId] = { tasks: [], name: 'Unassigned/Direct' };
-        acc[empId].tasks.push(t);
-        
-        const empMatch = (employersList || []).find(e => e.id === t.employer_id);
-        if (empMatch) acc[empId].name = empMatch.employer_name;
-        
+        if (!acc[empId]) acc[empId] = [];
+        acc[empId].push(t);
         return acc;
     }, {});
 
+    // 3. Loop through Employer Groups
     for (let empId in employerGroups) {
+        const empMatch = (employersList || []).find(e => e.id === empId);
+        const empName = empMatch ? empMatch.employer_name : 'Unassigned/Direct';
+        
         let empGross = 0;
         let empAdj = 0;
-        const empName = employerGroups[empId].name;
 
-        // Render Employer Header and Table Start
-        body.innerHTML += `
+        // Add Employer Header
+        tableHTML += `
             <tr class="employer-header">
-                <td colspan="7" style="background:#2c3e50; color:white; font-weight:bold; padding:12px;">
-                    EMPLOYER: ${empName.toUpperCase()}
+                <td colspan="7" style="background:#2c3e50; color:white; font-weight:bold; padding:12px; font-size: 14px;">
+                    🏢 EMPLOYER: ${empName.toUpperCase()}
                 </td>
             </tr>`;
 
-        employerGroups[empId].tasks.forEach(t => {
-            const isAdj = t.task_type === 'Adjustment';
-            const val = parseFloat(t.payable) || 0;
+        // 4. Sub-group these tasks by CLIENT_NAME
+        const clientGroups = employerGroups[empId].reduce((acc, t) => {
+            const client = t.client_name || 'No Client';
+            if (!acc[client]) acc[client] = [];
+            acc[client].push(t);
+            return acc;
+        }, {});
 
-            if (t.status !== 'Cancelled') {
-                if (isAdj) { empAdj += val; totalAdj += val; }
-                else { empGross += val; totalGross += val; }
-            }
-
-            body.innerHTML += `
-                <tr>
-                    <td>${t.task_detail}</td>
-                    <td>${isAdj ? '-' : (t.task_type === 'Quiz' ? 'quiz' : t.units)}</td>
-                    <td>${t.cpp}</td>
-                    <td>${val.toLocaleString()}</td>
-                    <td class="time-column" data-deadline="${t.deadline}">Loading...</td>
-                    <td>${t.status}</td>
-                    <td>
-                        <button onclick="updateStatus('${t.id}','Done')" class="btn" style="background:var(--success);">Done</button>
-                        <button onclick="updateStatus('${t.id}','Cancelled')" class="btn" style="background:var(--danger);">X</button>
+        for (let clientName in clientGroups) {
+            // Add Client Sub-Header
+            tableHTML += `
+                <tr class="client-header-row">
+                    <td colspan="7" class="client-header-cell" style="background: #f1f8ff; color: #0366d6; font-weight: bold; padding: 8px 15px; border-left: 4px solid #0366d6;">
+                        👤 Client: ${clientName}
                     </td>
                 </tr>`;
-        });
 
-        // Add a Summary Row for THIS Employer
-        body.innerHTML += `
-            <tr style="background:#f9f9f9; font-weight:bold; border-bottom: 3px solid #2c3e50;">
-                <td colspan="3" style="text-align:right;">${empName} Balance:</td>
-                <td colspan="4" style="color:#27ae60;">
-                    Gross: ${empGross.toLocaleString()} | Adj: ${empAdj.toLocaleString()} | 
-                    Total: ${(empGross + empAdj).toLocaleString()}
+            // 5. Render individual tasks
+            clientGroups[clientName].forEach(t => {
+                const isAdj = t.task_type === 'Adjustment' || t.task_detail.toLowerCase().includes('adjustment');
+                const val = parseFloat(t.payable) || 0;
+
+                if (t.status !== 'Cancelled') {
+                    if (isAdj) { empAdj += val; totalAdj += val; }
+                    else { empGross += val; totalGross += val; }
+                }
+
+                tableHTML += `
+                    <tr class="${t.status === 'Cancelled' ? 'cancelled-row' : ''}">
+                        <td style="${isAdj ? 'color:#e67e22; font-style:italic;' : ''}">${t.task_detail}</td>
+                        <td>${isAdj ? '-' : t.units}</td>
+                        <td>${t.cpp}</td>
+                        <td style="font-weight:bold;">${val.toLocaleString()}</td>
+                        <td class="time-column" data-deadline="${t.deadline}">...</td>
+                        <td><span class="status-pending">${t.status}</span></td>
+                        <td>
+                            <div style="display:flex; gap:5px;">
+                                <button onclick="markAsDone('${t.id}')" class="btn-done">Done</button>
+                                <button onclick="updateStatus('${t.id}','Cancelled')" class="btn" style="background:#bdc3c7; padding:2px 8px; font-size:10px;">X</button>
+                            </div>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        // Add Employer Summary Row
+        tableHTML += `
+            <tr style="background:#fdfefe; font-weight:bold; border-bottom: 2px solid #2c3e50;">
+                <td colspan="3" style="text-align:right; padding:10px;">${empName} Total:</td>
+                <td colspan="4" style="color:#2c3e50; padding:10px;">
+                    KES ${(empGross + empAdj).toLocaleString()}
                 </td>
             </tr>`;
     }
 
-    // Update Global Footer
-    document.getElementById('subTotal').innerText = totalGross.toLocaleString();
-    document.getElementById('adjTotal').innerText = totalAdj.toLocaleString();
-    document.getElementById('grandTotal').innerText = (totalGross + totalAdj).toLocaleString();
+    // 6. Inject all HTML at once (Better Performance)
+    body.innerHTML = tableHTML;
+
+    // 7. Update Footer Stats
+    if (document.getElementById('subTotal')) document.getElementById('subTotal').innerText = totalGross.toLocaleString();
+    if (document.getElementById('adjTotal')) document.getElementById('adjTotal').innerText = totalAdj.toLocaleString();
+    if (document.getElementById('grandTotal')) document.getElementById('grandTotal').innerText = (totalGross + totalAdj).toLocaleString();
 }
 
 async function renderEmployerList() {
-    const list = document.getElementById('employerList');
+    // 1. Identify the container (Matches your id="employer-tabs" in HTML)
+    const list = document.getElementById('employer-tabs');
     if (!list) return;
 
+    // 2. Fetch Employers from Supabase
     const { data: employers, error } = await supabaseClient
         .from('employers')
         .select('*')
         .order('employer_name', { ascending: true });
 
-    if (error) return;
+    if (error) {
+        console.error("Error loading employers:", error.message);
+        return;
+    }
 
+    // 3. Clear existing tabs
     list.innerHTML = '';
+
+    // 4. Create a Tab for each Employer
     employers.forEach(emp => {
-        const div = document.createElement('div');
-        div.className = 'employer-card';
-        div.style = "border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; background: #fff;";
+        const btn = document.createElement('button');
         
-        div.innerHTML = `
-            <div>
-                <strong>${emp.employer_name}</strong>
-            </div>
-            <div style="display: flex; gap: 8px;">
-                <button onclick="generateWordInvoice('${emp.id}', '${emp.employer_name}')" 
-                    style="background: #2980b9; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer;">
-                    Word
-                </button>
-                <button onclick="generateExcelInvoice('${emp.id}', '${emp.employer_name}')" 
-                    style="background: #27ae60; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer;">
-                    Excel
-                </button>
-                <button onclick="deleteEmployer('${emp.id}')" 
-                    style="background: #e74c3c; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer;">
-                    Delete
-                </button>
-            </div>
-        `;
-        list.appendChild(div);
+        // Apply styling class or inline styles
+        btn.className = 'btn';
+        btn.style.marginRight = '5px';
+        btn.style.padding = '10px 15px';
+        btn.style.cursor = 'pointer';
+        btn.style.borderRadius = '8px';
+        btn.style.border = '1px solid #ddd';
+        
+        // Check if this is the currently selected employer to highlight it
+        if (currentEmployerId === emp.id) {
+            btn.style.background = '#3498db';
+            btn.style.color = 'white';
+        } else {
+            btn.style.background = '#fff';
+            btn.style.color = '#333';
+        }
+
+        btn.innerHTML = `🏢 ${emp.employer_name}`;
+
+        // 5. Handle Click Event
+        btn.onclick = async () => {
+            currentEmployerId = emp.id;
+            currentEmployerRate = emp.rate || 300; // Update global rate for new tasks
+            
+            // Set the default CPP in the input field based on employer rate
+            const cppInput = document.getElementById('cpp');
+            if (cppInput) cppInput.value = currentEmployerRate;
+
+            console.log(`Switching to Employer: ${emp.employer_name}`);
+            
+            // Refresh the list to update tab highlighting
+            renderEmployerList();
+            
+            // Fetch tasks for this specific employer
+            await fetchTasks();
+        };
+
+        list.appendChild(btn);
     });
+
+    // 6. Handle "No Employers" state
+    if (employers.length === 0) {
+        list.innerHTML = '<small style="color:#666; padding:10px;">No employers registered. Use the form above to start.</small>';
+    }
 }
 
-// Global helper to show/hide the specific form
+// Global helper to show/hide specific forms (like Adjustment or Setup)
 function toggleAddForm(id) {
-    const f = document.getElementById(`form-${id}`);
-    if (f) {
-        f.style.display = f.style.display === 'none' ? 'block' : 'none';
+    const f = document.getElementById(id); // Removed 'form-' prefix to keep it flexible
+    if (!f) {
+        console.warn(`Element with ID "${id}" not found.`);
+        return;
+    }
+
+    // Get the actual computed style to avoid the "first click does nothing" bug
+    const isHidden = window.getComputedStyle(f).display === 'none';
+    
+    if (isHidden) {
+        f.style.display = 'block';
+        // Optional: focus the first input inside the form for better UX
+        const firstInput = f.querySelector('input');
+        if (firstInput) firstInput.focus();
+    } else {
+        f.style.display = 'none';
     }
 }
 
 async function submitOrder(employerId) {
-    const detail = document.getElementById(`detail-${employerId}`).value;
-    const units = document.getElementById(`units-${employerId}`).value;
-    const cpp = document.getElementById(`cpp-${employerId}`).value;
-    const deadline = document.getElementById(`dead-${employerId}`).value;
+    // 1. Collect values from the UI
+    // Note: It now looks for the 'client' field we defined in your HTML
+    const clientName = document.getElementById('client').value.trim();
+    const detail = document.getElementById('detail').value.trim();
+    const units = parseFloat(document.getElementById('unit').value) || 0;
+    const cpp = parseFloat(document.getElementById('cpp').value) || 0;
+    const deadline = document.getElementById('deadline').value;
 
-    if (!detail || !units || !cpp) {
-        alert("Please fill in all details");
+    // 2. Validation
+    if (!clientName || !detail || !deadline) {
+        alert("Please fill in Client Name, Task Detail, and Deadline");
         return;
     }
 
-    // First, get the employer's name to use as client_name
-    const { data: emp } = await supabaseClient
-        .from('employers')
-        .select('employer_name')
-        .eq('id', employerId)
-        .single();
+    if (!employerId) {
+        alert("No Employer selected. Please click an employer tab first.");
+        return;
+    }
 
-    const { error } = await supabaseClient.from('tasks').insert([{
+    // 3. Prepare the data object for Supabase
+    const newTask = {
         employer_id: employerId,
-        client_name: emp.employer_name, // This ensures the client shows up in tables
+        client_name: clientName, // This ensures grouping by individual client
         task_detail: detail,
-        units: parseFloat(units),
-        cpp: parseFloat(cpp),
-        payable: parseFloat(units) * parseFloat(cpp),
+        task_type: document.getElementById('type').value, // Pages, Quiz, etc.
+        units: units,
+        cpp: cpp,
+        payable: units * cpp,
         deadline: deadline,
         status: 'Pending',
         notified: false
-    }]);
+    };
 
-    if (!error) {
-        alert("Order Added!");
-        toggleAddForm(employerId); // Close form
-        fetchTasks(); // Refresh list
-    } else {
-        alert("Error: " + error.message);
+    // 4. Insert into Supabase
+    try {
+        const { error } = await supabaseClient
+            .from('tasks')
+            .insert([newTask]);
+
+        if (error) throw error;
+
+        // 5. Success Actions
+        console.log("Order successfully registered to Cloud.");
+        
+        // Clear the inputs using our helper
+        if (typeof clearTaskInputs === 'function') {
+            clearTaskInputs();
+        }
+
+        // Refresh the tables to show the new grouping
+        await fetchTasks();
+        
+        // Provide small feedback instead of an annoying alert if possible
+        console.log("UI Refreshed with new order.");
+
+    } catch (err) {
+        console.error("Submission Error:", err.message);
+        alert("Error saving order: " + err.message);
     }
 }
 
 function renderPendingPayment(tasks) {
     const body = document.getElementById('pendingPaymentBody');
     if (!body) return;
+    
+    // Clear the table before rendering
     body.innerHTML = '';
 
     if (!tasks || tasks.length === 0) {
-        body.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No pending payments found.</td></tr>';
+        body.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color: #999;">No pending payments found.</td></tr>';
         return;
     }
 
-    // Group tasks by Invoice Number
+    // 1. Group tasks by Invoice Number
     const groupedInvoices = tasks.reduce((acc, t) => {
-        // If invoice_no is missing, we group them as 'Legacy'
-        const inv = t.invoice_no || 'LEGACY_UNCONFIRMED'; 
+        // Handle cases where invoice number might be null
+        const inv = t.invoice_no || 'UNINVOICED'; 
         if (!acc[inv]) acc[inv] = [];
         acc[inv].push(t);
         return acc;
     }, {});
 
+    let tableHTML = '';
+
+    // 2. Loop through grouped invoices
     for (let invNo in groupedInvoices) {
         const invTasks = groupedInvoices[invNo];
-        const total = invTasks.reduce((sum, t) => sum + t.payable, 0);
+        const total = invTasks.reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
         
-        // Change the label if it's one of your old unassigned orders
-        const label = invNo === 'LEGACY_UNCONFIRMED' ? '⚠️ Legacy Orders (Unassigned)' : `Invoice: ${invNo}`;
+        // Formatting the label for the group header
+        const label = invNo === 'UNINVOICED' ? '⚠️ Awaiting Invoice Assignment' : `INV #${invNo}`;
         
-        body.innerHTML += `
-            <tr style="background:#f1f2f6; border-top: 2px solid #2c3e50;">
-                <td style="font-weight:bold;">${label}</td>
-                <td colspan="2" style="font-size:11px;">${invTasks.length} items</td>
-                <td style="font-weight:bold; color:#27ae60;">${total}</td>
+        // Add Invoice Header Row
+        tableHTML += `
+            <tr style="background:#f8f9fa; border-top: 2px solid #34495e;">
+                <td style="font-weight:bold; color:#2c3e50; padding:10px;">${label}</td>
+                <td style="font-size:12px; color:#7f8c8d;">${invTasks.length} items</td>
+                <td style="font-weight:bold; color:#27ae60;">KES ${total.toLocaleString()}</td>
                 <td>
                     <button onclick="markInvoicePaid('${invNo}')" 
-                        style="background:#27ae60; color:white; border:none; padding:8px; border-radius:4px; width:100%; cursor:pointer;">
-                        Confirm All Paid
+                        class="btn"
+                        style="background:#27ae60; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; width:100%; font-size:12px;">
+                        Confirm Paid
                     </button>
                 </td>
             </tr>`;
 
-        // Show the individual task rows under the header
+        // 3. Add Individual task detail rows (Nested under the invoice)
         invTasks.forEach(t => {
-            body.innerHTML += `
-                <tr style="font-size:11px; color:#666; background: #fff;">
-                    <td style="padding-left:15px;">└ ${t.client_name || 'Old Client'}</td>
-                    <td>${t.task_detail}</td>
-                    <td>${t.units || '-'}</td>
-                    <td>${t.payable}</td>
-                    <td>Awaiting Payment</td>
+            tableHTML += `
+                <tr style="font-size:11px; color:#555; background: #ffffff;">
+                    <td style="padding-left:25px; border-bottom: 1px solid #eee;">
+                        <span style="color:#bdc3c7;">└</span> ${t.client_name} - ${t.task_detail}
+                    </td>
+                    <td style="border-bottom: 1px solid #eee;">${t.units || '-'} ${t.task_type || ''}</td>
+                    <td style="border-bottom: 1px solid #eee;">${parseFloat(t.payable).toFixed(2)}</td>
+                    <td style="border-bottom: 1px solid #eee; font-style: italic; color: #f39c12;">Pending Payment</td>
                 </tr>`;
         });
     }
+
+    // 4. Inject all rows at once for speed
+    body.innerHTML = tableHTML;
 }
 
 	async function markInvoicePaid(invoiceNo) {
-    const confirmation = confirm("Confirm that payment for this entire group has been received?");
+    const confirmation = confirm(`Confirm payment received for Invoice: ${invoiceNo}?`);
     if (!confirmation) return;
 
-    let query = supabaseClient.from('tasks').update({ status: 'Paid' });
+    // Create the base update query
+    let query = supabaseClient
+        .from('tasks')
+        .update({ status: 'Paid' });
 
-    if (invoiceNo === 'LEGACY_UNCONFIRMED') {
-        // Update all Invoiced orders that don't have an invoice number
+    // Handle both specific invoice numbers and the "Legacy" unassigned ones
+    if (invoiceNo === 'LEGACY_UNCONFIRMED' || invoiceNo === 'UNINVOICED') {
         query = query.eq('status', 'Invoiced').is('invoice_no', null);
     } else {
         query = query.eq('invoice_no', invoiceNo);
@@ -867,34 +1004,83 @@ function renderPendingPayment(tasks) {
     const { error } = await query;
 
     if (error) {
-        alert("Error updating payment: " + error.message);
+        alert("Payment Update Failed: " + error.message);
     } else {
-        alert("Payment confirmed! Orders moved to History.");
-        fetchTasks(); // Refresh the UI
-    }
-}
-
-    function renderHistory(tasks) {
-        const hBody = document.getElementById('historyBody'); hBody.innerHTML = '';
-        tasks.forEach(t => hBody.innerHTML += `<tr><td>${new Date(t.created_at).toLocaleDateString()}</td><td>${t.client_name}</td><td>${t.task_detail}</td><td>${t.payable}</td></tr>`);
-    }
-
-   async function updateStatus(id, newStatus) {
-    const { error } = await supabaseClient
-        .from('tasks')
-        .update({ status: newStatus })
-        .eq('id', id);
-
-    if (error) {
-        console.error("Update failed");
-    } else {
-        // DIRECT REFRESH: This makes the item move/disappear immediately 
-        // without you having to click a tab or refresh the page.
+        console.log("Invoice marked as Paid.");
+        // We refresh the whole UI to move these tasks to the History tab
         await fetchTasks(); 
     }
 }
 
+function renderHistory(tasks) {
+    const hBody = document.getElementById('historyBody');
+    if (!hBody) return;
+
+    // Build the string first for better performance
+    let historyHTML = '';
+
+    if (tasks.length === 0) {
+        hBody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#999;">No history found.</td></tr>';
+        return;
+    }
+
+    tasks.forEach(t => {
+        const date = new Date(t.created_at).toLocaleDateString('en-GB'); // Format: DD/MM/YYYY
+        const statusColor = t.status === 'Paid' ? '#27ae60' : '#e74c3c';
+
+        historyHTML += `
+            <tr style="font-size: 13px;">
+                <td style="color: #7f8c8d;">${date}</td>
+                <td><strong>${t.client_name || 'N/A'}</strong></td>
+                <td>${t.task_detail}</td>
+                <td style="font-weight:bold;">${parseFloat(t.payable).toLocaleString()}</td>
+                <td>
+                    <span style="color: ${statusColor}; font-weight: bold; font-size: 11px; text-transform: uppercase;">
+                        ${t.status}
+                    </span>
+                </td>
+            </tr>`;
+    });
+
+    hBody.innerHTML = historyHTML;
+}
+
+   async function updateStatus(id, newStatus) {
+    // 1. Confirm cancellations to prevent accidental deletions
+    if (newStatus === 'Cancelled') {
+        if (!confirm("Are you sure you want to cancel this task? It will be moved to History as 'Cancelled'.")) {
+            return;
+        }
+    }
+
+    try {
+        // 2. Perform the update
+        // We also set notified: true so cancelled tasks don't trigger alarms
+        const { error } = await supabaseClient
+            .from('tasks')
+            .update({ 
+                status: newStatus,
+                notified: (newStatus === 'Done' || newStatus === 'Cancelled') 
+            })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        console.log(`Task ${id} successfully moved to ${newStatus}`);
+
+        // 3. Immediate Refresh
+        // This is the "Direct Refresh" that ensures the task moves to the 
+        // correct tab and the Totals recalculate instantly.
+        await fetchTasks();
+
+    } catch (err) {
+        console.error("Status update failed:", err.message);
+        alert("Failed to update task. Please check your connection.");
+    }
+}
+
     async function generateWordInvoice(employerId, empName) {
+    // 1. Fetch only 'Done' tasks for this specific employer
     const { data: doneTasks, error } = await supabaseClient
         .from('tasks')
         .select('*')
@@ -902,58 +1088,107 @@ function renderPendingPayment(tasks) {
         .eq('status', 'Done');
 
     if (error || !doneTasks || doneTasks.length === 0) {
-        alert(`No 'Done' tasks found for ${empName}`);
+        alert(`No completed tasks found for ${empName}. Mark some tasks as 'Done' first.`);
         return;
     }
 
+    // 2. Generate Invoice Meta
     const invoiceNo = `INV-${Date.now().toString().slice(-4)}`;
     let gross = 0;
     let adjustments = 0;
 
+    // 3. Build the table rows with Client info included
     const tableRows = doneTasks.map(t => {
         const val = parseFloat(t.payable) || 0;
-        if (t.task_type === 'Adjustment') adjustments += val;
+        const isAdj = t.task_type === 'Adjustment' || t.task_detail.toLowerCase().includes('adjustment');
+        
+        if (isAdj) adjustments += val;
         else gross += val;
         
-        return `<tr>
-            <td>${t.task_detail}</td>
-            <td>${t.units || '-'}</td>
-            <td>${t.cpp}</td>
-            <td>${val.toLocaleString()}</td>
-        </tr>`;
+        return `
+            <tr>
+                <td style='padding:5px;'>${t.client_name || '-'}</td>
+                <td style='padding:5px;'>${t.task_detail}</td>
+                <td style='padding:5px; text-align:center;'>${isAdj ? '-' : t.units}</td>
+                <td style='padding:5px; text-align:right;'>${t.cpp}</td>
+                <td style='padding:5px; text-align:right;'>${val.toFixed(2)}</td>
+            </tr>`;
     }).join('');
 
+    // 4. Word-compatible HTML Template
     let content = `
         <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-        <body>
-            <h2 style='text-align:center'>INVOICE</h2>
-            <p><strong>Billed To:</strong> ${empName}</p>
-            <p><strong>Invoice #:</strong> ${invoiceNo} | <strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
-            <table border='1' style='width:100%; border-collapse:collapse;'>
-                <tr style='background:#eee'><th>Detail</th><th>Units</th><th>CPP</th><th>Amount</th></tr>
+        <head><meta charset="utf-8"></head>
+        <body style="font-family: 'Segoe UI', Arial, sans-serif;">
+            <div style='text-align:center; border-bottom: 2px solid #333; margin-bottom: 20px;'>
+                <h1 style='margin-bottom:0;'>INVOICE</h1>
+                <p style='margin-top:5px;'>Generated via SmartSourcing ERP</p>
+            </div>
+            
+            <table style='width:100%; margin-bottom: 20px;'>
+                <tr>
+                    <td><strong>Billed To:</strong><br>${empName}</td>
+                    <td style='text-align:right;'>
+                        <strong>Invoice #:</strong> ${invoiceNo}<br>
+                        <strong>Date:</strong> ${new Date().toLocaleDateString('en-GB')}
+                    </td>
+                </tr>
+            </table>
+
+            <table border='1' style='width:100%; border-collapse:collapse; margin-bottom:20px;'>
+                <tr style='background:#f2f2f2;'>
+                    <th style='padding:8px;'>Client</th>
+                    <th style='padding:8px;'>Description</th>
+                    <th style='padding:8px;'>Units</th>
+                    <th style='padding:8px;'>CPP</th>
+                    <th style='padding:8px;'>Total (KES)</th>
+                </tr>
                 ${tableRows}
             </table>
-            <div style='margin-top:20px; text-align:right;'>
-                <p>Gross: ${gross.toLocaleString()}</p>
-                <p>Adjustments: ${adjustments.toLocaleString()}</p>
-                <p><strong>Net Total: ${(gross + adjustments).toLocaleString()} KES</strong></p>
+
+            <div style='text-align:right; font-size: 14px;'>
+                <p>Gross Amount: KES ${gross.toLocaleString()}</p>
+                <p>Adjustments/Fees: KES ${adjustments.toLocaleString()}</p>
+                <h3 style='color:#2c3e50;'>Net Total: KES ${(gross + adjustments).toLocaleString()}</h3>
+            </div>
+            
+            <div style='margin-top:50px; border-top: 1px solid #eee; padding-top:10px; font-size:10px; color:#888;'>
+                <p>Please process payment within the agreed timeframe. Thank you!</p>
             </div>
         </body>
         </html>`;
 
+    // 5. Trigger Download
     const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `Invoice_${empName}_${invoiceNo}.doc`;
     link.click();
 
-    if (confirm("Move tasks to Invoiced history?")) {
-        await supabaseClient.from('tasks').update({ status: 'Invoiced', invoice_no: invoiceNo }).eq('employer_id', employerId).eq('status', 'Done');
-        fetchTasks();
-    }
+    // 6. Update Database State
+    // We delay this slightly to ensure the download starts first
+    setTimeout(async () => {
+        if (confirm("Invoice downloaded! Move these tasks to 'Invoiced' status?")) {
+            const { error: updateError } = await supabaseClient
+                .from('tasks')
+                .update({ 
+                    status: 'Invoiced', 
+                    invoice_no: invoiceNo 
+                })
+                .eq('employer_id', employerId)
+                .eq('status', 'Done');
+
+            if (updateError) {
+                alert("Database update failed, but your file was saved.");
+            } else {
+                await fetchTasks(); // Refresh UI to move items to Pending Payment tab
+            }
+        }
+    }, 1000);
 }
 
 async function generateExcelInvoice(employerId, empName) {
+    // 1. Fetch only 'Done' tasks for this specific employer
     const { data: doneTasks, error } = await supabaseClient
         .from('tasks')
         .select('*')
@@ -966,30 +1201,76 @@ async function generateExcelInvoice(employerId, empName) {
     }
 
     const invoiceNo = `INV-${Date.now().toString().slice(-4)}`;
+    
+    // 2. Define the header rows
     const rows = [
         ["INVOICE - " + empName.toUpperCase()],
-        ["Invoice #", invoiceNo, "Date", new Date().toLocaleDateString()],
+        ["Invoice #", invoiceNo, "Date", new Date().toLocaleDateString('en-GB')],
         [],
-        ["Detail", "Units", "CPP", "Payable"]
+        ["Client", "Detail", "Units", "CPP", "Payable"] // Added Client column
     ];
 
-    let net = 0;
+    let grossTotal = 0;
+    let adjustmentTotal = 0;
+
+    // 3. Populate rows and handle math
     doneTasks.forEach(t => {
         const val = parseFloat(t.payable) || 0;
-        net += val;
-        rows.push([t.task_detail, t.units || "-", t.cpp, val]);
+        const isAdj = t.task_type === 'Adjustment' || t.task_detail.toLowerCase().includes('adjustment');
+        
+        if (isAdj) {
+            adjustmentTotal += val;
+        } else {
+            grossTotal += val;
+        }
+
+        rows.push([
+            t.client_name || '-', 
+            t.task_detail, 
+            isAdj ? "-" : (t.units || "-"), 
+            t.cpp, 
+            val
+        ]);
     });
 
-    rows.push([], ["", "", "NET TOTAL:", net]);
+    // 4. Add Summary Footer
+    rows.push(
+        [],
+        ["", "", "", "GROSS TOTAL:", grossTotal],
+        ["", "", "", "ADJUSTMENTS:", adjustmentTotal],
+        ["", "", "", "NET TOTAL:", (grossTotal + adjustmentTotal)]
+    );
 
-    const worksheet = XLSX.utils.aoa_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Invoice");
-    XLSX.writeFile(workbook, `Invoice_${empName}_${invoiceNo}.xlsx`);
+    // 5. Generate and Download Excel File
+    try {
+        const worksheet = XLSX.utils.aoa_to_sheet(rows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Invoice");
+        XLSX.writeFile(workbook, `Invoice_${empName}_${invoiceNo}.xlsx`);
 
-    if (confirm("Move tasks to history?")) {
-        await supabaseClient.from('tasks').update({ status: 'Invoiced', invoice_no: invoiceNo }).eq('employer_id', employerId).eq('status', 'Done');
-        fetchTasks();
+        // 6. Update Database State
+        setTimeout(async () => {
+            if (confirm("Excel downloaded! Move these tasks to 'Invoiced' status?")) {
+                const { error: updateError } = await supabaseClient
+                    .from('tasks')
+                    .update({ 
+                        status: 'Invoiced', 
+                        invoice_no: invoiceNo 
+                    })
+                    .eq('employer_id', employerId)
+                    .eq('status', 'Done');
+
+                if (updateError) {
+                    alert("File saved, but database update failed.");
+                } else {
+                    await fetchTasks(); // Refresh UI
+                }
+            }
+        }, 1000);
+
+    } catch (err) {
+        console.error("Excel Generation Error:", err);
+        alert("Could not generate Excel. Ensure the XLSX library is loaded.");
     }
 }
 
@@ -997,6 +1278,7 @@ async function generateEmployerInvoice(employerId) {
     // 1. Fetch only "Done" tasks for this specific employer
     const { data: tasks, error } = await supabaseClient
         .from('tasks')
+        .select('*')
         .eq('status', 'Done')
         .eq('employer_id', employerId);
 
@@ -1013,198 +1295,364 @@ async function generateEmployerInvoice(employerId) {
     // 2. Fetch employer details for the filename and header
     const { data: employer } = await supabaseClient
         .from('employers')
+        .select('employer_name')
         .eq('id', employerId)
         .single();
 
     const empName = employer ? employer.employer_name : "Employer";
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+    const invoiceNo = `INV-${Date.now().toString().slice(-4)}`;
 
-    // 3. Build CSV content specifically for this employer
+    // 3. Build CSV content with Client names and proper grouping
     let csv = `INVOICE FOR: ${empName.toUpperCase()}\n`;
+    csv += `Invoice No: ${invoiceNo}\n`;
     csv += `Date: ${dateStr}\n\n`;
-    csv += "Task Detail,Type,Units,CPP,Payable,Status\n";
+    csv += "Client,Task Detail,Type,Units,CPP,Payable,Status\n";
 
     let employerGross = 0;
     let employerAdj = 0;
 
     tasks.forEach(t => {
         const val = parseFloat(t.payable) || 0;
-        if (t.task_type === 'Adjustment') {
+        const isAdj = t.task_type === 'Adjustment' || t.task_detail.toLowerCase().includes('adjustment');
+        
+        if (isAdj) {
             employerAdj += val;
         } else {
             employerGross += val;
         }
-        // Sanitize commas to prevent CSV breakage
-        const cleanDetail = t.task_detail.replace(/,/g, ' '); 
-        csv += `"${cleanDetail}",${t.task_type},${t.units},${t.cpp},${val},${t.status}\n`;
+
+        // Sanitize to prevent CSV breakage (remove commas and quotes)
+        const cleanClient = (t.client_name || 'N/A').replace(/[,"]/g, '');
+        const cleanDetail = t.task_detail.replace(/[,"]/g, '');
+        
+        csv += `"${cleanClient}","${cleanDetail}",${t.task_type || '-'},${isAdj ? '-' : t.units},${t.cpp},${val.toFixed(2)},${t.status}\n`;
     });
 
-    // 4. Add the per-employer summary at the bottom
+    // 4. Per-employer summary
     csv += `\n--- BALANCE SUMMARY ---\n`;
-    csv += `Gross Earned,,, ,${employerGross}\n`;
-    csv += `Adjustments/Advances,,, ,${employerAdj}\n`;
-    csv += `NET TOTAL DUE,,, ,${employerGross + employerAdj}\n`;
+    csv += `Gross Earned,,,, , ,${employerGross.toFixed(2)}\n`;
+    csv += `Adjustments/Advances,,,, , ,${employerAdj.toFixed(2)}\n`;
+    csv += `NET TOTAL DUE,,,, , ,${(employerGross + employerAdj).toFixed(2)}\n`;
 
-    // 5. Trigger the individual CSV download
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    // 5. Trigger the download
+    const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' }); // \ufeff handles Excel UTF-8 display
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `Invoice_${empName.replace(/\s+/g, '_')}_${dateStr}.csv`);
+    link.setAttribute("download", `Invoice_${empName.replace(/\s+/g, '_')}_${invoiceNo}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    // 6. Confirm moving tasks to 'Invoiced' status
-    if (confirm(`Invoice for ${empName} downloaded. Mark these ${tasks.length} tasks as 'Invoiced'?`)) {
-        const { error: updateError } = await supabaseClient
-            .from('tasks')
-            .update({ status: 'Invoiced' })
-            .eq('status', 'Done')
-            .eq('employer_id', employerId);
-        
-        if (!updateError && typeof fetchTasks === 'function') {
-            fetchTasks(); // Refresh tables
+    // 6. Update Database State
+    setTimeout(async () => {
+        if (confirm(`CSV Downloaded. Move these ${tasks.length} tasks to 'Invoiced' status?`)) {
+            const { error: updateError } = await supabaseClient
+                .from('tasks')
+                .update({ 
+                    status: 'Invoiced',
+                    invoice_no: invoiceNo 
+                })
+                .eq('status', 'Done')
+                .eq('employer_id', employerId);
+            
+            if (!updateError) {
+                console.log("Database updated: Moved to Invoiced.");
+                await fetchTasks(); // Refresh UI
+            } else {
+                alert("Error updating tasks: " + updateError.message);
+            }
         }
-    }
+    }, 1000);
 }
 
 async function markTasksAsInvoiced(ids, invNo) {
-    const { error } = await supabaseClient
-        .from('tasks')
-        .update({ 
-            status: 'Invoiced',
-            invoice_no: invNo,
-            notified: false // Reset for payment reminders
-        })
-        .in('id', ids);
+    // 1. Safety Check: Ensure we have IDs to update
+    if (!ids || ids.length === 0) return;
 
-    if (error) alert("Error updating tasks: " + error.message);
-    fetchTasks(); // Refresh the UI
-}
+    try {
+        // 2. Batch Update in Supabase
+        const { error } = await supabaseClient
+            .from('tasks')
+            .update({ 
+                status: 'Invoiced',
+                invoice_no: invNo,
+                notified: false // Important: Allows new alarms for payment follow-ups
+            })
+            .in('id', ids); // This handles the entire array of IDs at once
 
-// 1. Initialize the chart when the page loads
-function initChart() {
-    const ctx = document.getElementById('performanceChart').getContext('2d');
-    myChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: [], 
-            datasets: [
-                { label: 'Gross Total', data: [], borderColor: '#27ae60', tension: 0.1, fill: false },
-                { label: 'Final Payable', data: [], borderColor: '#2c3e50', tension: 0.1, fill: false },
-                { label: '20% Savings Goal', data: [], borderColor: '#f39c12', borderDash: [5, 5], fill: false }
-            ]
-        },
-        options: { responsive: true, maintainAspectRatio: false }
-    });
-}
+        if (error) throw error;
 
-// 2. Fetch data from your performance_history table
-async function updatePerformanceGraph() {
-    const { data, error } = await supabaseClient
-        .from('performance_history')
-        .select('*')
-        .order('submission_date', { ascending: true });
+        console.log(`Successfully moved ${ids.length} tasks to 'Invoiced' status (Invoice: ${invNo})`);
 
-    if (error) return console.error(error);
+        // 3. Refresh the UI
+        // We await this so the tables don't flicker or show old data
+        await fetchTasks();
 
-    // Map data to the chart
-    myChart.data.labels = data.map((d, i) => `Inv #${i + 1}`);
-    myChart.data.datasets[0].data = data.map(d => d.total_gross);
-    myChart.data.datasets[1].data = data.map(d => d.final_payable);
-    myChart.data.datasets[2].data = data.map(d => d.savings_amount);
-    myChart.update();
-}
-
-function adjustInputs() {
-    const type = document.getElementById('type').value;
-    const cppContainer = document.getElementById('cppContainer');
-    const unitLabel = document.getElementById('unitLabel') || document.querySelector('label[for="unit"]');
-
-    if (type === 'Quiz') {
-        cppContainer.innerHTML = `
-            <select id="cpp">
-                <option value="800">800 (Standard)</option>
-                <option value="1000">1000 (Complex)</option>
-            </select>`;
-    } else if (type === 'Midterm') {
-        cppContainer.innerHTML = `
-            <select id="cpp">
-                <option value="1000">1000 (Standard)</option>
-                <option value="1500">1500 (With Essay)</option>
-            </select>`;
-    } else if (type === 'PPT') {
-        cppContainer.innerHTML = `
-            <select id="cpp">
-                <option value="150">150 (Per Slide)</option>
-                <option value="200">200 (Design Heavy)</option>
-            </select>`;
-    } else {
-        // Back to normal for regular "Pages"
-        cppContainer.innerHTML = `<input type="number" id="cpp" value="300">`;
+    } catch (err) {
+        console.error("Invoicing update failed:", err.message);
+        alert("Failed to update task status: " + err.message);
     }
 }
 
-let alarmInterval;
-window.isSnoozed = false; // Add this line
+function initChart() {
+    const chartEl = document.getElementById('performanceChart');
+    if (!chartEl) return;
 
-function checkDeadlines(tasks) {
-    if (window.isSnoozed) return; // Don't trigger if snooze is active
-
-    const now = new Date();
-    tasks.forEach(t => {
-        if (t.status === 'Pending' && t.deadline) {
-            const deadlineDate = new Date(t.deadline);
-            const leadTimeMs = (t.alert_lead_hours || 1) * 60 * 60 * 1000;
-            const alertTriggerTime = new Date(deadlineDate.getTime() - leadTimeMs);
-
-            if (now >= alertTriggerTime && now < deadlineDate) {
-                triggerAlarm();
-                sendDesktopNotification(t);
+    const ctx = chartEl.getContext('2d');
+    
+    myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [], // Populated by fetchTasks -> updateChart
+            datasets: [
+                { 
+                    label: 'Gross (KES)', 
+                    data: [], 
+                    borderColor: '#2ecc71', 
+                    backgroundColor: '#2ecc71',
+                    tension: 0.3, 
+                    fill: false,
+                    borderWidth: 2
+                },
+                { 
+                    label: 'Net Total', 
+                    data: [], 
+                    borderColor: '#34495e', 
+                    backgroundColor: '#34495e',
+                    tension: 0.3, 
+                    fill: false,
+                    borderWidth: 2
+                },
+                { 
+                    label: '20% Savings Goal', 
+                    data: [], 
+                    borderColor: '#f39c12', 
+                    borderDash: [5, 5], 
+                    pointRadius: 0, // Keeps the dashed line clean
+                    fill: false 
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { boxWidth: 12, font: { size: 11 } }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'KES ' + value.toLocaleString();
+                        }
+                    }
+                },
+                x: {
+                    grid: { display: false }
+                }
             }
         }
     });
 }
 
-function renderDoneTable(tasks) {
+async function updatePerformanceGraph() {
+    const { data, error } = await supabaseClient
+        .from('performance_history')
+        .select('*')
+        .order('submission_date', { ascending: true })
+        .limit(15); // Keeps the chart from getting too crowded on mobile
+
+    if (error) {
+        console.error("Chart data fetch failed:", error.message);
+        return;
+    }
+
+    if (!data || data.length === 0) return;
+
+    // 1. Format Labels: Use the date (e.g., "12 Apr") instead of index numbers
+    myChart.data.labels = data.map(d => {
+        const date = new Date(d.submission_date);
+        return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    });
+
+    // 2. Map the Totals
+    myChart.data.datasets[0].data = data.map(d => parseFloat(d.total_gross) || 0);
+    myChart.data.datasets[1].data = data.map(d => parseFloat(d.final_payable) || 0);
+    
+    // 3. Map the Savings Goal (20% of the Final Payable)
+    myChart.data.datasets[2].data = data.map(d => (parseFloat(d.final_payable) || 0) * 0.20);
+
+    // 4. Smooth Transition update
+    myChart.update('active'); 
+}
+
+function adjustInputs() {
+    const type = document.getElementById('type').value;
+    const cppContainer = document.getElementById('cppContainer');
+    const unitLabel = document.getElementById('unitLabel');
+
+    if (!cppContainer) return;
+
+    // 1. Update the Units Label for clarity
+    if (unitLabel) {
+        if (type === 'PPT') unitLabel.innerText = "Number of Slides:";
+        else if (type === 'Quiz' || type === 'Midterm') unitLabel.innerText = "Number of Items:";
+        else unitLabel.innerText = "Number of Pages:";
+    }
+
+    // 2. Adjust the Pricing (CPP) Input
+    if (type === 'Quiz') {
+        cppContainer.innerHTML = `
+            <select id="cpp" class="input-field">
+                <option value="800">800 (Standard Quiz)</option>
+                <option value="1000">1000 (Complex Quiz)</option>
+            </select>`;
+    } else if (type === 'Midterm') {
+        cppContainer.innerHTML = `
+            <select id="cpp" class="input-field">
+                <option value="1000">1000 (Standard Exam)</option>
+                <option value="1500">1500 (Proctored/Essay)</option>
+            </select>`;
+    } else if (type === 'PPT') {
+        cppContainer.innerHTML = `
+            <select id="cpp" class="input-field">
+                <option value="150">150 (Per Slide)</option>
+                <option value="200">200 (Design Heavy)</option>
+            </select>`;
+    } else {
+        // Use the currentEmployerRate if available, otherwise default to 300
+        const defaultRate = typeof currentEmployerRate !== 'undefined' ? currentEmployerRate : 300;
+        cppContainer.innerHTML = `<input type="number" id="cpp" class="input-field" value="${defaultRate}">`;
+    }
+}
+
+// State management for the deadline alarm system
+let alarmInterval;
+window.isSnoozed = false;
+
+function checkDeadlines(tasks) {
+    if (window.isSnoozed) return; 
+
+    const now = new Date();
+    
+    tasks.forEach(t => {
+        // Only trigger for Pending tasks that haven't already fired an alert
+        if (t.status === 'Pending' && t.deadline && !t.notified) {
+            const deadlineDate = new Date(t.deadline);
+            
+            // Default to 1 hour lead time if not specified in database
+            const leadTimeMs = (parseFloat(t.alert_lead_hours) || 1) * 60 * 60 * 1000;
+            const alertTriggerTime = new Date(deadlineDate.getTime() - leadTimeMs);
+
+            // If we have entered the "Warning Window"
+            if (now >= alertTriggerTime && now < deadlineDate) {
+                console.log(`ALARM: Task "${t.task_detail}" is due soon!`);
+                
+                triggerAlarm(); // Visual/Audio alarm
+                sendDesktopNotification(t); // Browser push notification
+                
+                // Mark as notified in the DB so it doesn't ring again in 60 seconds
+                silenceTaskAlert(t.id); 
+            }
+        }
+    });
+}
+
+// Helper to update the database so the alarm stops for this specific task
+async function silenceTaskAlert(taskId) {
+    await supabaseClient
+        .from('tasks')
+        .update({ notified: true })
+        .eq('id', taskId);
+}
+
+async function renderDoneTable(tasks) {
     const container = document.getElementById('done-tasks-container');
     if (!container) return;
 
     if (tasks.length === 0) {
-        container.innerHTML = '<h3>✅ Completed Orders</h3><p>No completed orders found.</p>';
+        container.innerHTML = `
+            <div style="text-align:center; padding:40px; color:#95a5a6;">
+                <h3>✅ Completed Orders</h3>
+                <p>No tasks are currently marked as 'Done'.</p>
+            </div>`;
         return;
     }
 
-    // Grouping by employer so it's organized for invoicing
-    const grouped = groupTasksByEmployer(tasks);
+    // 1. Fetch employer names to ensure headers are accurate
+    const { data: employersList } = await supabaseClient.from('employers').select('id, employer_name');
+
+    // 2. Grouping by employer_id
+    const grouped = tasks.reduce((acc, t) => {
+        const empId = t.employer_id || 'unassigned';
+        if (!acc[empId]) acc[acc[empId] = []];
+        acc[empId].push(t);
+        return acc;
+    }, {});
     
-    let html = '<h3>✅ Completed Orders (Ready for Invoice)</h3>';
+    let html = '<h3 style="margin-bottom:20px; color:#2c3e50;">✅ Completed Orders (Ready for Invoice)</h3>';
     
-    for (const employerId in grouped) {
-        const eTasks = grouped[employerId];
-        const clientName = eTasks[0].client_name || "Unknown Client";
+    for (const empId in grouped) {
+        const eTasks = grouped[empId];
+        const empMatch = (employersList || []).find(e => e.id === empId);
+        const employerName = empMatch ? empMatch.employer_name : "Direct/Unassigned";
+
+        // Calculate subtotal for this specific employer card
+        const subtotal = eTasks.reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
 
         html += `
-            <div class="card">
-                <h4>${clientName}</h4>
-                <table>
-                    <thead>
-                        <tr><th>Detail</th><th>Units</th><th>Payable</th><th>Action</th></tr>
+            <div class="card" style="margin-bottom: 25px; border-left: 5px solid #27ae60; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 15px; background:#f9fdfa;">
+                    <h4 style="margin:0; color:#27ae60;">🏢 ${employerName.toUpperCase()}</h4>
+                    <span style="font-weight:bold; color:#2c3e50;">Total: KES ${subtotal.toLocaleString()}</span>
+                </div>
+                
+                <table style="width:100%; border-collapse:collapse; margin:10px 0;">
+                    <thead style="background:#f1f2f6; font-size:12px;">
+                        <tr>
+                            <th style="padding:8px; text-align:left;">Client / Detail</th>
+                            <th style="padding:8px; text-align:center;">Units</th>
+                            <th style="padding:8px; text-align:right;">Payable</th>
+                            <th style="padding:8px; text-align:center;">Action</th>
+                        </tr>
                     </thead>
                     <tbody>
                         ${eTasks.map(t => `
-                            <tr>
-                                <td>${t.task_detail}</td>
-                                <td>${t.units}</td>
-                                <td>${t.payable}</td>
-                                <td><button onclick="updateStatus('${t.id}', 'Active')">Undo</button></td>
+                            <tr style="border-bottom:1px solid #eee; font-size:13px;">
+                                <td style="padding:8px;">
+                                    <small style="color:#7f8c8d; display:block;">${t.client_name}</small>
+                                    ${t.task_detail}
+                                </td>
+                                <td style="padding:8px; text-align:center;">${t.units || '-'}</td>
+                                <td style="padding:8px; text-align:right; font-weight:600;">${parseFloat(t.payable).toLocaleString()}</td>
+                                <td style="padding:8px; text-align:center;">
+                                    <button class="btn-small" onclick="updateStatus('${t.id}', 'Pending')" 
+                                        style="background:#bdc3c7; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">
+                                        Undo
+                                    </button>
+                                </td>
                             </tr>
                         `).join('')}
                     </tbody>
                 </table>
-                <button class="btn-invoice" onclick="generateWordInvoice('${employerId}', '${clientName}')">
-                    Generate Word Invoice
-                </button>
+                
+                <div style="display:flex; gap:10px; padding:10px 15px; background:#f8f9fa;">
+                    <button class="btn" style="background:#2980b9; flex:1;" onclick="generateWordInvoice('${empId}', '${employerName}')">
+                        📄 Word Invoice
+                    </button>
+                    <button class="btn" style="background:#27ae60; flex:1;" onclick="generateExcelInvoice('${empId}', '${employerName}')">
+                        📊 Excel Invoice
+                    </button>
+                </div>
             </div>
         `;
     }
@@ -1212,29 +1660,58 @@ function renderDoneTable(tasks) {
 }
 
 function sendDesktopNotification(task) {
-    if (Notification.permission === "granted") {
-        // Trigger the audio alarm manually here to ensure it rings with the popup
-        triggerAlarm(); 
+    // 1. Check if the browser supports notifications
+    if (!("Notification" in window)) return;
 
-        const notification = new Notification("Order Due Soon! 🚨", {
-            body: `Task: ${task.task_detail}\nDue in: ${getRemainingTime(task.deadline)}`,
-            icon: "https://cdn-icons-png.flaticon.com/512/1827/1827347.png",
-            silent: false // Some browsers respect this to allow a system beep
+    // 2. Handle Permission States
+    if (Notification.permission === "granted") {
+        createNotification(task);
+    } else if (Notification.permission !== "denied") {
+        // Request permission if not already decided
+        Notification.requestPermission().then(permission => {
+            if (permission === "granted") createNotification(task);
         });
     }
+}
+
+// Helper to actually show the popup
+function createNotification(task) {
+    const notification = new Notification("Order Due Soon! 🚨", {
+        body: `Client: ${task.client_name}\nTask: ${task.task_detail}\nDue: ${new Date(task.deadline).toLocaleTimeString()}`,
+        icon: "https://cdn-icons-png.flaticon.com/512/1827/1827347.png",
+        tag: `deadline-${task.id}`, // Prevents duplicate popups for the same task
+        requireInteraction: true // Keep on screen until clicked
+    });
+
+    notification.onclick = () => {
+        window.focus();
+        notification.close();
+    };
 }
 
 function stopAlarm() {
     const alarm = document.getElementById('dueAlarm');
     const banner = document.getElementById('alarmBanner');
     
-    clearInterval(alarmInterval);
-    alarmInterval = null;
-    stopFlashing(); // Stop taskbar pulsing
+    // 1. Clear the looping interval
+    if (alarmInterval) {
+        clearInterval(alarmInterval);
+        alarmInterval = null;
+    }
+
+    // 2. Reset Audio
+    if (alarm) {
+        alarm.pause();
+        alarm.currentTime = 0;
+    }
+
+    // 3. UI Cleanup
+    if (banner) banner.style.display = 'none';
     
-    alarm.pause();
-    alarm.currentTime = 0;
-    banner.style.display = 'none';
+    // Stop the visual "pounding" or tab flashing
+    if (typeof stopFlashing === 'function') stopFlashing();
+    
+    console.log("Alarm silenced and reset.");
 }
 
 function getRemainingTime(deadline) {
@@ -1301,18 +1778,31 @@ function testSystem() {
     }, 5000);
 }
 
-
-
 async function enableBackgroundAlarms() {
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-        console.log("Background alarms enabled");
-    } else {
-        alert("Please enable notifications to receive alarms while the app is closed.");
+    // 1. Check if the browser supports notifications at all
+    if (!("Notification" in window)) {
+        console.warn("This browser does not support desktop notifications.");
+        return;
+    }
+
+    // 2. Only ask if we haven't been granted or denied yet
+    if (Notification.permission === "default") {
+        const permission = await Notification.requestPermission();
+        
+        if (permission === 'granted') {
+            console.log("🚀 Background alarms enabled successfully.");
+            // Send a test notification so the user knows it works
+            new Notification("SmartSourcing ERP", {
+                body: "Deadline alarms are now active!",
+                icon: "https://cdn-icons-png.flaticon.com/512/190/190411.png"
+            });
+        } else {
+            console.warn("Notifications were denied. Alarms will be silent.");
+        }
+    } else if (Notification.permission === 'denied') {
+        console.warn("Notifications are blocked in browser settings.");
     }
 }
-// Call this when the app loads
-enableBackgroundAlarms();
 
 async function syncOfflineData() {
     const offlineTasks = JSON.parse(localStorage.getItem('offlineTasks') || "[]");
@@ -1356,48 +1846,59 @@ async function syncOfflineData() {
 				}, 1000);
 			}
 		}
-
-		function stopFlashing() {
-			clearInterval(titleInterval);
-			titleInterval = null;
-			document.title = "Ultimate Invoice & Performance System";
-		}
 		
 		async function addOrder() {
-    const detail = document.getElementById('detail').value;
+    // 1. Get current values from the form
+    const client = document.getElementById('client').value.trim();
+    const detail = document.getElementById('detail').value.trim();
     const units = document.getElementById('unit').value;
     const cpp = document.getElementById('cpp').value;
     const deadline = document.getElementById('deadline').value;
+    const taskType = document.getElementById('type').value;
 
-    const empId = currentEmployerId; // ✅ correct source
-
-    if (!detail || !deadline || !empId) {
-        alert("Please select an employer and fill all required fields.");
+    // 2. Validation Check
+    if (!detail || !deadline || !currentEmployerId) {
+        alert("Missing Data: Please select an Employer and fill in the Task Detail & Deadline.");
         return;
     }
 
+    // 3. Construct the Payload
     const payload = {
-    client_name: document.getElementById('client').value || 'Unknown',
-    task_detail: detail,
-    units: parseFloat(units) || 0,
-    employer_id: empId,
-    deadline: new Date(deadline).toISOString(),
-    cpp: parseFloat(cpp) || 0,
-    payable: (parseFloat(units) || 0) * (parseFloat(cpp) || 0),
-    status: 'Pending',
-    created_at: new Date().toISOString()
-};
+        employer_id: currentEmployerId,
+        client_name: client || 'Direct Client',
+        task_detail: detail,
+        task_type: taskType,
+        units: parseFloat(units) || 0,
+        cpp: parseFloat(cpp) || 0,
+        payable: (parseFloat(units) || 0) * (parseFloat(cpp) || 0),
+        deadline: new Date(deadline).toISOString(), // Ensures consistent cloud format
+        status: 'Pending',
+        notified: false, // Ensures the alarm system picks this up
+        created_at: new Date().toISOString()
+    };
 
-    const { error } = await supabaseClient.from('tasks').insert([payload]);
+    try {
+        // 4. Insert into Supabase
+        const { error } = await supabaseClient
+            .from('tasks')
+            .insert([payload]);
 
-    if (error) {
-        console.error("Database Insert Error:", error);
-        alert("Failed to save order.");
-    } else {
+        if (error) throw error;
+
+        console.log("Order saved to Cloud successfully.");
+
+        // 5. Success UI Actions
+        // Clear inputs so you can enter the next one immediately
+        document.getElementById('client').value = '';
+        document.getElementById('detail').value = '';
+        document.getElementById('unit').value = '';
         
-
+        // Refresh the tables to show the new order in the "Active" tab
         await fetchTasks();
-        console.log("Order saved correctly.");
+
+    } catch (err) {
+        console.error("Database Insert Error:", err.message);
+        alert("Failed to save order. Check your internet connection.");
     }
 }
 		
@@ -1439,24 +1940,32 @@ async function syncOfflineData() {
     }
 
     try {
-        // CHANGED: Use supabaseClient instead of _supabase
+        // 1. Insert into Supabase
         const { data, error } = await supabaseClient
             .from('employers')
             .insert([{ 
                 employer_name: name, 
-                rate_per_unit: rate 
+                rate_per_unit: rate // Saved to drive the 'Pages' default price
             }])
             .select();
 
         if (error) throw error;
 
+        // 2. UI Reset
         nameInput.value = '';
         rateInput.value = '';
 
-        alert(`Employer "${name}" registered successfully!`);
+        // 3. Auto-Select the new employer
+        if (data && data[0]) {
+            currentEmployerId = data[0].id;
+            currentEmployerRate = data[0].rate_per_unit;
+        }
+
+        console.log(`Employer "${name}" registered and selected.`);
         
-        // Refresh the tabs to show the new name
-        loadEmployers(); 
+        // 4. Global Refresh
+        // Using renderEmployerList (which we fixed earlier) to show the new tab
+        await renderEmployerList(); 
         
     } catch (err) {
         console.error("Error saving employer:", err.message);
@@ -1464,52 +1973,88 @@ async function syncOfflineData() {
     }
 }
 
+// Global state variables
 let currentEmployerId = null;
+let currentEmployerRate = 300; // Fallback default
 
-// This runs when the app starts to show your bosses
 async function loadEmployers() {
-    const { data, error } = await supabaseClient.from('employers').select('*');
-    if (error) return;
+    const { data, error } = await supabaseClient
+        .from('employers')
+        .select('*')
+        .order('employer_name', { ascending: true });
+
+    if (error) {
+        console.error("Failed to load employers:", error.message);
+        return;
+    }
     
     const container = document.getElementById('employer-tabs');
+    if (!container) return;
+    
     container.innerHTML = ''; 
 
     data.forEach(emp => {
-        // Create a wrapper for the button + delete icon
+        // 1. Tab Wrapper
         const wrapper = document.createElement('div');
-        wrapper.style.display = 'inline-flex';
-        wrapper.style.alignItems = 'center';
-        wrapper.style.marginRight = '10px';
-        wrapper.style.background = '#34495e';
-        wrapper.style.borderRadius = '5px';
+        wrapper.className = 'employer-tab-wrapper';
+        wrapper.style.cssText = `
+            display: inline-flex;
+            align-items: center;
+            margin: 5px;
+            background: #34495e;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        `;
 
-        // Main Employer Button
+        // 2. Main Employer Selection Button
         const btn = document.createElement('button');
-        btn.className = 'btn';
-        btn.style.background = 'transparent';
-        btn.style.border = 'none';
-        btn.style.color = 'white';
+        btn.style.cssText = `
+            padding: 8px 15px;
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 500;
+        `;
         btn.innerText = emp.employer_name;
-       btn.onclick = () => {
-    currentEmployerId = emp.id;
-    // Highlight the active employer tab
-    document.querySelectorAll('#employer-tabs div').forEach(d => d.style.background = '#34495e');
-    wrapper.style.background = '#3498db';
-    
-    // FETCH specifically for this employer
-    fetchTasksByEmployer(emp.id); 
-};
+        
+        btn.onclick = () => {
+            // Update Global State
+            currentEmployerId = emp.id;
+            currentEmployerRate = emp.rate_per_unit || 300;
 
-        // Delete "X" Button
+            // Visual Toggle: Reset all, then highlight active
+            document.querySelectorAll('#employer-tabs div').forEach(d => {
+                d.style.background = '#34495e';
+            });
+            wrapper.style.background = '#3498db';
+            
+            // Sync the input form to this boss's rate
+            const cppInput = document.getElementById('cpp');
+            if (cppInput) cppInput.value = currentEmployerRate;
+
+            // Load the tasks specifically for this view
+            fetchTasks(); 
+        };
+
+        // 3. Delete Icon (The "X")
         const delBtn = document.createElement('span');
         delBtn.innerHTML = '&times;';
-        delBtn.style.padding = '0 10px';
-        delBtn.style.cursor = 'pointer';
-        delBtn.style.color = '#e74c3c';
-        delBtn.style.fontWeight = 'bold';
-        delBtn.title = "Delete Employer";
+        delBtn.style.cssText = `
+            padding: 0 12px;
+            cursor: pointer;
+            color: #bdc3c7;
+            font-size: 18px;
+            transition: color 0.2s;
+            border-left: 1px solid rgba(255,255,255,0.1);
+        `;
+        delBtn.onmouseover = () => delBtn.style.color = '#e74c3c';
+        delBtn.onmouseout = () => delBtn.style.color = '#bdc3c7';
+        
         delBtn.onclick = (e) => {
-            e.stopPropagation(); // Prevents clicking the tab when deleting
+            e.stopPropagation(); 
             deleteEmployer(emp.id, emp.employer_name);
         };
 
@@ -1520,48 +2065,73 @@ async function loadEmployers() {
 }
 
 function switchToEmployer(employer) {
-    // Save the ID so new orders go to THIS boss
+    // 1. Update Global State
     currentEmployerId = employer.id;
+    currentEmployerRate = employer.rate_per_unit || 300;
     
-    // Visually highlight the active tab
-    document.querySelectorAll('#employer-tabs button').forEach(b => {
-        b.style.background = (b.innerText === employer.employer_name) ? '#3498db' : '#34495e';
+    // 2. Visual Feedback: Find the button inside the wrapper and highlight
+    document.querySelectorAll('#employer-tabs div').forEach(wrapper => {
+        const btn = wrapper.querySelector('button');
+        if (btn && btn.innerText === employer.employer_name) {
+            wrapper.style.background = '#3498db';
+        } else {
+            wrapper.style.background = '#34495e';
+        }
     });
 
-    // Refresh the table to show ONLY this boss's work
+    // 3. Sync the Price input
+    const cppInput = document.getElementById('cpp');
+    if (cppInput) cppInput.value = currentEmployerRate;
+
+    // 4. Load the data
     fetchTasksByEmployer(employer.id);
 }
 
 async function deleteEmployer(id, name) {
-    const confirmDelete = confirm(`Are you sure you want to delete "${name}"?\n\nWarning: This will NOT delete their tasks, but you won't be able to access them through this tab anymore.`);
+    const confirmDelete = confirm(`Are you sure you want to delete "${name}"?\n\nWarning: Their tasks will remain in the database but will be hidden from the UI.`);
     
-    if (confirmDelete) {
+    if (!confirmDelete) return;
+
+    try {
         const { error } = await supabaseClient
             .from('employers')
             .delete()
             .eq('id', id);
 
-        if (error) {
-            alert("Error deleting employer: " + error.message);
-        } else {
-            // Reset currentEmployerId if we deleted the active one
-            if (currentEmployerId === id) {
-                currentEmployerId = null;
-                document.getElementById('tableBody').innerHTML = '';
-            }
-            // Refresh the tab list
-            await loadEmployers();
+        if (error) throw error;
+
+        // If the deleted employer was the one currently open, reset the view
+        if (currentEmployerId === id) {
+            currentEmployerId = null;
+            currentEmployerRate = 300;
+            
+            // Clear all visible tables
+            ['tableBody', 'historyBody', 'done-tasks-container', 'pendingPaymentBody'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = '';
+            });
         }
+
+        console.log(`Employer ${name} removed.`);
+        await loadEmployers(); // Refresh the tab list
+        
+    } catch (err) {
+        alert("Error deleting employer: " + err.message);
     }
 }
 
 async function fetchTasksByEmployer(empId) {
-    if (!navigator.onLine) return;
+    // 1. Offline Check
+    if (!navigator.onLine) {
+        console.warn("Offline: Using cached data if available.");
+        return;
+    }
 
+    // 2. Query only tasks for this Employer
     const { data, error } = await supabaseClient
         .from('tasks')
         .select('*')
-        .eq('employer_id', empId) // THE FILTER: Only show this boss's work
+        .eq('employer_id', empId)
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -1569,8 +2139,19 @@ async function fetchTasksByEmployer(empId) {
         return;
     }
 
-    renderActive(data.filter(t => t.status === 'Pending' || t.status === 'Done'));
-    renderPendingPayment(data.filter(t => t.status === 'Invoiced'));
+    // 3. Distribute data to the specialized tabs
+    const activeTasks = data.filter(t => t.status === 'Pending' || t.status === 'Done');
+    const invoicedTasks = data.filter(t => t.status === 'Invoiced');
+    const historyTasks = data.filter(t => t.status === 'Paid' || t.status === 'Cancelled');
+
+    // 4. Run the Render Engines
+    renderActive(activeTasks);
+    renderDoneTable(activeTasks.filter(t => t.status === 'Done')); // Only show "Done" in the invoice section
+    renderPendingPayment(invoicedTasks);
+    renderHistory(historyTasks);
+
+    // 5. Run the Alarm Engine
+    checkDeadlines(activeTasks);
 }
 
 async function transferOrder(orderId, newEmployerId) {
@@ -1701,21 +2282,39 @@ function triggerAlarm(taskName) {
     const alarm = document.getElementById('dueAlarm');
     const banner = document.getElementById('alarmBanner');
 
-    // 1. Visual Alert
-    banner.innerHTML = `🚨 <b>${taskName}</b> IS DUE!`;
-    banner.style.display = 'block';
+    const displayName = taskName || "An Assignment";
 
-    // 2. Audio Alert (May still be blocked by browser)
-    alarm.play().catch(() => console.log("Sound blocked, relying on System Notification."));
+    // 1. Visual Alert with Pulsing Effect
+    if (banner) {
+        banner.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span>🚨 <b>${displayName}</b> IS DUE!</span>
+                <button onclick="stopAlarm()" style="background:white; color:red; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">DISMISS</button>
+            </div>`;
+        banner.style.display = 'block';
+        banner.classList.add('pulse-animation'); // Assuming you have a CSS pulse keyframe
+    }
 
-    // 3. SYSTEM ALERT (This bypasses the 'user click' requirement for sound)
-    if (Notification.permission === "granted") {
+    // 2. Audio Alert
+    if (alarm) {
+        alarm.currentTime = 0; // Restart sound if already playing
+        alarm.play().catch(e => {
+            console.warn("Audio auto-play blocked by browser. Interaction required.");
+        });
+    }
+
+    // 3. System Service Worker Notification
+    // This is the most reliable way to alert you on Android or Desktop
+    if (Notification.permission === "granted" && 'serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then(registration => {
-            registration.showNotification('🚨 ORDER DUE NOW', {
-                body: `Task: ${taskName} has reached its deadline!`,
+            registration.showNotification('🚨 URGENT: DEADLINE REACHED', {
+                body: `The deadline for "${displayName}" has arrived.`,
+                icon: "https://cdn-icons-png.flaticon.com/512/1827/1827347.png",
                 tag: 'urgent-alarm',
-                requireInteraction: true, // Notification stays until you click it
-                vibrate: [200, 100, 200, 100, 500] 
+                renotify: true, // Make it pop up even if one is already there
+                requireInteraction: true,
+                vibrate: [500, 110, 500, 110, 450, 110, 200, 110, 170, 40, 450, 110, 200, 110, 170, 40, 500], // SOS Pattern
+                data: { url: window.location.href }
             });
         });
     }
@@ -1753,111 +2352,94 @@ displayVersion();
 		let deferredPrompt;
 const installBtn = document.getElementById('installBtn');
 
-window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent the browser from showing the default install prompt
-    e.preventDefault();
-    // Stash the event so it can be triggered later
-    deferredPrompt = e;
-    // Show the button in your app
-    installBtn.style.display = 'block';
-});
-
+/** * 1. THE AUDIO UNLOCKER
+ * Browsers block sounds until the user clicks something. 
+ * This "silently" plays the alarm once to unlock it for later.
+ */
 document.addEventListener('click', () => {
     const alarm = document.getElementById('dueAlarm');
+    if (!alarm) return;
+    
     alarm.muted = true;
     alarm.play().then(() => {
         alarm.pause();
         alarm.muted = false;
-        console.log("Audio System Unlocked");
+        console.log("🔊 Audio System Unlocked & Ready");
     });
 }, { once: true });
 
-// Automatically trigger sync when browser goes online
-window.addEventListener('online', syncOfflineData);
-
-		window.addEventListener('online', async () => {
-    document.getElementById('statusIndicator').className = 'online';
-    document.getElementById('statusIndicator').innerText = 'ONLINE';
-    
-    // Fetch all 'synced: false' items from IndexedDB and push to Supabase
-    const unsynced = await supabaseClient.tasks.where('synced').equals(false).toArray();
-    
-    for (let task of unsynced) {
-        const { error } = await supabaseClient.from('tasks').insert([task]);
-        if (!error) {
-            await supabaseClient.tasks.update(task.id, { synced: true });
-        }
-    }
-    console.log("Offline data synced to cloud!");
+/** * 2. THE PWA INSTALLER
+ * Stashes the "Install App" prompt so you can trigger it 
+ * from your custom button.
+ */
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    window.deferredPrompt = e;
+    const installBtn = document.getElementById('installBtn');
+    if (installBtn) installBtn.style.display = 'block';
 });
 
-		window.addEventListener('offline', () => {
-			const el = document.getElementById('statusIndicator');
-			el.innerText = "OFFLINE - Saving Locally";
-			el.className = "offline";
-		});
+/** * 3. CONNECTION & SYNC MONITOR
+ * Detects when you're back in range of a stable signal.
+ */
+window.addEventListener('online', async () => {
+    const el = document.getElementById('statusIndicator');
+    if (el) {
+        el.className = 'online';
+        el.innerText = 'ONLINE - Syncing...';
+    }
 
-// Listen for the moment the internet connection is restored
-window.addEventListener('online', syncOfflineData);
-
-// Refresh the display every 60 seconds to update countdowns
-	setInterval(async () => {
-    console.log("System Heartbeat: Refreshing times and checking alarms...");
-    await fetchTasks(); // Re-fetches data and redraws the tables with new time strings
-    checkAlarms();      // Checks only the active table for "DUE NOW"
-}, 60000);
-	
-	window.addEventListener('online', () => {
-    console.log("Connection restored. Triggering auto-sync...");
-    forceSync();
+    // Trigger your background sync function
+    if (typeof forceSync === 'function') {
+        await forceSync();
+        el.innerText = 'ONLINE';
+    }
 });
 
-// The heartbeat engine
-setInterval(async () => {
-    console.log("Heartbeat: Auto-refreshing UI and checking deadlines...");
-    
-    // Refresh data from Supabase
-    if (typeof fetchTasks === 'function') {
-        await fetchTasks(); 
+window.addEventListener('offline', () => {
+    const el = document.getElementById('statusIndicator');
+    if (el) {
+        el.innerText = "OFFLINE - Saving Locally";
+        el.className = "offline";
     }
-    
-    // Trigger alarm if any orders are overdue
-    if (typeof checkAlarms === 'function') {
-        checkAlarms();
-    }
-}, 60000);
+});
 
+/** * 4. THE 1-SECOND UI TICKER
+ * Updates countdowns locally without hitting the database.
+ */
 setInterval(() => {
     document.querySelectorAll('.time-column').forEach(cell => {
         const deadlineStr = cell.getAttribute('data-deadline');
         if (!deadlineStr) return;
 
-        const deadline = new Date(deadlineStr);
-        const now = new Date();
-        const diff = deadline - now;
+        const diff = new Date(deadlineStr) - new Date();
 
         if (diff <= 0) {
             cell.innerText = "DUE NOW";
-            cell.style.color = "red";
-            cell.style.fontWeight = "bold";
-            cell.classList.add('overdue');
+            cell.style.cssText = "color: #e74c3c; font-weight: bold; animation: blink 1s infinite;";
         } else {
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const secs = Math.floor((diff % (1000 * 60)) / 1000);
+            const h = Math.floor(diff / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000);
+            const s = Math.floor((diff % 60000) / 1000);
 
-            // Formats as 02h 05m 10s
-            cell.innerText = `${hours}h ${mins}m ${secs}s`;
-            
-            // Add visual warning if less than 1 hour remains
-            if (hours < 1) {
-                cell.style.color = "orange";
-            } else {
-                cell.style.color = "black";
-            }
+            cell.innerText = `${h}h ${m}m ${s}s`;
+            cell.style.color = (h < 1) ? "#f39c12" : "inherit"; // Orange if < 1hr
         }
     });
 }, 1000);
+
+/** * 5. THE 60-SECOND DATABASE HEARTBEAT
+ * Refreshes tasks and checks alarms every minute.
+ */
+setInterval(async () => {
+    if (!navigator.onLine) return;
+
+    console.log("💓 Heartbeat: Refreshing Cloud Data...");
+    
+    if (typeof fetchTasks === 'function') {
+        await fetchTasks(); 
+    }
+}, 60000);
 	
 </script>
 </body>
