@@ -355,6 +355,48 @@ document.addEventListener('DOMContentLoaded', () => {
     loadEmployers(); // We will write this function next
 });
 
+async function fetchTasks() {
+    // 1. Safety Gate: Don't fetch if no employer is selected
+    if (!currentEmployerId) {
+        console.log("Fetch skipped: No employer selected.");
+        return;
+    }
+
+    // 2. Offline Safety
+    if (!navigator.onLine) return;
+
+    try {
+        // 3. Fetch all tasks for the CURRENT employer
+        const { data: tasks, error } = await supabaseClient
+            .from('tasks')
+            .select('*')
+            .eq('employer_id', currentEmployerId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // 4. Distribution logic: Filter tasks by status
+        const activeTasks = tasks.filter(t => t.status === 'Pending' || t.status === 'Done');
+        const invoicedTasks = tasks.filter(t => t.status === 'Invoiced');
+        const historyTasks = tasks.filter(t => t.status === 'Paid' || t.status === 'Cancelled');
+
+        // 5. Trigger the Renderers (The functions we optimized earlier)
+        renderActive(activeTasks); 
+        renderDoneTable(activeTasks.filter(t => t.status === 'Done'));
+        renderPendingPayment(invoicedTasks);
+        renderHistory(historyTasks);
+
+        // 6. Update Analytics & Safety
+        updatePerformanceGraph(); // Updates your Chart.js performance chart
+        checkDeadlines(activeTasks); // Triggers alarms for upcoming deadlines
+
+        console.log(`Successfully synced ${tasks.length} tasks for Employer ID: ${currentEmployerId}`);
+
+    } catch (err) {
+        console.error("Fetch Engine Error:", err.message);
+    }
+}
+
 // Simple Online/Offline Tracker
 function updateStatus() {
     const indicator = document.getElementById('statusIndicator');
@@ -1974,7 +2016,6 @@ async function syncOfflineData() {
 }
 
 // Global state variables
-let currentEmployerId = null;
 let currentEmployerRate = 300; // Fallback default
 
 async function loadEmployers() {
