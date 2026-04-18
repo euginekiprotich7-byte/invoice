@@ -682,18 +682,11 @@ function calculateDoneTotal(doneTasks) {
     const totalDisplay = document.getElementById('done-subtotal-display');
     const dashboardDoneDisplay = document.getElementById('doneTotal');
 
-    if (!doneTasks || doneTasks.length === 0) {
-        if (totalDisplay) totalDisplay.innerText = "0.00";
-        if (dashboardDoneDisplay) dashboardDoneDisplay.innerText = "0.00";
-        return 0;
-    }
-
-    // Calculate total
     const total = doneTasks.reduce((sum, task) => {
         return sum + (parseFloat(task.payable) || 0);
     }, 0);
 
-    // Update the "Completed" Tab Total
+    // Update the "Completed" Tab Subtotal
     if (totalDisplay) {
         totalDisplay.innerText = total.toLocaleString('en-KE', { 
             minimumFractionDigits: 2, 
@@ -701,7 +694,7 @@ function calculateDoneTotal(doneTasks) {
         });
     }
 
-    // Update the Dashboard (Top Box) Total
+    // Update the Green Dashboard Box (Top of page)
     if (dashboardDoneDisplay) {
         dashboardDoneDisplay.innerText = total.toLocaleString('en-KE', { 
             minimumFractionDigits: 2 
@@ -1611,6 +1604,8 @@ async function silenceTaskAlert(taskId) {
 
 async function renderDoneTable(tasks) {
     const container = document.getElementById('done-tasks-container');
+    const doneDashboardDisplay = document.getElementById('doneTotal'); // The green box at the top
+    
     if (!container) return;
 
     if (tasks.length === 0) {
@@ -1619,35 +1614,37 @@ async function renderDoneTable(tasks) {
                 <h3>✅ Completed Orders</h3>
                 <p>No tasks are currently marked as 'Done'.</p>
             </div>`;
+        if (doneDashboardDisplay) doneDashboardDisplay.innerText = "0.00";
         return;
     }
 
-    // 1. Fetch employer names to ensure headers are accurate
+    // 1. Fetch employer names
     const { data: employersList } = await supabaseClient.from('employers').select('id, employer_name');
 
-    // 2. Grouping by employer_id
+    // 2. Grouping logic
     const grouped = tasks.reduce((acc, t) => {
         const empId = t.employer_id || 'unassigned';
-        if (!acc[empId]) acc[acc[empId] = []];
+        if (!acc[empId]) acc[empId] = [];
         acc[empId].push(t);
         return acc;
     }, {});
     
     let html = '<h3 style="margin-bottom:20px; color:#2c3e50;">✅ Completed Orders (Ready for Invoice)</h3>';
+    let globalDoneTotal = 0; // Track the total for the whole dashboard
     
     for (const empId in grouped) {
         const eTasks = grouped[empId];
         const empMatch = (employersList || []).find(e => e.id === empId);
         const employerName = empMatch ? empMatch.employer_name : "Direct/Unassigned";
 
-        // Calculate subtotal for this specific employer card
         const subtotal = eTasks.reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
+        globalDoneTotal += subtotal; // Add this card's total to the global sum
 
         html += `
             <div class="card" style="margin-bottom: 25px; border-left: 5px solid #27ae60; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 15px; background:#f9fdfa;">
                     <h4 style="margin:0; color:#27ae60;">🏢 ${employerName.toUpperCase()}</h4>
-                    <span style="font-weight:bold; color:#2c3e50;">Total: KES ${subtotal.toLocaleString()}</span>
+                    <span style="font-weight:bold; color:#2c3e50;">Subtotal: KES ${subtotal.toLocaleString()}</span>
                 </div>
                 
                 <table style="width:100%; border-collapse:collapse; margin:10px 0;">
@@ -1666,10 +1663,10 @@ async function renderDoneTable(tasks) {
                                     <small style="color:#7f8c8d; display:block;">${t.client_name}</small>
                                     ${t.task_detail}
                                 </td>
-                                <td style="padding:8px; text-align:center;">${t.units || '-'}</td>
+                                <td style="padding:8px; text-align:center;">${t.units || '-'} ${t.task_type || ''}</td>
                                 <td style="padding:8px; text-align:right; font-weight:600;">${parseFloat(t.payable).toLocaleString()}</td>
                                 <td style="padding:8px; text-align:center;">
-                                    <button class="btn-small" onclick="updateStatus('${t.id}', 'Pending')" 
+                                    <button onclick="updateStatus('${t.id}', 'Pending')" 
                                         style="background:#bdc3c7; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">
                                         Undo
                                     </button>
@@ -1690,7 +1687,13 @@ async function renderDoneTable(tasks) {
             </div>
         `;
     }
+    
     container.innerHTML = html;
+
+    // CRITICAL: Update the Dashboard Done Total Box
+    if (doneDashboardDisplay) {
+        doneDashboardDisplay.innerText = globalDoneTotal.toLocaleString('en-KE', { minimumFractionDigits: 2 });
+    }
 }
 
 function sendDesktopNotification(task) {
