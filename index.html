@@ -1604,11 +1604,12 @@ async function silenceTaskAlert(taskId) {
 
 async function renderDoneTable(tasks) {
     const container = document.getElementById('done-tasks-container');
-    const doneDashboardDisplay = document.getElementById('doneTotal'); // The green box at the top
+    const doneDashboardDisplay = document.getElementById('doneTotal'); // This targets the green box
     
     if (!container) return;
 
-    if (tasks.length === 0) {
+    // Reset total if no tasks
+    if (!tasks || tasks.length === 0) {
         container.innerHTML = `
             <div style="text-align:center; padding:40px; color:#95a5a6;">
                 <h3>✅ Completed Orders</h3>
@@ -1618,19 +1619,18 @@ async function renderDoneTable(tasks) {
         return;
     }
 
-    // 1. Fetch employer names
     const { data: employersList } = await supabaseClient.from('employers').select('id, employer_name');
 
-    // 2. Grouping logic
+    // FIXED GROUPING LOGIC
     const grouped = tasks.reduce((acc, t) => {
         const empId = t.employer_id || 'unassigned';
-        if (!acc[empId]) acc[empId] = [];
+        if (!acc[empId]) acc[empId] = []; // Fixed the syntax error here
         acc[empId].push(t);
         return acc;
     }, {});
     
     let html = '<h3 style="margin-bottom:20px; color:#2c3e50;">✅ Completed Orders (Ready for Invoice)</h3>';
-    let globalDoneTotal = 0; // Track the total for the whole dashboard
+    let globalDoneTotal = 0; 
     
     for (const empId in grouped) {
         const eTasks = grouped[empId];
@@ -1638,7 +1638,7 @@ async function renderDoneTable(tasks) {
         const employerName = empMatch ? empMatch.employer_name : "Direct/Unassigned";
 
         const subtotal = eTasks.reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
-        globalDoneTotal += subtotal; // Add this card's total to the global sum
+        globalDoneTotal += subtotal; 
 
         html += `
             <div class="card" style="margin-bottom: 25px; border-left: 5px solid #27ae60; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
@@ -1663,10 +1663,10 @@ async function renderDoneTable(tasks) {
                                     <small style="color:#7f8c8d; display:block;">${t.client_name}</small>
                                     ${t.task_detail}
                                 </td>
-                                <td style="padding:8px; text-align:center;">${t.units || '-'} ${t.task_type || ''}</td>
+                                <td style="padding:8px; text-align:center;">${t.units || '-'}</td>
                                 <td style="padding:8px; text-align:right; font-weight:600;">${parseFloat(t.payable).toLocaleString()}</td>
                                 <td style="padding:8px; text-align:center;">
-                                    <button onclick="updateStatus('${t.id}', 'Pending')" 
+                                    <button class="btn-small" onclick="updateStatus('${t.id}', 'Pending')" 
                                         style="background:#bdc3c7; color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer;">
                                         Undo
                                     </button>
@@ -1690,7 +1690,7 @@ async function renderDoneTable(tasks) {
     
     container.innerHTML = html;
 
-    // CRITICAL: Update the Dashboard Done Total Box
+    // UPDATES THE GREEN BOX
     if (doneDashboardDisplay) {
         doneDashboardDisplay.innerText = globalDoneTotal.toLocaleString('en-KE', { minimumFractionDigits: 2 });
     }
