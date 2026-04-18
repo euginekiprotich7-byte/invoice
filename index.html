@@ -350,9 +350,8 @@ if ('serviceWorker' in navigator) {
 // Initializing the app display
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('mainBody').style.display = 'block';
-    // Initialize standard UI state
-    updateStatus();
-    loadEmployers(); // We will write this function next
+    updateUIStatus(); // Updated name
+    loadEmployers();
 });
 
 async function fetchTasks() {
@@ -398,7 +397,7 @@ async function fetchTasks() {
 }
 
 // Simple Online/Offline Tracker
-function updateStatus() {
+function updateUIStatus() { 
     const indicator = document.getElementById('statusIndicator');
     if (navigator.onLine) {
         indicator.innerText = "ONLINE";
@@ -409,8 +408,8 @@ function updateStatus() {
     }
 }
 
-window.addEventListener('online', updateStatus);
-window.addEventListener('offline', updateStatus);
+window.addEventListener('online', updateUIStatus);
+window.addEventListener('offline', updateUIStatus);
 
 function showTab(tabId) {
     // 1. Define all possible sections
@@ -1088,36 +1087,29 @@ function renderHistory(tasks) {
 }
 
    async function updateStatus(id, newStatus) {
-    // 1. Confirm cancellations to prevent accidental deletions
+    // FIX: Guard against undefined IDs
+    if (!id || id === 'undefined') {
+        console.error("Update failed: Task ID is undefined.");
+        return; 
+    }
+
     if (newStatus === 'Cancelled') {
-        if (!confirm("Are you sure you want to cancel this task? It will be moved to History as 'Cancelled'.")) {
-            return;
-        }
+        if (!confirm("Are you sure you want to cancel this task?")) return;
     }
 
     try {
-        // 2. Perform the update
-        // We also set notified: true so cancelled tasks don't trigger alarms
         const { error } = await supabaseClient
             .from('tasks')
             .update({ 
-                status: newStatus,
+                status: newStatus, 
                 notified: (newStatus === 'Done' || newStatus === 'Cancelled') 
             })
             .eq('id', id);
 
         if (error) throw error;
-
-        console.log(`Task ${id} successfully moved to ${newStatus}`);
-
-        // 3. Immediate Refresh
-        // This is the "Direct Refresh" that ensures the task moves to the 
-        // correct tab and the Totals recalculate instantly.
         await fetchTasks();
-
     } catch (err) {
         console.error("Status update failed:", err.message);
-        alert("Failed to update task. Please check your connection.");
     }
 }
 
