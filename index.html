@@ -2370,20 +2370,6 @@ async function requestNotificationPermission() {
     });
 }
 
-function triggerAlarm() {
-    const alarm = document.getElementById('dueAlarm');
-    const banner = document.getElementById('alarmBanner');
-
-    if (alarm) {
-        alarm.currentTime = 0;
-        alarm.play().catch(() => {});
-    }
-
-    if (banner) {
-        banner.style.display = 'block';
-    }
-}
-
 function triggerAlarm(taskName) {
     const alarm = document.getElementById('dueAlarm');
     const banner = document.getElementById('alarmBanner');
@@ -2423,6 +2409,27 @@ function triggerAlarm(taskName) {
                 data: { url: window.location.href }
             });
         });
+    }
+}
+
+function stopAlarm() {
+    const alarm = document.getElementById('dueAlarm');
+    const banner = document.getElementById('alarmBanner');
+
+    if (alarm) {
+        alarm.pause();
+        alarm.currentTime = 0;
+    }
+
+    if (banner) {
+        banner.style.display = 'none';
+        banner.classList.remove('pulse-animation');
+    }
+
+    document.title = "Invoice Manager";
+    if (typeof titleInterval !== 'undefined') {
+        clearInterval(titleInterval);
+        titleInterval = null;
     }
 }	
 	function updateAppVersionUI() {
