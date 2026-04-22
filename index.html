@@ -265,25 +265,46 @@ td {
                         <option value="Quiz">Quiz</option>
                         <option value="Midterm">Midterm</option>
                         <option value="PPT">PPT</option>
+						<option value="Infographic">Infographic</option>
+						<option value="Technical">Technical</option>
                     </select>
                 </div>
                 <div><label id="unitLabel">Units</label><input type="number" id="unit" value="1" step="0.1"></div>
-                <div><label>CPP</label><input type="number" id="cpp" value="300"></div>
+                <div><label>CPP</label><div id="cppContainer">
+    <input type="number" id="cpp" value="300">
+</div></div>
                 <div><label>Deadline</label><input type="datetime-local" id="deadline"></div>
                 
-                <button class="btn btn-add" onclick="addOrder()">Register Order</button>
+                <button class="btn btn-add" onclick="saveTask()">Register Order</button>
             </div>
 
             <div class="table-container">
-                <table id="invoiceTable">
-                    <thead>
-                        <tr>
-                            <th>DETAILS</th><th>UNITS</th><th>CPP</th><th>PAYABLE</th><th>TIME</th><th>STATUS</th><th>ACTIONS</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody"></tbody> </table>
-            </div>
-        </div>
+    <table id="invoiceTable">
+        <thead>
+            <tr>
+                <th>DETAILS</th><th>UNITS</th><th>CPP</th><th>PAYABLE</th><th>TIME</th><th>STATUS</th><th>ACTIONS</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+        <tfoot style="background: #f8f9fa; font-weight: bold; border-top: 2px solid #2c3e50;">
+            <tr>
+                <td colspan="3" style="text-align:right;">Subtotal:</td>
+                <td id="subTotal">0.00</td>
+                <td colspan="3"></td>
+            </tr>
+            <tr>
+                <td colspan="3" style="text-align:right;">Adjustments:</td>
+                <td id="adjTotal">0.00</td>
+                <td colspan="3"></td>
+            </tr>
+            <tr style="color: #27ae60; font-size: 1.1em;">
+                <td colspan="3" style="text-align:right;">GRAND TOTAL:</td>
+                <td id="grandTotal">0.00</td>
+                <td colspan="3"></td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
 
         <div id="done-section" class="tab-content" style="display:none;">
             <h2>✅ Completed Orders</h2>
@@ -292,7 +313,7 @@ td {
                     <thead>
                         <tr><th>Client</th><th>Detail</th><th>Units</th><th>Payable</th><th>Action</th></tr>
                     </thead>
-                    <tbody id="doneTableBody"></tbody>
+                    <tbody id="doneTableBody">
                 </table>
             </div>
             
@@ -312,7 +333,7 @@ td {
                             <th>Client</th><th>Detail</th><th>Invoice #</th><th>Payable (KES)</th>
                         </tr>
                     </thead>
-                    <tbody id="historyTableBody"></tbody>
+                    <tbody id="historyBody">
                 </table>
             </div>
         </div>
@@ -490,52 +511,57 @@ function showTab(tabId) {
 window.onload = checkPass;
 
     async function saveTask() {
-    // 1. Collect data from UI
-    // Note: We use the IDs from your HTML ('client', 'detail', 'unit', etc.)
+    // 1. Collect and sanitize data
+    const clientName = document.getElementById('client').value.trim();
+    const detail = document.getElementById('detail').value.trim();
+    const taskType = document.getElementById('type').value;
+    const units = parseFloat(document.getElementById('unit').value) || 0;
+    const cpp = parseFloat(document.getElementById('cpp').value) || 0;
+    const deadline = document.getElementById('deadline').value;
+
+    // 2. Comprehensive Validation
+    if (!clientName || !detail || !deadline) {
+        alert("⚠️ Please fill in Client, Task Detail, and Deadline!");
+        return;
+    }
+    if (!currentEmployerId) {
+        alert("⚠️ No Employer selected. Please click an employer tab first.");
+        return;
+    }
+
+    // 3. Prepare the data object (Calculates payable automatically)
     const taskData = {
-        client_name: document.getElementById('client').value.trim(),
-        task_detail: document.getElementById('detail').value.trim(),
-        task_type: document.getElementById('type').value,
-        units: parseFloat(document.getElementById('unit').value) || 0,
-        cpp: parseFloat(document.getElementById('cpp').value) || 0,
-        deadline: document.getElementById('deadline').value,
-        employer_id: currentEmployerId, // Assigned when you click an employer tab
+        employer_id: currentEmployerId,
+        client_name: clientName,
+        task_detail: detail,
+        task_type: taskType,
+        units: (taskType === 'Adjustment') ? 0 : units, // Adjustments don't usually use units
+        cpp: cpp,
+        payable: units * cpp,
+        deadline: deadline,
         status: 'Pending',
-        notified: false // Important for the alarm system
+        notified: false
     };
 
-    // 2. Validation
-    if (!taskData.task_detail || !taskData.deadline || !taskData.client_name) {
-        alert("Please fill in Client, Task Detail, and Deadline!");
-        return;
-    }
-
-    if (!taskData.employer_id) {
-        alert("Please select or register an Employer first!");
-        return;
-    }
-
-    // 3. Calculate Payable
-    taskData.payable = taskData.units * taskData.cpp;
-
-    // 4. Save Logic
-    if (navigator.onLine) {
-        const { error } = await supabaseClient.from('tasks').insert([taskData]);
-        if (error) {
-            alert("Upload Error: " + error.message);
+    // 4. Save Logic (Cloud with Offline Fallback)
+    try {
+        if (navigator.onLine) {
+            const { error } = await supabaseClient.from('tasks').insert([taskData]);
+            if (error) throw error;
+            console.log("Success: Task uploaded to cloud.");
         } else {
-            console.log("Task saved to cloud.");
-            clearTaskInputs();
-            await fetchTasks(); // Refresh UI immediately
+            const offline = JSON.parse(localStorage.getItem('offlineTasks') || '[]');
+            offline.push(taskData);
+            localStorage.setItem('offlineTasks', JSON.stringify(offline));
+            console.log("Offline: Task saved locally.");
         }
-    } else {
-        // Offline handling
-        const offline = JSON.parse(localStorage.getItem('offlineTasks') || '[]');
-        offline.push(taskData);
-        localStorage.setItem('offlineTasks', JSON.stringify(offline));
-        console.log("Task saved locally (Offline mode).");
+
+        // 5. Cleanup and Refresh
         clearTaskInputs();
-        await fetchTasks(); // Show the locally added task in the list
+        await fetchTasks(); 
+    } catch (err) {
+        console.error("Save Error:", err.message);
+        alert("Error saving: " + err.message);
     }
 }
 
@@ -1555,10 +1581,27 @@ function adjustInputs() {
                 <option value="150">150 (Per Slide)</option>
                 <option value="200">200 (Design Heavy)</option>
             </select>`;
+    if (type === 'Infographic') {
+        cppContainer.innerHTML = `
+            <select id="cpp" class="input-field">
+                <option value="1000">Normal</option>
+                <option value="1200">Standard</option>
+                <option value="1500">Premium</option>
+            </select>`;
+    } else if (type === 'Technical') {
+        cppContainer.innerHTML = `
+            <select id="cpp" class="input-field">
+                <option value="1500">Normal</option>
+                <option value="2000">Standard</option>
+                <option value="2500">Premium</option>
+                <option value="3000">Platinum</option>
+                <option value="4500">Gold</option>
+            </select>`;
     } else {
-        // Use the currentEmployerRate if available, otherwise default to 300
-        const defaultRate = typeof currentEmployerRate !== 'undefined' ? currentEmployerRate : 300;
-        cppContainer.innerHTML = `<input type="number" id="cpp" class="input-field" value="${defaultRate}">`;
+        const defaultRate = 300;
+        cppContainer.innerHTML = `
+            <input type="number" id="cpp" value="${defaultRate}">
+        `;
     }
 }
 
@@ -1603,7 +1646,7 @@ async function silenceTaskAlert(taskId) {
 }
 
 async function renderDoneTable(tasks) {
-    const container = document.getElementById('done-tasks-container');
+    const container = document.getElementById('doneTableBody');
     const doneDashboardDisplay = document.getElementById('doneTotal'); // This targets the green box
     
     if (!container) return;
@@ -1694,6 +1737,22 @@ async function renderDoneTable(tasks) {
     if (doneDashboardDisplay) {
         doneDashboardDisplay.innerText = globalDoneTotal.toLocaleString('en-KE', { minimumFractionDigits: 2 });
     }
+}
+
+async function syncOfflineTasks() {
+    const offline = JSON.parse(localStorage.getItem('offlineTasks') || '[]');
+    if (offline.length === 0) return;
+
+    for (let task of offline) {
+        await supabaseClient.from('tasks').insert([task]);
+    }
+
+    localStorage.removeItem('offlineTasks');
+}
+
+async function forceSync() {
+    await syncOfflineTasks();
+    await fetchTasks();
 }
 
 function sendDesktopNotification(task) {
@@ -2309,6 +2368,20 @@ async function requestNotificationPermission() {
             }
         }
     });
+}
+
+function triggerAlarm() {
+    const alarm = document.getElementById('dueAlarm');
+    const banner = document.getElementById('alarmBanner');
+
+    if (alarm) {
+        alarm.currentTime = 0;
+        alarm.play().catch(() => {});
+    }
+
+    if (banner) {
+        banner.style.display = 'block';
+    }
 }
 
 function triggerAlarm(taskName) {
