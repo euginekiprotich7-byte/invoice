@@ -151,10 +151,16 @@ let currentEmployerId=null;
 let currentEmployerRate=300;
 let alarmInterval;
 
-function showTab(tabId){
-['active-section','done-section','history-section'].forEach(id=>{
-document.getElementById(id).style.display=id===tabId?'block':'none';
-});
+function showTab(tabId) {
+    // Hide all sections
+    document.querySelectorAll('.tab-content').forEach(section => {
+        section.style.display = 'none';
+    });
+    // Show the selected section
+    const target = document.getElementById(tabId);
+    if (target) {
+        target.style.display = 'block';
+    }
 }
 
 function updateStatusUI(){
@@ -188,7 +194,7 @@ loadEmployers();
 }
 
 async function loadEmployers(){
-const {data}=await supabaseClient.from('employers').select('*');
+const { data: empData, error: empError } = await supabaseClient.from('employers').select('*');
 const container=document.getElementById('employer-tabs');
 container.innerHTML='';
 
@@ -261,7 +267,7 @@ const { data, error } = await supabaseClient
         status: 'Pending'
     }]);
 
-const {error}=await supabaseClient.from('tasks').insert([task]);
+({ data, error } = await supabaseClient.from('tasks').select('*'));
 if(error)return alert(error.message);
 
 fetchTasks();
@@ -313,6 +319,7 @@ tasks.forEach(task => {
         <td>${task.cpp}</td>
         <td>${task.payable}</td>
         <td class="time-countdown" data-deadline="${task.deadline}">Calculating...</td>
+		<td>${task.status}</td>
         <td><button class='btn btn-done' onclick="markAsDone('${task.id}')">Done</button></td>
     </tr>`;
 });
@@ -433,11 +440,11 @@ Notification.requestPermission();
 }
 }
 
-async function markNotified(id){
-await supabaseClient
-.from('tasks')
-.update({notified:true})
-.eq('id',id);
+async function markNotified(id) {
+    await supabaseClient
+        .from('tasks')
+        .update({ notified: true })
+        .eq('id', id);
 }
 
 function generateExcelInvoice(){
