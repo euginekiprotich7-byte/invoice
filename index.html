@@ -7,6 +7,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <style>
 body{font-family:Arial,sans-serif;background:#f4f7f6;margin:0;padding:20px}
 .container{max-width:1400px;margin:auto;background:#fff;padding:20px;border-radius:10px}
@@ -74,7 +76,14 @@ th{background:#2c3e50;color:white}
 </div>
 <input type="datetime-local" id="deadline">
 <button class="btn btn-add" onclick="saveTask()">Register Order</button>
-
+<div class="form-group">
+    <label>Alarm Lead (Hours before)</label>
+    <input type="number" id="alertLeadInput" value="1" min="1" step="0.5" style="width: 60px;">
+</div>
+<div id="alarm-controls" style="display:none; margin: 10px 0; padding: 15px; background: #fdf2f2; border: 2px solid #e74c3c; border-radius: 5px; text-align: center;">
+    <p style="color: #e74c3c; font-weight: bold; margin: 0 0 10px 0;">🚨 URGENT: TASK DEADLINE REACHED 🚨</p>
+    <button class="btn" onclick="stopAlarm()" style="background: #e74c3c; color: white; width: 100%; padding: 12px; font-size: 16px; font-weight: bold;">DISMISS ALARM</button>
+</div>
 <h3>Pending Orders</h3>
 <div class="table-container">
 <table>
@@ -96,18 +105,21 @@ th{background:#2c3e50;color:white}
 </div>
 
 <div id="done-section" style="display:none">
-<h3>Completed Orders</h3>
-<table>
-<thead>
-<tr>
-<th>Client</th>
-<th>Detail</th>
-<th>Payable</th>
-</tr>
-</thead>
-<tbody id="doneTableBody"></tbody>
-</table>
-<button onclick="generateExcelInvoice()">Export Excel</button>
+    <h3>Completed Orders</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Client</th>
+                <th>Detail</th>
+                <th>Payable</th>
+            </tr>
+        </thead>
+        <tbody id="doneTableBody"></tbody>
+    </table>
+    <div style="margin-top: 20px; display: flex; gap: 10px;">
+        <button class="btn btn-add" onclick="exportToExcel()" style="background:#27ae60">📊 Export Excel</button>
+        <button class="btn btn-done" onclick="exportToWord()" style="background:#2c3e50">📄 Export Word</button>
+    </div>
 </div>
 
 <div id="history-section" style="display:none">
@@ -229,6 +241,23 @@ status:'Pending',
 notified:false
 };
 
+const alertHours = document.getElementById('alertLeadInput')?.value || 1; // Default to 1 if empty
+
+const { data, error } = await supabaseClient
+    .from('tasks')
+    .insert([{
+        client_name: client,
+        task_detail: detail,
+        task_type: type,
+        units: units,
+        cpp: cpp,
+        payable: payable,
+        deadline: deadline,
+        alert_lead_hours: parseFloat(alertHours), // Save the user's preference
+        employer_id: currentEmployerId,
+        status: 'Pending'
+    }]);
+
 const {error}=await supabaseClient.from('tasks').insert([task]);
 if(error)return alert(error.message);
 
@@ -338,33 +367,59 @@ await supabaseClient
 fetchTasks();
 }
 
-function checkDeadlines(tasks){
-const now=new Date();
+/** * PERFECTED ALARM ENGINE */
+function checkDeadlines(tasks) {
+    const now = new Date();
+    
+    for (let task of tasks) {
+        if (!task.deadline) continue;
+        
+        const deadline = new Date(task.deadline);
+        const diff = deadline - now;
 
-for(let task of tasks){
-const deadline=new Date(task.deadline);
-const diff=deadline-now;
+        // Convert the stored hours into milliseconds
+        // If alert_lead_hours is 2, leadTimeMS becomes 7,200,000
+        const leadTimeMS = (task.alert_lead_hours || 1) * 3600000;
 
-if(diff<3600000 && diff>0 && !task.notified){
-triggerAlarm();
-notifyUser(task);
-markNotified(task.id);
+        // Trigger alarm if time remaining is less than your custom lead time
+        if (diff < leadTimeMS && diff > 0 && !task.notified) {
+            triggerAlarm(task);
+            notifyUser(task);
+            markNotified(task.id);
+        }
+    }
 }
-}
+
+function triggerAlarm(task) {
+    const alarm = document.getElementById('dueAlarm');
+    const controls = document.getElementById('alarm-controls');
+    
+    // Show the visual stop button
+    if (controls) controls.style.display = 'block';
+
+    // Play sound and loop it every 5 seconds until stopped
+    alarm.play().catch(e => console.log("Interaction required for audio"));
+    
+    if (!alarmInterval) {
+        alarmInterval = setInterval(() => {
+            alarm.currentTime = 0; // Restart sound
+            alarm.play();
+        }, 5000);
+    }
 }
 
-function triggerAlarm(){
-const alarm=document.getElementById('dueAlarm');
-alarm.play();
+function stopAlarm() {
+    const alarm = document.getElementById('dueAlarm');
+    const controls = document.getElementById('alarm-controls');
 
-alarmInterval=setInterval(()=>{
-alarm.play();
-},10000);
-}
+    // 1. Stop the sound
+    clearInterval(alarmInterval);
+    alarmInterval = null;
+    alarm.pause();
+    alarm.currentTime = 0;
 
-function stopAlarm(){
-clearInterval(alarmInterval);
-document.getElementById('dueAlarm').pause();
+    // 2. Hide the button
+    if (controls) controls.style.display = 'none';
 }
 
 function notifyUser(task){
@@ -400,18 +455,142 @@ XLSX.utils.book_append_sheet(wb,ws,'Invoice');
 XLSX.writeFile(wb,'invoice.xlsx');
 }
 
+async function exportToExcel() {
+    const tableBody = document.getElementById('doneTableBody');
+    if (tableBody.rows.length === 0 || tableBody.rows[0].cells.length < 3) return alert("No completed orders to export!");
+
+    const employerName = document.querySelector('#employer-tabs button[style*="background-color"]')?.innerText || "Employer";
+    
+    // Prepare Data
+    let data = [
+        ["INVOICE - " + employerName.toUpperCase()],
+        ["Date:", new Date().toLocaleDateString()],
+        [],
+        ["CLIENT", "TASK DETAIL", "PAYABLE (KES)"]
+    ];
+
+    let total = 0;
+    const taskIds = [];
+
+    // Loop through current "Done" tasks in the UI
+    const rows = Array.from(tableBody.querySelectorAll('tr:not([style*="font-weight: bold"])'));
+    rows.forEach(row => {
+        const client = row.cells[0].innerText;
+        const detail = row.cells[1].innerText;
+        const payableStr = row.cells[2].innerText.replace(/[^0-9.]/g, '');
+        const amt = parseFloat(payableStr);
+        
+        data.push([client, detail, amt]);
+        total += amt;
+    });
+
+    data.push([]);
+    data.push(["", "TOTAL PAYABLE", total]);
+
+    // Create Workbook
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Invoice");
+    
+    XLSX.writeFile(wb, `Invoice_${employerName}_${Date.now()}.xlsx`);
+
+    // Move to History
+    await moveTasksToHistory();
+}
+
+async function exportToWord() {
+    const tableBody = document.getElementById('doneTableBody');
+    const rows = Array.from(tableBody.querySelectorAll('tr:not([style*="font-weight: bold"])'));
+    if (rows.length === 0) return alert("No orders to export!");
+
+    const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType } = docx;
+
+    const tableRows = [
+        new TableRow({
+            children: [
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "DETAILS", bold: true })] })] }),
+                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "PAYABLE", bold: true })] })] }),
+            ],
+        }),
+    ];
+
+    let total = 0;
+    rows.forEach(row => {
+        const detail = row.cells[1].innerText;
+        const payable = row.cells[2].innerText;
+        total += parseFloat(payable.replace(/[^0-9.]/g, ''));
+
+        tableRows.push(new TableRow({
+            children: [
+                new TableCell({ children: [new Paragraph(detail)] }),
+                new TableCell({ children: [new Paragraph(payable)] }),
+            ],
+        }));
+    });
+
+    // Total Row
+    tableRows.push(new TableRow({
+        children: [
+            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "TOTAL", bold: true })] })] }),
+            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: total.toLocaleString() + " KES", bold: true })] })] }),
+        ],
+    }));
+
+    const doc = new Document({
+        sections: [{
+            children: [
+                new Paragraph({ text: "INVOICE", heading: "Heading1", alignment: AlignmentType.CENTER }),
+                new Paragraph({ text: "Date: " + new Date().toLocaleDateString() }),
+                new Paragraph({ text: "" }),
+                new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows }),
+            ],
+        }],
+    });
+
+    Packer.toBlob(doc).then(blob => {
+        saveAs(blob, `Invoice_${Date.now()}.docx`);
+        moveTasksToHistory();
+    });
+}
+
+async function moveTasksToHistory() {
+    if (!currentEmployerId) return;
+
+    // We change status to 'Paid' so they move to the History tab
+    const { error } = await supabaseClient
+        .from('tasks')
+        .update({ status: 'Paid' })
+        .eq('employer_id', currentEmployerId)
+        .eq('status', 'Done');
+
+    if (error) {
+        console.error("Error archiving tasks:", error.message);
+    } else {
+        alert("Invoice generated! Orders moved to History.");
+        fetchTasks(); // Refresh UI
+    }
+}
+
 setInterval(fetchTasks,60000);
 
-window.onload=async()=>{
-updateStatusUI();
-await loadEmployers();
-if(Notification.permission!=='granted'){
-Notification.requestPermission();
-}
-document.body.addEventListener('click', () => {
-    const alarm = document.getElementById('dueAlarm');
-    alarm.load(); // Primes the audio engine on first click
-}, { once: true });
+window.onload = async () => {
+    updateStatusUI();
+    await loadEmployers();
+    
+    // Request notification permission
+    if (Notification.permission !== 'granted') {
+        Notification.requestPermission();
+    }
+
+    // CRITICAL: "Prime" the audio on the first click anywhere on the page
+    document.body.addEventListener('click', () => {
+        const alarm = document.getElementById('dueAlarm');
+        alarm.muted = true; // Briefly mute to allow playback
+        alarm.play().then(() => {
+            alarm.pause();
+            alarm.muted = false;
+        });
+    }, { once: true });
 };
 
 function updateDashboardTotals(tasks) {
