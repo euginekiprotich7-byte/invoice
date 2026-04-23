@@ -193,21 +193,29 @@ currentEmployerRate=rate;
 loadEmployers();
 }
 
-async function loadEmployers(){
-const { data: empData, error: empError } = await supabaseClient.from('employers').select('*');
-const container=document.getElementById('employer-tabs');
-container.innerHTML='';
+async function loadEmployers() {
+    // OLD: const { error } = await ...
+    // NEW: You must include 'data' inside the curly braces
+    const { data, error } = await supabaseClient
+        .from('employers')
+        .select('*');
 
-data.forEach(emp=>{
-const btn=document.createElement('button');
-btn.innerText=emp.employer_name;
-btn.onclick=()=>{
-currentEmployerId=emp.id;
-currentEmployerRate=emp.rate_per_unit;
-fetchTasks();
-};
-container.appendChild(btn);
-});
+    if (error) {
+        console.error("Error loading employers:", error.message);
+        return;
+    }
+
+    const container = document.getElementById('employer-tabs');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    // Now 'data' is defined and can be looped over
+    data.forEach(emp => {
+        const btn = document.createElement('button');
+        btn.innerText = emp.name;
+        btn.onclick = () => selectEmployer(emp.id, emp.rate);
+        container.appendChild(btn);
+    });
 }
 
 function adjustInputs(){
