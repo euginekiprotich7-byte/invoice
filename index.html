@@ -13,6 +13,20 @@
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.json">
 <style>
+.tab-content {
+    animation: fadeIn 0.3s ease-in-out;
+    min-height: 80vh; /* Ensures the page feels full-sized */
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.sidebar button {
+    transition: all 0.3s ease;
+    flex: 1; /* Makes buttons equal width like a real mobile app menu */
+}
 body{font-family:Arial,sans-serif;background:#f4f7f6;margin:0;padding:20px}
 .container{max-width:1400px;margin:auto;background:#fff;padding:20px;border-radius:10px}
 .sidebar{display:flex;gap:10px;margin-bottom:20px}
@@ -54,31 +68,46 @@ th{background:#2c3e50;color:white}
 </div>
 
 <div class="sidebar">
-<button onclick="showTab('active-section')">Active</button>
-<button onclick="showTab('done-section')">Completed</button>
-<button onclick="showTab('history-section')">History</button>
+    <button onclick="showTab('active-section')">Active Orders</button>
+    <button onclick="showTab('done-section')">Completed</button>
+    <button onclick="showTab('history-section')">History</button>
 </div>
+
+<div id="active-section" class="tab-content">
+    <h2>Active Orders</h2>
+    </div>
+
+<div id="done-section" class="tab-content" style="display:none">
+    <h2>Ready for Invoicing</h2>
+    </div>
+
+<div id="history-section" class="tab-content" style="display:none">
+    <h2>Archive & History</h2>
+    </div>
 
 <div id="active-section">
 <h3>Register Order</h3>
-<input type="text" id="client" placeholder="Client Name">
-<input type="text" id="detail" placeholder="Task Detail">
+<div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+    <input type="text" id="clientInput" placeholder="Client Name (e.g. Arreola)">
+    <input type="text" id="detailInput" placeholder="Task Detail (e.g. Discussion 2)">
+    
+    <select id="typeInput">
+        <option value="Pages">Pages (300 KES)</option>
+        <option value="Quiz">Quiz (500 KES)</option>
+        <option value="Midterm">Midterm (1800 KES)</option>
+        <option value="PPT">PPT (600 KES)</option>
+        <option value="Infographic">Infographic (1200 KES)</option>
+        <option value="Technical">Technical (2000 KES)</option>
+        <option value="Adjustment">Adjustment</option>
+    </select>
 
-<select id="type" onchange="adjustInputs()">
-<option value="Pages">Pages</option>
-<option value="Quiz">Quiz</option>
-<option value="Midterm">Midterm</option>
-<option value="PPT">PPT</option>
-<option value="Infographic">Infographic</option>
-<option value="Technical">Technical</option>
-</select>
-
-<input type="number" id="unit" value="1">
-<div id="cppContainer">
-<input type="number" id="cpp" value="300">
+    <input type="number" id="unitsInput" placeholder="Units (Pages/Students)" min="1" value="1">
+    
+    <input type="datetime-local" id="deadlineInput">
+    <input type="number" id="alertLeadInput" value="1" placeholder="Alarm Lead (Hours)">
 </div>
-<input type="datetime-local" id="deadline">
-<button class="btn btn-add" onclick="saveTask()">Register Order</button>
+
+<button class="btn btn-add" onclick="saveTask()" style="width: 100%; padding: 12px; font-weight: bold;">+ Register Order</button>
 <div class="form-group">
     <label>Alarm Lead (Hours before)</label>
     <input type="number" id="alertLeadInput" value="1" min="1" step="0.5" style="width: 60px;">
@@ -152,15 +181,26 @@ let currentEmployerRate=300;
 let alarmInterval;
 
 function showTab(tabId) {
-    // Hide all sections
-    document.querySelectorAll('.tab-content').forEach(section => {
-        section.style.display = 'none';
+    // 1. Find all sections that act as pages
+    const pages = ['active-section', 'done-section', 'history-section'];
+    
+    pages.forEach(id => {
+        const page = document.getElementById(id);
+        if (page) {
+            if (id === tabId) {
+                page.style.display = 'block'; // Show the selected page
+                window.scrollTo(0, 0);       // Scroll to top of the "new" page
+            } else {
+                page.style.display = 'none';  // Hide others
+            }
+        }
     });
-    // Show the selected section
-    const target = document.getElementById(tabId);
-    if (target) {
-        target.style.display = 'block';
-    }
+
+    // 2. Update Sidebar Styling to show which "page" you are on
+    document.querySelectorAll('.sidebar button').forEach(btn => {
+        btn.style.opacity = btn.getAttribute('onclick').includes(tabId) ? '1' : '0.6';
+        btn.style.borderBottom = btn.getAttribute('onclick').includes(tabId) ? '3px solid #27ae60' : 'none';
+    });
 }
 
 function updateStatusUI(){
@@ -194,23 +234,22 @@ loadEmployers();
 }
 
 async function loadEmployers() {
+    // Ensure you are getting both 'data' and 'error'
     const { data, error } = await supabaseClient
         .from('employers')
         .select('*');
 
-    if (error) {
-        console.error("Load Error:", error.message);
-        return;
-    }
+    if (error) return;
 
     const container = document.getElementById('employer-tabs');
-    if (!container) return;
     container.innerHTML = '';
 
     data.forEach(emp => {
         const btn = document.createElement('button');
-        btn.className = 'btn'; // Optional: add your class
-        btn.innerText = emp.name;
+        // FIX: Check your Supabase column name. 
+        // If it shows 'undefined', try changing emp.name to emp.employer_name
+        btn.innerText = emp.name || emp.employer_name || "Unknown Employer"; 
+        
         btn.onclick = () => selectEmployer(emp.id, emp.rate);
         container.appendChild(btn);
     });
@@ -219,10 +258,12 @@ async function loadEmployers() {
 function selectEmployer(id, rate) {
     currentEmployerId = id;
     currentEmployerRate = rate;
-    
-    // Visual feedback: highlight active button
+
+    // Highlight the button and update the UI
     document.querySelectorAll('#employer-tabs button').forEach(btn => {
-        btn.style.background = btn.innerText === event.target.innerText ? '#27ae60' : '#2c3e50';
+        if (btn.innerText !== 'undefined') {
+            btn.style.background = (btn.onclick.toString().includes(id)) ? '#27ae60' : '#2c3e50';
+        }
     });
 
     fetchTasks();
@@ -252,44 +293,53 @@ container.innerHTML=`<input type="number" id="cpp" value="${currentEmployerRate}
 }
 }
 
-async function saveTask(){
-if(!currentEmployerId)return alert('Select employer first');
+async function saveTask() {
+    const client = document.getElementById('clientInput').value;
+    const detail = document.getElementById('detailInput').value;
+    const type = document.getElementById('typeInput').value;
+    
+    // This connects to the new HTML input you just added
+    const units = document.getElementById('unitsInput').value; 
+    const deadline = document.getElementById('deadlineInput').value;
+    const alertHours = document.getElementById('alertLeadInput').value || 1;
 
-const task={
-employer_id:currentEmployerId,
-client_name:document.getElementById('client').value,
-task_detail:document.getElementById('detail').value,
-task_type:document.getElementById('type').value,
-units:parseFloat(document.getElementById('unit').value),
-cpp:parseFloat(document.getElementById('cpp').value),
-payable:parseFloat(document.getElementById('unit').value)*parseFloat(document.getElementById('cpp').value),
-deadline:document.getElementById('deadline').value,
-status:'Pending',
-notified:false
-};
+    // Check if basics are missing
+    if (!client || !units || !currentEmployerId) {
+        alert("Please fill in Client, Units, and select an Employer!");
+        return;
+    }
 
-const alertHours = document.getElementById('alertLeadInput')?.value || 1; // Default to 1 if empty
+    const cpp = calculateCPP(type);
+    const payable = parseFloat(units) * cpp;
 
-const { data, error } = await supabaseClient
-    .from('tasks')
-    .insert([{
-        client_name: client,
-        task_detail: detail,
-        task_type: type,
-        units: units,
-        cpp: cpp,
-        payable: payable,
-        deadline: deadline,
-        alert_lead_hours: parseFloat(alertHours), // Save the user's preference
-        employer_id: currentEmployerId,
-        status: 'Pending'
-    }]);
+    if (!client || !currentEmployerId) {
+        alert("Please select an employer and enter a client name.");
+        return;
+    }
 
-({ data, error } = await supabaseClient.from('tasks').select('*'));
-if(error)return alert(error.message);
+    // Use unique names for data/error to avoid redeclaration issues
+    const { data: insertData, error: insertError } = await supabaseClient
+        .from('tasks')
+        .insert([{
+            client_name: client,
+            task_detail: detail,
+            task_type: type,
+            units: parseFloat(units),
+            cpp: cpp,
+            payable: payable,
+            deadline: deadline,
+            employer_id: currentEmployerId,
+            status: 'Pending'
+        }]);
 
-fetchTasks();
-clearInputs();
+    if (insertError) {
+        alert("Error saving task: " + insertError.message);
+    } else {
+        // Clear inputs after success
+        document.getElementById('clientInput').value = '';
+        document.getElementById('detailInput').value = '';
+        fetchTasks(); // Refresh the list
+    }
 }
 
 function clearInputs(){
@@ -297,6 +347,19 @@ document.getElementById('client').value='';
 document.getElementById('detail').value='';
 document.getElementById('unit').value=1;
 document.getElementById('deadline').value='';
+}
+
+function calculateCPP(type) {
+    const rates = {
+        'Pages': 300,
+        'Quiz': 500,
+        'Midterm': 1800,
+        'PPT': 600,
+        'Infographic': 1200,
+        'Technical': 2000,
+        'Adjustment': 1
+    };
+    return rates[type] || 0;
 }
 
 async function fetchTasks() {
@@ -485,45 +548,43 @@ XLSX.writeFile(wb,'invoice.xlsx');
 
 async function exportToExcel() {
     const tableBody = document.getElementById('doneTableBody');
-    if (tableBody.rows.length === 0 || tableBody.rows[0].cells.length < 3) return alert("No completed orders to export!");
+    const rows = Array.from(tableBody.querySelectorAll('tr:not([style*="font-weight: bold"])'));
+    if (rows.length === 0) return alert("No orders!");
 
     const employerName = document.querySelector('#employer-tabs button[style*="background-color"]')?.innerText || "Employer";
     
-    // Prepare Data
+    const grouped = {};
+    rows.forEach(row => {
+        const client = row.cells[0].innerText;
+        if (!grouped[client]) grouped[client] = [];
+        grouped[client].push([row.cells[1].innerText, parseFloat(row.cells[2].innerText.replace(/[^0-9.]/g, ''))]);
+    });
+
     let data = [
         ["INVOICE - " + employerName.toUpperCase()],
         ["Date:", new Date().toLocaleDateString()],
         [],
-        ["CLIENT", "TASK DETAIL", "PAYABLE (KES)"]
+        ["DETAILS", "AMOUNT (KES)"]
     ];
 
-    let total = 0;
-    const taskIds = [];
+    let grandTotal = 0;
+    for (const client in grouped) {
+        data.push([client.toUpperCase(), ""]); // Client Header Row
+        grouped[client].forEach(task => {
+            data.push(task);
+            grandTotal += task[1];
+        });
+        data.push([]); // Empty spacer
+    }
 
-    // Loop through current "Done" tasks in the UI
-    const rows = Array.from(tableBody.querySelectorAll('tr:not([style*="font-weight: bold"])'));
-    rows.forEach(row => {
-        const client = row.cells[0].innerText;
-        const detail = row.cells[1].innerText;
-        const payableStr = row.cells[2].innerText.replace(/[^0-9.]/g, '');
-        const amt = parseFloat(payableStr);
-        
-        data.push([client, detail, amt]);
-        total += amt;
-    });
+    data.push(["GRAND TOTAL", grandTotal]);
 
-    data.push([]);
-    data.push(["", "TOTAL PAYABLE", total]);
-
-    // Create Workbook
     const ws = XLSX.utils.aoa_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Invoice");
+    XLSX.writeFile(wb, `Invoice_${employerName}.xlsx`);
     
-    XLSX.writeFile(wb, `Invoice_${employerName}_${Date.now()}.xlsx`);
-
-    // Move to History
-    await moveTasksToHistory();
+    moveTasksToHistory();
 }
 
 async function exportToWord() {
@@ -531,52 +592,69 @@ async function exportToWord() {
     const rows = Array.from(tableBody.querySelectorAll('tr:not([style*="font-weight: bold"])'));
     if (rows.length === 0) return alert("No orders to export!");
 
-    const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType } = docx;
+    const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType, BorderStyle } = docx;
 
-    const tableRows = [
-        new TableRow({
-            children: [
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "DETAILS", bold: true })] })] }),
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "PAYABLE", bold: true })] })] }),
-            ],
-        }),
-    ];
-
-    let total = 0;
+    // Grouping logic
+    const grouped = {};
     rows.forEach(row => {
+        const client = row.cells[0].innerText;
         const detail = row.cells[1].innerText;
         const payable = row.cells[2].innerText;
-        total += parseFloat(payable.replace(/[^0-9.]/g, ''));
-
-        tableRows.push(new TableRow({
-            children: [
-                new TableCell({ children: [new Paragraph(detail)] }),
-                new TableCell({ children: [new Paragraph(payable)] }),
-            ],
-        }));
+        if (!grouped[client]) grouped[client] = [];
+        grouped[client].push({ detail, payable });
     });
 
-    // Total Row
-    tableRows.push(new TableRow({
-        children: [
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "TOTAL", bold: true })] })] }),
-            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: total.toLocaleString() + " KES", bold: true })] })] }),
-        ],
+    const docChildren = [
+        new Paragraph({ text: "INVOICE", heading: "Heading1", alignment: AlignmentType.CENTER }),
+        new Paragraph({ text: "Date: " + new Date().toLocaleDateString() }),
+        new Paragraph({ text: "" })
+    ];
+
+    let grandTotal = 0;
+
+    // Create a section for each Client
+    for (const client in grouped) {
+        docChildren.push(new Paragraph({
+            children: [new TextRun({ text: client, bold: true, size: 28, underline: {} })],
+            spacing: { before: 400, after: 200 }
+        }));
+
+        const tableRows = [
+            new TableRow({
+                children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "DETAILS", bold: true })] })] }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "PAYABLE", bold: true })] })] }),
+                ],
+            })
+        ];
+
+        grouped[client].forEach(item => {
+            const amt = parseFloat(item.payable.replace(/[^0-9.]/g, ''));
+            grandTotal += amt;
+            tableRows.push(new TableRow({
+                children: [
+                    new TableCell({ children: [new Paragraph(item.detail)] }),
+                    new TableCell({ children: [new Paragraph(item.payable)] }),
+                ],
+            }));
+        });
+
+        docChildren.push(new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: tableRows
+        }));
+    }
+
+    // Grand Total at the bottom
+    docChildren.push(new Paragraph({
+        children: [new TextRun({ text: `GRAND TOTAL: ${grandTotal.toLocaleString()} KES`, bold: true, size: 32 })],
+        alignment: AlignmentType.RIGHT,
+        spacing: { before: 500 }
     }));
 
-    const doc = new Document({
-        sections: [{
-            children: [
-                new Paragraph({ text: "INVOICE", heading: "Heading1", alignment: AlignmentType.CENTER }),
-                new Paragraph({ text: "Date: " + new Date().toLocaleDateString() }),
-                new Paragraph({ text: "" }),
-                new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows }),
-            ],
-        }],
-    });
-
+    const doc = new Document({ sections: [{ children: docChildren }] });
     Packer.toBlob(doc).then(blob => {
-        saveAs(blob, `Invoice_${Date.now()}.docx`);
+        saveAs(blob, `Grouped_Invoice_${Date.now()}.docx`);
         moveTasksToHistory();
     });
 }
