@@ -194,28 +194,38 @@ loadEmployers();
 }
 
 async function loadEmployers() {
-    // OLD: const { error } = await ...
-    // NEW: You must include 'data' inside the curly braces
     const { data, error } = await supabaseClient
         .from('employers')
         .select('*');
 
     if (error) {
-        console.error("Error loading employers:", error.message);
+        console.error("Load Error:", error.message);
         return;
     }
 
     const container = document.getElementById('employer-tabs');
     if (!container) return;
-    
     container.innerHTML = '';
-    // Now 'data' is defined and can be looped over
+
     data.forEach(emp => {
         const btn = document.createElement('button');
+        btn.className = 'btn'; // Optional: add your class
         btn.innerText = emp.name;
         btn.onclick = () => selectEmployer(emp.id, emp.rate);
         container.appendChild(btn);
     });
+}
+
+function selectEmployer(id, rate) {
+    currentEmployerId = id;
+    currentEmployerRate = rate;
+    
+    // Visual feedback: highlight active button
+    document.querySelectorAll('#employer-tabs button').forEach(btn => {
+        btn.style.background = btn.innerText === event.target.innerText ? '#27ae60' : '#2c3e50';
+    });
+
+    fetchTasks();
 }
 
 function adjustInputs(){
