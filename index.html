@@ -78,6 +78,22 @@ th{background:#2c3e50;color:white}
     </div>
 
 <div id="done-section" class="tab-content" style="display:none">
+<div style="background: #ecf0f1; padding: 15px; border-radius: 8px; margin-top: 20px;">
+    <h4>Financial Adjustments</h4>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div>
+            <label>Advances/Refunds (Add to total)</label>
+            <input type="number" id="adjPlus" value="0" oninput="calculateFinalPayable()" placeholder="e.g. 1500">
+        </div>
+        <div>
+            <label>Deductibles (Subtract from total)</label>
+            <input type="number" id="adjMinus" value="0" oninput="calculateFinalPayable()" placeholder="e.g. 500">
+        </div>
+    </div>
+    <div style="margin-top: 15px; font-weight: bold; font-size: 1.2em;">
+        Final Invoice Total: <span id="finalTotalDisplay">0.00</span> KES
+    </div>
+</div>
     <h2>Ready for Invoicing</h2>
     </div>
 
@@ -136,21 +152,41 @@ th{background:#2c3e50;color:white}
 </div>
 </div>
 
-<div id="done-section" style="display:none">
-    <h3>Completed Orders</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>Client</th>
-                <th>Detail</th>
-                <th>Payable</th>
-            </tr>
-        </thead>
-        <tbody id="doneTableBody"></tbody>
-    </table>
+<div id="done-section" class="tab-content" style="display:none">
+    <h3>Completed Orders (Ready for Invoice)</h3>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Client</th>
+                    <th>Detail</th>
+                    <th>Payable</th>
+                </tr>
+            </thead>
+            <tbody id="doneTableBody"></tbody>
+        </table>
+    </div>
+
+    <div style="background: #f8f9fa; padding: 15px; border: 1px solid #dee2e6; border-radius: 8px; margin-top: 20px;">
+        <h4 style="margin-top:0">Adjustments (Advances & Deductions)</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div>
+                <label style="display:block; font-size: 12px; color: #666;">Advances / Refunds (+)</label>
+                <input type="number" id="adjPlus" value="0" oninput="calculateFinalPayable()" style="width:100%; padding: 8px;">
+            </div>
+            <div>
+                <label style="display:block; font-size: 12px; color: #666;">Deductibles (-)</label>
+                <input type="number" id="adjMinus" value="0" oninput="calculateFinalPayable()" style="width:100%; padding: 8px;">
+            </div>
+        </div>
+        <div style="margin-top: 15px; border-top: 2px solid #2c3e50; pt: 10px; font-weight: bold; font-size: 1.2em;">
+            Final Invoice Total: <span id="finalTotalDisplay">0.00</span> KES
+        </div>
+    </div>
+
     <div style="margin-top: 20px; display: flex; gap: 10px;">
-        <button class="btn btn-add" onclick="exportToExcel()" style="background:#27ae60">📊 Export Excel</button>
-        <button class="btn btn-done" onclick="exportToWord()" style="background:#2c3e50">📄 Export Word</button>
+        <button class="btn" onclick="exportToExcel()" style="background:#27ae60; color:white">📊 Export Excel</button>
+        <button class="btn" onclick="exportToWord()" style="background:#2c3e50; color:white">📄 Export Word</button>
     </div>
 </div>
 
@@ -181,26 +217,20 @@ let currentEmployerRate=300;
 let alarmInterval;
 
 function showTab(tabId) {
-    // 1. Find all sections that act as pages
-    const pages = ['active-section', 'done-section', 'history-section'];
+    document.querySelectorAll('.tab-content').forEach(section => {
+        section.style.display = 'none';
+    });
     
-    pages.forEach(id => {
-        const page = document.getElementById(id);
-        if (page) {
-            if (id === tabId) {
-                page.style.display = 'block'; // Show the selected page
-                window.scrollTo(0, 0);       // Scroll to top of the "new" page
-            } else {
-                page.style.display = 'none';  // Hide others
-            }
-        }
-    });
+    document.getElementById(tabId).style.display = 'block';
 
-    // 2. Update Sidebar Styling to show which "page" you are on
-    document.querySelectorAll('.sidebar button').forEach(btn => {
-        btn.style.opacity = btn.getAttribute('onclick').includes(tabId) ? '1' : '0.6';
-        btn.style.borderBottom = btn.getAttribute('onclick').includes(tabId) ? '3px solid #27ae60' : 'none';
-    });
+    // Trigger the correct render function based on the tab
+    if (tabId === 'active-section') {
+        fetchTasks(); 
+    } else if (tabId === 'done-section') {
+        // FIX: Use the name actually in your code
+        const { data } = supabaseClient.from('tasks').select('*').eq('status', 'Done');
+        renderDoneTable(allTasks); 
+    }
 }
 
 function updateStatusUI(){
@@ -407,32 +437,23 @@ tasks.forEach(task => {
 }
 
 function renderDoneTable(tasks) {
-    const body = document.getElementById('doneTableBody');
-    if (!body) return;
-    
-    body.innerHTML = '';
-    let runningTotal = 0; // Renamed to avoid conflicts
+    const tableBody = document.getElementById('doneTableBody');
+    if (!tableBody) return;
+    tableBody.innerHTML = '';
 
-    tasks.forEach(task => {
-        const amt = parseFloat(task.payable) || 0;
-        runningTotal += amt;
-        
-        body.innerHTML += `
-        <tr>
+    const doneTasks = tasks.filter(t => t.status === 'Done' && t.employer_id === currentEmployerId);
+
+    doneTasks.forEach(task => {
+        const row = `<tr>
             <td>${task.client_name}</td>
             <td>${task.task_detail}</td>
-            <td style="text-align:right; font-weight:bold;">${amt.toLocaleString('en-KE', {minimumFractionDigits:2})}</td>
+            <td>${(parseFloat(task.payable) || 0).toLocaleString()} KES</td>
         </tr>`;
+        tableBody.innerHTML += row;
     });
 
-    // Add the summary row at the bottom of the table
-    if (tasks.length > 0) {
-        body.innerHTML += `
-        <tr style="background: #f9f9f9; font-weight: bold;">
-            <td colspan="2" style="text-align: right;">Total KES:</td>
-            <td style="text-align: right; color: #27ae60;">${runningTotal.toLocaleString('en-KE', {minimumFractionDigits:2})}</td>
-        </tr>`;
-    }
+    // Run the math for the adjustments section
+    calculateFinalPayable();
 }
 
 function renderHistory(tasks){
@@ -480,6 +501,25 @@ function checkDeadlines(tasks) {
         }
     }
 }
+
+function calculateFinalPayable() {
+    const tableBody = document.getElementById('doneTableBody');
+    const rows = Array.from(tableBody.querySelectorAll('tr'));
+    
+    let subtotal = 0;
+    rows.forEach(row => {
+        const val = row.cells[2]?.innerText.replace(/[^0-9.]/g, '');
+        subtotal += parseFloat(val) || 0;
+    });
+
+    const plus = parseFloat(document.getElementById('adjPlus').value) || 0;
+    const minus = parseFloat(document.getElementById('adjMinus').value) || 0;
+    
+    const final = subtotal + plus - minus;
+    document.getElementById('finalTotalDisplay').innerText = final.toLocaleString();
+    return { subtotal, plus, minus, final };
+}
+
 
 function triggerAlarm(task) {
     const alarm = document.getElementById('dueAlarm');
