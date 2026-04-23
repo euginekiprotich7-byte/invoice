@@ -243,58 +243,76 @@ document.getElementById('unit').value=1;
 document.getElementById('deadline').value='';
 }
 
-async function fetchTasks(){
-if(!currentEmployerId)return;
+async function fetchTasks() {
+    if (!currentEmployerId) return;
 
-const {data}=await supabaseClient
-.from('tasks')
-.select('*')
-.eq('employer_id',currentEmployerId)
-.order('created_at',{ascending:false});
+    try {
+        const { data, error } = await supabaseClient
+            .from('tasks')
+            .select('*')
+            .eq('employer_id', currentEmployerId)
+            .order('created_at', { ascending: false });
 
-renderActive(data.filter(t=>t.status==='Pending'));
-renderDoneTable(data.filter(t=>t.status==='Done'));
-renderHistory(data.filter(t=>t.status==='Paid'||t.status==='Cancelled'));
-checkDeadlines(data.filter(t=>t.status==='Pending'));
+        if (error) throw error;
+
+        // CRITICAL: This is the line that makes the Blue/Green boxes calculate!
+        updateDashboardTotals(data);
+
+        renderActive(data.filter(t => t.status === 'Pending'));
+        renderDoneTable(data.filter(t => t.status === 'Done'));
+        renderHistory(data.filter(t => t.status === 'Paid' || t.status === 'Cancelled'));
+        checkDeadlines(data.filter(t => t.status === 'Pending'));
+    } catch (err) {
+        console.error("Fetch error:", err.message);
+    }
 }
 
 function renderActive(tasks){
 const body=document.getElementById('tableBody');
 body.innerHTML='';
 
-tasks.forEach(task=>{
-body.innerHTML+=`
-<tr>
-<td>${task.client_name}</td>
-<td>${task.task_detail}</td>
-<td>${task.task_type}</td>
-<td>${task.units}</td>
-<td>${task.cpp}</td>
-<td>${task.payable}</td>
-<td>${task.status}</td>
-<td><button class='btn btn-done' onclick="markAsDone('${task.id}')">Done</button></td>
-</tr>`;
+tasks.forEach(task => {
+    body.innerHTML += `
+    <tr>
+        <td>${task.client_name}</td>
+        <td>${task.task_detail}</td>
+        <td>${task.task_type}</td>
+        <td>${task.units}</td>
+        <td>${task.cpp}</td>
+        <td>${task.payable}</td>
+        <td class="time-countdown" data-deadline="${task.deadline}">Calculating...</td>
+        <td><button class='btn btn-done' onclick="markAsDone('${task.id}')">Done</button></td>
+    </tr>`;
 });
 }
 
-function renderDoneTable(tasks){
-const body=document.getElementById('doneTableBody');
-body.innerHTML='';
+function renderDoneTable(tasks) {
+    const body = document.getElementById('doneTableBody');
+    if (!body) return;
+    
+    body.innerHTML = '';
+    let runningTotal = 0; // Renamed to avoid conflicts
 
-tasks.forEach(task=>{
-body.innerHTML+=`
-<tr>
-<td>${task.client_name}</td>
-<td>${task.task_detail}</td>
-<td>${task.payable}</td>
-</tr>`;
-});
+    tasks.forEach(task => {
+        const amt = parseFloat(task.payable) || 0;
+        runningTotal += amt;
+        
+        body.innerHTML += `
+        <tr>
+            <td>${task.client_name}</td>
+            <td>${task.task_detail}</td>
+            <td style="text-align:right; font-weight:bold;">${amt.toLocaleString('en-KE', {minimumFractionDigits:2})}</td>
+        </tr>`;
+    });
 
-body.innerHTML += `
+    // Add the summary row at the bottom of the table
+    if (tasks.length > 0) {
+        body.innerHTML += `
         <tr style="background: #f9f9f9; font-weight: bold;">
             <td colspan="2" style="text-align: right;">Total KES:</td>
-            <td style="text-align: right; color: #27ae60;">${total.toLocaleString()}</td>
+            <td style="text-align: right; color: #27ae60;">${runningTotal.toLocaleString('en-KE', {minimumFractionDigits:2})}</td>
         </tr>`;
+    }
 }
 
 function renderHistory(tasks){
@@ -390,26 +408,64 @@ await loadEmployers();
 if(Notification.permission!=='granted'){
 Notification.requestPermission();
 }
+document.body.addEventListener('click', () => {
+    const alarm = document.getElementById('dueAlarm');
+    alarm.load(); // Primes the audio engine on first click
+}, { once: true });
 };
 
 function updateDashboardTotals(tasks) {
     const pendingTotalEl = document.getElementById('pendingTotal');
     const doneTotalEl = document.getElementById('doneTotal');
 
-    // Calculate Pending (Status: Pending)
     const pendingSum = tasks
         .filter(t => t.status === 'Pending')
         .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
 
-    // Calculate Done (Status: Done)
     const doneSum = tasks
         .filter(t => t.status === 'Done')
         .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0);
 
-    // Update UI with Kenyan formatting
-    if (pendingTotalEl) pendingTotalEl.innerText = pendingSum.toLocaleString('en-KE', { minimumFractionDigits: 2 });
-    if (doneTotalEl) doneTotalEl.innerText = doneSum.toLocaleString('en-KE', { minimumFractionDigits: 2 });
+    console.log("Math Check - Pending:", pendingSum, "Done:", doneSum);
+
+    if (pendingTotalEl) {
+        pendingTotalEl.innerText = pendingSum.toLocaleString('en-KE', { 
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2 
+        });
+    }
+    if (doneTotalEl) {
+        doneTotalEl.innerText = doneSum.toLocaleString('en-KE', { 
+            minimumFractionDigits: 2, 
+            maximumFractionDigits: 2 
+        });
+    }
 }
+
+/** * REAL-TIME UI TICKER
+ * Updates countdowns locally every second
+ */
+setInterval(() => {
+    document.querySelectorAll('.time-countdown').forEach(cell => {
+        const deadlineStr = cell.getAttribute('data-deadline');
+        if (!deadlineStr) return;
+
+        const diff = new Date(deadlineStr) - new Date();
+
+        if (diff <= 0) {
+            cell.innerText = "DUE NOW";
+            cell.style.cssText = "color: #e74c3c; font-weight: bold; animation: blink 1s infinite;";
+        } else {
+            const h = Math.floor(diff / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000);
+            const s = Math.floor((diff % 60000) / 1000);
+
+            cell.innerText = `${h}h ${m}m ${s}s`;
+            // Visual cue: Orange if less than 1 hour remains
+            cell.style.color = (h < 1) ? "#f39c12" : "inherit";
+        }
+    });
+}, 1000);
 </script>
 </body>
 </html>
