@@ -74,8 +74,58 @@ th{background:#2c3e50;color:white}
 </div>
 
 <div id="active-section" class="tab-content">
-    <h2>Active Orders</h2>
+    <h3>Register New Order</h3>
+    <h3>Pending Orders</h3>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Client</th><th>Detail</th><th>Type</th><th>Units</th><th>Payable</th><th>Status</th><th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
     </div>
+</div>
+
+<div id="done-section" class="tab-content" style="display:none">
+    <h3>Ready for Invoicing</h3>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr><th>Client</th><th>Detail</th><th>Payable</th></tr>
+            </thead>
+            <tbody id="doneTableBody"></tbody>
+        </table>
+    </div>
+
+    <div style="background: #fdf2f2; padding: 15px; border: 1px solid #e74c3c; border-radius: 8px; margin-top: 20px;">
+        <h4>Invoice Deductions</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div>
+                <label>Advances Received / Refunds (-)</label>
+                <input type="number" id="adjPlus" value="0" oninput="calculateFinalPayable()">
+            </div>
+            <div>
+                <label>Deductibles / Cancelled (-)</label>
+                <input type="number" id="adjMinus" value="0" oninput="calculateFinalPayable()">
+            </div>
+        </div>
+        <div style="margin-top: 15px; font-weight: bold; font-size: 1.4em; color: #c0392b;">
+            Balance to be Paid: <span id="finalTotalDisplay">0.00</span> KES
+        </div>
+    </div>
+</div>
+
+<div id="history-section" class="tab-content" style="display:none">
+    <h3>Payment History & Archives</h3>
+    <table>
+        <thead>
+            <tr><th>Client</th><th>Detail</th><th>Total</th><th>Status</th></tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+    </table>
+</div>
 
 <div id="done-section" class="tab-content" style="display:none">
 <div style="background: #ecf0f1; padding: 15px; border-radius: 8px; margin-top: 20px;">
@@ -100,57 +150,6 @@ th{background:#2c3e50;color:white}
 <div id="history-section" class="tab-content" style="display:none">
     <h2>Archive & History</h2>
     </div>
-
-<div id="active-section">
-<h3>Register Order</h3>
-<div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-    <input type="text" id="clientInput" placeholder="Client Name (e.g. Arreola)">
-    <input type="text" id="detailInput" placeholder="Task Detail (e.g. Discussion 2)">
-    
-    <select id="typeInput">
-        <option value="Pages">Pages (300 KES)</option>
-        <option value="Quiz">Quiz (500 KES)</option>
-        <option value="Midterm">Midterm (1800 KES)</option>
-        <option value="PPT">PPT (600 KES)</option>
-        <option value="Infographic">Infographic (1200 KES)</option>
-        <option value="Technical">Technical (2000 KES)</option>
-        <option value="Adjustment">Adjustment</option>
-    </select>
-
-    <input type="number" id="unitsInput" placeholder="Units (Pages/Students)" min="1" value="1">
-    
-    <input type="datetime-local" id="deadlineInput">
-    <input type="number" id="alertLeadInput" value="1" placeholder="Alarm Lead (Hours)">
-</div>
-
-<button class="btn btn-add" onclick="saveTask()" style="width: 100%; padding: 12px; font-weight: bold;">+ Register Order</button>
-<div class="form-group">
-    <label>Alarm Lead (Hours before)</label>
-    <input type="number" id="alertLeadInput" value="1" min="1" step="0.5" style="width: 60px;">
-</div>
-<div id="alarm-controls" style="display:none; margin: 10px 0; padding: 15px; background: #fdf2f2; border: 2px solid #e74c3c; border-radius: 5px; text-align: center;">
-    <p style="color: #e74c3c; font-weight: bold; margin: 0 0 10px 0;">🚨 URGENT: TASK DEADLINE REACHED 🚨</p>
-    <button class="btn" onclick="stopAlarm()" style="background: #e74c3c; color: white; width: 100%; padding: 12px; font-size: 16px; font-weight: bold;">DISMISS ALARM</button>
-</div>
-<h3>Pending Orders</h3>
-<div class="table-container">
-<table>
-<thead>
-<tr>
-<th>Client</th>
-<th>Detail</th>
-<th>Type</th>
-<th>Units</th>
-<th>CPP</th>
-<th>Payable</th>
-<th>Status</th>
-<th>Action</th>
-</tr>
-</thead>
-<tbody id="tableBody"></tbody>
-</table>
-</div>
-</div>
 
 <div id="done-section" class="tab-content" style="display:none">
     <h3>Completed Orders (Ready for Invoice)</h3>
@@ -404,18 +403,22 @@ async function fetchTasks() {
         .select('*')
         .eq('employer_id', currentEmployerId);
 
-    if (error) {
-        console.error("Fetch error:", error.message);
-        return;
-    }
+    if (error) return;
 
-    // Update the Global variable
     allTasks = data;
 
-    // Run both renderers so switching tabs is instant
-    renderActive(data);      // Filters for 'Pending'
-    renderDoneTable(data);   // Filters for 'Done'
-    updateStatusUI();        // Updates your dashboard totals
+    // Filter data strictly by status for each page
+    const pendingTasks = data.filter(t => t.status === 'Pending');
+    const doneTasks = data.filter(t => t.status === 'Done');
+    const historyTasks = data.filter(t => t.status === 'Paid' || t.status === 'Cancelled');
+
+    // Send the correct data to the correct table
+    renderActive(pendingTasks);
+    renderDoneTable(doneTasks);
+    renderHistory(historyTasks);
+    
+    // Update the top dashboard totals
+    updateDashboardTotals(data);
 }
 
 function renderActive(tasks){
@@ -518,16 +521,23 @@ function calculateFinalPayable() {
     
     let subtotal = 0;
     rows.forEach(row => {
+        // Only sum rows that aren't the empty "No orders" message
         const val = row.cells[2]?.innerText.replace(/[^0-9.]/g, '');
         subtotal += parseFloat(val) || 0;
     });
 
-    const plus = parseFloat(document.getElementById('adjPlus').value) || 0;
-    const minus = parseFloat(document.getElementById('adjMinus').value) || 0;
+    // Inputs: Money you already received or penalties
+    const advances = parseFloat(document.getElementById('adjPlus').value) || 0;
+    const deductibles = parseFloat(document.getElementById('adjMinus').value) || 0;
     
-    const final = subtotal + plus - minus;
-    document.getElementById('finalTotalDisplay').innerText = final.toLocaleString();
-    return { subtotal, plus, minus, final };
+    // Final = (Total Work) - (Money already paid) - (Deductions/Cancelled)
+    const final = subtotal - advances - deductibles;
+    
+    document.getElementById('finalTotalDisplay').innerText = final.toLocaleString('en-KE', { 
+        minimumFractionDigits: 2 
+    });
+    
+    return { subtotal, advances, deductibles, final };
 }
 
 
