@@ -163,6 +163,7 @@ const SUPABASE_URL='https://xzxpwbkjhazvsaxxgqws.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6eHB3YmtqaGF6dnNheHhncXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgzMjEsImV4cCI6MjA5MDAyNDMyMX0.RDfNx5pUUhm6dZKf_F1Ada3rH6-rVxdPnrYXcrwyZi0';
 const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
+let allTasks = [];
 let currentEmployerId=null;
 let currentEmployerRate=300;
 let alarmInterval;
@@ -398,15 +399,12 @@ function renderDoneTable(tasks) {
     if (!tableBody) return;
     tableBody.innerHTML = '';
 
-    // CRITICAL: Filter must check for 'Done' AND the current employer
-    const doneTasks = tasks.filter(t => t.status === 'Done' && t.employer_id === currentEmployerId);
-
-    if (doneTasks.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No completed orders found for this employer.</td></tr>';
+    if (tasks.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No completed orders found.</td></tr>';
         return;
     }
 
-    doneTasks.forEach(task => {
+    tasks.forEach(task => {
         const row = `<tr>
             <td>${task.client_name}</td>
             <td>${task.task_detail}</td>
@@ -415,33 +413,36 @@ function renderDoneTable(tasks) {
         tableBody.innerHTML += row;
     });
 
-    // Update the math for adjustments (Advances/Refunds)
-    if (typeof calculateFinalPayable === "function") {
-        calculateFinalPayable();
-    }
+    calculateFinalPayable();
 }
 
 function renderHistory(tasks){
-const body=document.getElementById('historyBody');
-body.innerHTML='';
+    const body = document.getElementById('historyBody');
+    body.innerHTML = '';
 
-tasks.forEach(task=>{
-body.innerHTML+=`
-<tr>
-<td>${task.client_name}</td>
-<td>${task.task_detail}</td>
-<td>${task.status}</td>
-</tr>`;
-});
+    tasks.forEach(task => {
+        // Use 'payable' to show the amount in the "Total Paid" column
+        body.innerHTML += `
+        <tr>
+            <td>${task.client_name}</td>
+            <td>${task.task_detail}</td>
+            <td>${(parseFloat(task.payable) || 0).toLocaleString()} KES</td>
+            <td>${task.status}</td>
+        </tr>`;
+    });
 }
 
 async function markAsDone(id){
-await supabaseClient
-.from('tasks')
-.update({status:'Done'})
-.eq('id',id);
+    const { error } = await supabaseClient
+        .from('tasks')
+        .update({ status: 'Done' })
+        .eq('id', id);
 
-fetchTasks();
+    if (error) {
+        alert("Update failed: " + error.message);
+    } else {
+        await fetchTasks(); // Refresh data to move the item to the next tab
+    }
 }
 
 /** * PERFECTED ALARM ENGINE */
