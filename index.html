@@ -75,25 +75,27 @@ th{background:#2c3e50;color:white}
     <div id="active-section" class="tab-content">
         <div style="background: #fff; border: 1px solid #3498db; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
             <h3 style="margin-top:0">Register New Order</h3>
-		<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px;">
-    <input type="text" id="clientInput" placeholder="Client Name">
-    <input type="text" id="detailInput" placeholder="Task Detail">
-    <select id="typeInput">
-        <option value="Pages">Pages</option>
-        <option value="Quiz">Quiz</option>
-        <option value="Midterm">Midterm</option>
-        <option value="PPT">PPT</option>
-    </select>
-    <input type="number" id="unitsInput" placeholder="Units" value="1">
-    <input type="datetime-local" id="deadlineInput">
-    
-    <div style="display:flex; flex-direction:column;">
-        <label style="font-size:10px; color:#666;">Alarm Lead (Hours)</label>
-        <input type="number" id="alertLeadInput" value="1" min="1">
-    </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
+                <input type="text" id="clientInput" placeholder="Client Name">
+                <input type="text" id="detailInput" placeholder="Task Detail">
+                <select id="typeInput">
+                    <option value="Pages">Pages</option>
+                    <option value="Quiz">Quiz</option>
+                    <option value="Midterm">Midterm</option>
+                    <option value="PPT">PPT</option>
+                </select>
+                <input type="number" id="unitsInput" placeholder="Units" value="1">
+                <input type="datetime-local" id="deadlineInput">
+                
+                <div style="display:flex; flex-direction:column;">
+                    <label style="font-size:10px; color:#666;">Alarm Lead (Hours)</label>
+                    <input type="number" id="alertLeadInput" value="1" min="1">
+                </div>
 
-    <button class="btn btn-add" onclick="saveTask()" style="background:#2ecc71; color:white;">Save Order</button>
-</div>
+                <button class="btn btn-add" onclick="saveTask()" style="background:#2ecc71; color:white;">Save Order</button>
+            </div>
+        </div>
+
         <h3>Pending Orders</h3>
         <div class="table-container">
             <table>
@@ -108,34 +110,45 @@ th{background:#2c3e50;color:white}
     </div>
 
     <div id="done-section" class="tab-content" style="display:none">
-    <h3>Ready for Invoicing</h3>
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr><th>Client</th><th>Detail</th><th>Payable</th></tr>
-            </thead>
-            <tbody id="doneTableBody"></tbody> </table>
-    </div>
-
-    <div style="background: #fdf2f2; padding: 15px; border-radius: 8px; margin-top: 20px;">
-        <h4>Financial Adjustments</h4>
-        <input type="number" id="adjPlus" placeholder="Advances (-)" oninput="calculateFinalPayable()">
-        <input type="number" id="adjMinus" placeholder="Deductibles (-)" oninput="calculateFinalPayable()">
-        <div style="margin-top: 10px; font-weight: bold;">
-            Final Balance: <span id="finalTotalDisplay">0.00</span> KES
+        <h3>Ready for Invoicing</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr><th>Client</th><th>Detail</th><th>Payable</th></tr>
+                </thead>
+                <tbody id="doneTableBody"></tbody>
+            </table>
         </div>
-    </div>
-    <button class="btn" onclick="exportToWord()" style="background:#2c3e50; color:white; margin-top:10px;">📄 GENERATE WORD INVOICE</button>
-</div>
 
-<div id="history-section" class="tab-content" style="display:none">
-    <h3>Payment History & Archives</h3>
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr><th>Client</th><th>Detail</th><th>Total Paid</th><th>Status</th></tr>
-            </thead>
-            <tbody id="historyBody"></tbody> </table>
+        <div style="background: #fdf2f2; padding: 20px; border: 1px solid #e74c3c; border-radius: 8px; margin-top: 20px;">
+            <h4 style="margin-top:0">Invoice Adjustments</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label style="display:block; font-size:12px; color:#666;">Advances Received (-)</label>
+                    <input type="number" id="adjPlus" value="0" oninput="calculateFinalPayable()" style="width:100%; padding:8px;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:12px; color:#666;">Deductibles / Fines (-)</label>
+                    <input type="number" id="adjMinus" value="0" oninput="calculateFinalPayable()" style="width:100%; padding:8px;">
+                </div>
+            </div>
+            <div style="margin-top: 15px; border-top: 2px solid #c0392b; padding-top: 10px; font-weight: bold; font-size: 1.2em;">
+                Balance to be Paid: <span id="finalTotalDisplay">0.00</span> KES
+            </div>
+        </div>
+        <button class="btn" onclick="exportToWord()" style="background:#2c3e50; color:white; margin-top:20px; width:100%; padding:15px;">📄 GENERATE WORD INVOICE</button>
+    </div>
+
+    <div id="history-section" class="tab-content" style="display:none">
+        <h3>Payment History & Archives</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr><th>Client</th><th>Detail</th><th>Total Paid</th><th>Status</th></tr>
+                </thead>
+                <tbody id="historyBody"></tbody>
+            </table>
+        </div>
     </div>
 </div>
 
