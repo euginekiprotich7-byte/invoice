@@ -108,51 +108,34 @@ th{background:#2c3e50;color:white}
     </div>
 
     <div id="done-section" class="tab-content" style="display:none">
-        <h3>Ready for Invoicing</h3>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr><th>Client</th><th>Detail</th><th>Payable</th></tr>
-                </thead>
-                <tbody id="doneTableBody"></tbody>
-            </table>
-        </div>
-
-        <div style="background: #fdf2f2; padding: 20px; border: 1px solid #e74c3c; border-radius: 8px; margin-top: 20px;">
-            <h4 style="margin-top:0">Invoice Adjustments & Deductions</h4>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div>
-                    <label style="display:block; font-weight:bold; color:#c0392b;">Advances / Already Paid (-)</label>
-                    <input type="number" id="adjPlus" value="0" oninput="calculateFinalPayable()" style="width:100%; padding:10px;">
-                </div>
-                <div>
-                    <label style="display:block; font-weight:bold; color:#c0392b;">Fines / Deductions (-)</label>
-                    <input type="number" id="adjMinus" value="0" oninput="calculateFinalPayable()" style="width:100%; padding:10px;">
-                </div>
-            </div>
-            <div style="margin-top: 20px; border-top: 2px solid #c0392b; padding-top: 10px;">
-                <span style="font-size: 1.4em; font-weight: bold; color: #c0392b;">
-                    Final Balance Due: <span id="finalTotalDisplay">0.00</span> KES
-                </span>
-            </div>
-        </div>
-
-        <div style="margin-top: 20px; display: flex; gap: 15px;">
-            <button class="btn" onclick="exportToWord()" style="background:#2c3e50; color:white; padding:12px 25px; font-weight:bold;">📄 GENERATE WORD INVOICE</button>
-            <button class="btn" onclick="exportToExcel()" style="background:#27ae60; color:white; padding:12px 25px;">📊 Export Excel</button>
-        </div>
+    <h3>Ready for Invoicing</h3>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr><th>Client</th><th>Detail</th><th>Payable</th></tr>
+            </thead>
+            <tbody id="doneTableBody"></tbody> </table>
     </div>
 
-    <div id="history-section" class="tab-content" style="display:none">
-        <h3>Archive & Payment History</h3>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr><th>Client</th><th>Detail</th><th>Total Paid</th><th>Status</th></tr>
-                </thead>
-                <tbody id="historyBody"></tbody>
-            </table>
+    <div style="background: #fdf2f2; padding: 15px; border-radius: 8px; margin-top: 20px;">
+        <h4>Financial Adjustments</h4>
+        <input type="number" id="adjPlus" placeholder="Advances (-)" oninput="calculateFinalPayable()">
+        <input type="number" id="adjMinus" placeholder="Deductibles (-)" oninput="calculateFinalPayable()">
+        <div style="margin-top: 10px; font-weight: bold;">
+            Final Balance: <span id="finalTotalDisplay">0.00</span> KES
         </div>
+    </div>
+    <button class="btn" onclick="exportToWord()" style="background:#2c3e50; color:white; margin-top:10px;">📄 GENERATE WORD INVOICE</button>
+</div>
+
+<div id="history-section" class="tab-content" style="display:none">
+    <h3>Payment History & Archives</h3>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr><th>Client</th><th>Detail</th><th>Total Paid</th><th>Status</th></tr>
+            </thead>
+            <tbody id="historyBody"></tbody> </table>
     </div>
 </div>
 
@@ -406,8 +389,8 @@ function renderDoneTable(tasks) {
 
     tasks.forEach(task => {
         const row = `<tr>
-            <td>${task.client_name}</td>
-            <td>${task.task_detail}</td>
+            <td>${task.client_name || 'N/A'}</td>
+            <td>${task.task_detail || 'N/A'}</td>
             <td>${(parseFloat(task.payable) || 0).toLocaleString()} KES</td>
         </tr>`;
         tableBody.innerHTML += row;
@@ -416,18 +399,23 @@ function renderDoneTable(tasks) {
     calculateFinalPayable();
 }
 
-function renderHistory(tasks){
+function renderHistory(tasks) {
     const body = document.getElementById('historyBody');
+    if (!body) return;
     body.innerHTML = '';
 
+    if (tasks.length === 0) {
+        body.innerHTML = '<tr><td colspan="4" style="text-align:center;">No history records.</td></tr>';
+        return;
+    }
+
     tasks.forEach(task => {
-        // Use 'payable' to show the amount in the "Total Paid" column
         body.innerHTML += `
         <tr>
             <td>${task.client_name}</td>
             <td>${task.task_detail}</td>
             <td>${(parseFloat(task.payable) || 0).toLocaleString()} KES</td>
-            <td>${task.status}</td>
+            <td><strong>${task.status}</strong></td>
         </tr>`;
     });
 }
