@@ -46,162 +46,112 @@ th{background:#2c3e50;color:white}
 <div id="statusIndicator" class="online">ONLINE</div>
 
 <div class="container">
-<h2>Ultimate Order Manager</h2>
+    <h2>Ultimate Order Manager</h2>
 
-<div>
-<input type="text" id="newEmployerName" placeholder="Employer Name">
-<input type="number" id="employerRate" placeholder="Rate">
-<button class="btn btn-add" onclick="saveEmployer()">Add Employer</button>
-</div>
-
-<div id="employer-tabs"></div>
-
-<div style="display: flex; gap: 20px; margin-bottom: 20px;">
-    <div style="flex: 1; background: #ebf5fb; border-left: 5px solid #3498db; padding: 20px; border-radius: 5px;">
-        <h4 style="margin: 0; color: #3498db; font-size: 12px; text-transform: uppercase;">Pending Total</h4>
-        <div id="pendingTotal" style="font-size: 24px; font-weight: bold; color: #3498db;">0.00</div>
-    </div>
-    <div style="flex: 1; background: #eafaf1; border-left: 5px solid #27ae60; padding: 20px; border-radius: 5px;">
-        <h4 style="margin: 0; color: #27ae60; font-size: 12px; text-transform: uppercase;">Done Total</h4>
-        <div id="doneTotal" style="font-size: 24px; font-weight: bold; color: #27ae60;">0.00</div>
-    </div>
-</div>
-
-<div class="sidebar">
-    <button onclick="showTab('active-section')">Active Orders</button>
-    <button onclick="showTab('done-section')">Completed</button>
-    <button onclick="showTab('history-section')">History</button>
-</div>
-
-<div id="active-section" class="tab-content">
-    <h3>Register New Order</h3>
-    <h3>Pending Orders</h3>
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Client</th><th>Detail</th><th>Type</th><th>Units</th><th>Payable</th><th>Status</th><th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-        </table>
-    </div>
-</div>
-
-<div id="done-section" class="tab-content" style="display:none">
-    <h3>Ready for Invoicing</h3>
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr><th>Client</th><th>Detail</th><th>Payable</th></tr>
-            </thead>
-            <tbody id="doneTableBody"></tbody>
-        </table>
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd;">
+        <input type="text" id="newEmployerName" placeholder="Employer Name">
+        <input type="number" id="employerRate" placeholder="Default Rate (e.g. 300)">
+        <button class="btn btn-add" onclick="saveEmployer()">Add Employer</button>
+        <div id="employer-tabs" style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;"></div>
     </div>
 
-    <div style="background: #fdf2f2; padding: 15px; border: 1px solid #e74c3c; border-radius: 8px; margin-top: 20px;">
-        <h4>Invoice Deductions</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div>
-                <label>Advances Received / Refunds (-)</label>
-                <input type="number" id="adjPlus" value="0" oninput="calculateFinalPayable()">
-            </div>
-            <div>
-                <label>Deductibles / Cancelled (-)</label>
-                <input type="number" id="adjMinus" value="0" oninput="calculateFinalPayable()">
+    <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+        <div style="flex: 1; background: #ebf5fb; border-left: 5px solid #3498db; padding: 20px; border-radius: 5px;">
+            <h4 style="margin: 0; color: #3498db; font-size: 12px; text-transform: uppercase;">Pending Total</h4>
+            <div id="pendingTotal" style="font-size: 24px; font-weight: bold; color: #3498db;">0.00</div>
+        </div>
+        <div style="flex: 1; background: #eafaf1; border-left: 5px solid #27ae60; padding: 20px; border-radius: 5px;">
+            <h4 style="margin: 0; color: #27ae60; font-size: 12px; text-transform: uppercase;">Done Total</h4>
+            <div id="doneTotal" style="font-size: 24px; font-weight: bold; color: #27ae60;">0.00</div>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <button onclick="showTab('active-section')">Active Orders</button>
+        <button onclick="showTab('done-section')">Completed</button>
+        <button onclick="showTab('history-section')">History</button>
+    </div>
+
+    <div id="active-section" class="tab-content">
+        <div style="background: #fff; border: 1px solid #3498db; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+            <h3 style="margin-top:0">Register New Order</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                <input type="text" id="clientInput" placeholder="Client Name">
+                <input type="text" id="detailInput" placeholder="Task Detail">
+                <select id="typeInput">
+                    <option value="Pages">Pages</option>
+                    <option value="Quiz">Quiz</option>
+                    <option value="Midterm">Midterm</option>
+                    <option value="PPT">PPT</option>
+                    <option value="Infographic">Infographic</option>
+                    <option value="Technical">Technical</option>
+                </select>
+                <input type="number" id="unitsInput" placeholder="Units (e.g. 1)" value="1">
+                <input type="datetime-local" id="deadlineInput">
+                <button class="btn btn-add" onclick="saveTask()" style="grid-column: span 1; background: #2ecc71;">+ Save Order</button>
             </div>
         </div>
-        <div style="margin-top: 15px; font-weight: bold; font-size: 1.4em; color: #c0392b;">
-            Balance to be Paid: <span id="finalTotalDisplay">0.00</span> KES
+
+        <h3>Pending Orders</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Client</th><th>Detail</th><th>Type</th><th>Units</th><th>Payable</th><th>Status</th><th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
         </div>
     </div>
-</div>
 
-<div id="history-section" class="tab-content" style="display:none">
-    <h3>Payment History & Archives</h3>
-    <table>
-        <thead>
-            <tr><th>Client</th><th>Detail</th><th>Total</th><th>Status</th></tr>
-        </thead>
-        <tbody id="historyBody"></tbody>
-    </table>
-</div>
-
-<div id="done-section" class="tab-content" style="display:none">
-<div style="background: #ecf0f1; padding: 15px; border-radius: 8px; margin-top: 20px;">
-    <h4>Financial Adjustments</h4>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-        <div>
-            <label>Advances/Refunds (Add to total)</label>
-            <input type="number" id="adjPlus" value="0" oninput="calculateFinalPayable()" placeholder="e.g. 1500">
+    <div id="done-section" class="tab-content" style="display:none">
+        <h3>Ready for Invoicing</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr><th>Client</th><th>Detail</th><th>Payable</th></tr>
+                </thead>
+                <tbody id="doneTableBody"></tbody>
+            </table>
         </div>
-        <div>
-            <label>Deductibles (Subtract from total)</label>
-            <input type="number" id="adjMinus" value="0" oninput="calculateFinalPayable()" placeholder="e.g. 500">
-        </div>
-    </div>
-    <div style="margin-top: 15px; font-weight: bold; font-size: 1.2em;">
-        Final Invoice Total: <span id="finalTotalDisplay">0.00</span> KES
-    </div>
-</div>
-    <h2>Ready for Invoicing</h2>
-    </div>
 
-<div id="history-section" class="tab-content" style="display:none">
-    <h2>Archive & History</h2>
-    </div>
-
-<div id="done-section" class="tab-content" style="display:none">
-    <h3>Completed Orders (Ready for Invoice)</h3>
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Client</th>
-                    <th>Detail</th>
-                    <th>Payable</th>
-                </tr>
-            </thead>
-            <tbody id="doneTableBody"></tbody>
-        </table>
-    </div>
-
-    <div style="background: #f8f9fa; padding: 15px; border: 1px solid #dee2e6; border-radius: 8px; margin-top: 20px;">
-        <h4 style="margin-top:0">Adjustments (Advances & Deductions)</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-            <div>
-                <label style="display:block; font-size: 12px; color: #666;">Advances / Refunds (+)</label>
-                <input type="number" id="adjPlus" value="0" oninput="calculateFinalPayable()" style="width:100%; padding: 8px;">
+        <div style="background: #fdf2f2; padding: 20px; border: 1px solid #e74c3c; border-radius: 8px; margin-top: 20px;">
+            <h4 style="margin-top:0">Invoice Adjustments & Deductions</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <label style="display:block; font-weight:bold; color:#c0392b;">Advances / Already Paid (-)</label>
+                    <input type="number" id="adjPlus" value="0" oninput="calculateFinalPayable()" style="width:100%; padding:10px;">
+                </div>
+                <div>
+                    <label style="display:block; font-weight:bold; color:#c0392b;">Fines / Deductions (-)</label>
+                    <input type="number" id="adjMinus" value="0" oninput="calculateFinalPayable()" style="width:100%; padding:10px;">
+                </div>
             </div>
-            <div>
-                <label style="display:block; font-size: 12px; color: #666;">Deductibles (-)</label>
-                <input type="number" id="adjMinus" value="0" oninput="calculateFinalPayable()" style="width:100%; padding: 8px;">
+            <div style="margin-top: 20px; border-top: 2px solid #c0392b; padding-top: 10px;">
+                <span style="font-size: 1.4em; font-weight: bold; color: #c0392b;">
+                    Final Balance Due: <span id="finalTotalDisplay">0.00</span> KES
+                </span>
             </div>
         </div>
-        <div style="margin-top: 15px; border-top: 2px solid #2c3e50; pt: 10px; font-weight: bold; font-size: 1.2em;">
-            Final Invoice Total: <span id="finalTotalDisplay">0.00</span> KES
+
+        <div style="margin-top: 20px; display: flex; gap: 15px;">
+            <button class="btn" onclick="exportToWord()" style="background:#2c3e50; color:white; padding:12px 25px; font-weight:bold;">📄 GENERATE WORD INVOICE</button>
+            <button class="btn" onclick="exportToExcel()" style="background:#27ae60; color:white; padding:12px 25px;">📊 Export Excel</button>
         </div>
     </div>
 
-    <div style="margin-top: 20px; display: flex; gap: 10px;">
-        <button class="btn" onclick="exportToExcel()" style="background:#27ae60; color:white">📊 Export Excel</button>
-        <button class="btn" onclick="exportToWord()" style="background:#2c3e50; color:white">📄 Export Word</button>
+    <div id="history-section" class="tab-content" style="display:none">
+        <h3>Archive & Payment History</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr><th>Client</th><th>Detail</th><th>Total Paid</th><th>Status</th></tr>
+                </thead>
+                <tbody id="historyBody"></tbody>
+            </table>
+        </div>
     </div>
-</div>
-
-<div id="history-section" style="display:none">
-<h3>History</h3>
-<table>
-<thead>
-<tr>
-<th>Client</th>
-<th>Detail</th>
-<th>Status</th>
-</tr>
-</thead>
-<tbody id="historyBody"></tbody>
-</table>
-</div>
 </div>
 
 <audio id="dueAlarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
@@ -649,73 +599,60 @@ async function exportToExcel() {
 
 async function exportToWord() {
     const tableBody = document.getElementById('doneTableBody');
-    const rows = Array.from(tableBody.querySelectorAll('tr:not([style*="font-weight: bold"])'));
-    if (rows.length === 0) return alert("No orders to export!");
+    const rows = Array.from(tableBody.querySelectorAll('tr'));
+    if (rows.length < 1 || rows[0].innerText.includes("No completed orders")) return alert("No orders to export!");
 
-    const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType, BorderStyle } = docx;
+    const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType } = docx;
+    
+    // Get the adjustments from the screen
+    const adv = parseFloat(document.getElementById('adjPlus').value) || 0;
+    const ded = parseFloat(document.getElementById('adjMinus').value) || 0;
 
-    // Grouping logic
+    let subtotal = 0;
     const grouped = {};
     rows.forEach(row => {
         const client = row.cells[0].innerText;
         const detail = row.cells[1].innerText;
         const payable = row.cells[2].innerText;
+        const amt = parseFloat(payable.replace(/[^0-9.]/g, '')) || 0;
+        subtotal += amt;
         if (!grouped[client]) grouped[client] = [];
         grouped[client].push({ detail, payable });
     });
 
     const docChildren = [
-        new Paragraph({ text: "INVOICE", heading: "Heading1", alignment: AlignmentType.CENTER }),
+        new Paragraph({ text: "WORK INVOICE BREAKDOWN", heading: "Heading1", alignment: AlignmentType.CENTER }),
         new Paragraph({ text: "Date: " + new Date().toLocaleDateString() }),
         new Paragraph({ text: "" })
     ];
 
-    let grandTotal = 0;
-
-    // Create a section for each Client
     for (const client in grouped) {
-        docChildren.push(new Paragraph({
-            children: [new TextRun({ text: client, bold: true, size: 28, underline: {} })],
-            spacing: { before: 400, after: 200 }
+        docChildren.push(new Paragraph({ children: [new TextRun({ text: client, bold: true, size: 24 })], spacing: { before: 200 } }));
+        const tableRows = grouped[client].map(item => new TableRow({
+            children: [
+                new TableCell({ children: [new Paragraph(item.detail)] }),
+                new TableCell({ children: [new Paragraph(item.payable)] })
+            ]
         }));
-
-        const tableRows = [
-            new TableRow({
-                children: [
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "DETAILS", bold: true })] })] }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "PAYABLE", bold: true })] })] }),
-                ],
-            })
-        ];
-
-        grouped[client].forEach(item => {
-            const amt = parseFloat(item.payable.replace(/[^0-9.]/g, ''));
-            grandTotal += amt;
-            tableRows.push(new TableRow({
-                children: [
-                    new TableCell({ children: [new Paragraph(item.detail)] }),
-                    new TableCell({ children: [new Paragraph(item.payable)] }),
-                ],
-            }));
-        });
-
-        docChildren.push(new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: tableRows
-        }));
+        docChildren.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows }));
     }
 
-    // Grand Total at the bottom
+    // FINAL SUMMARY SECTION
+    docChildren.push(new Paragraph({ text: "" }));
     docChildren.push(new Paragraph({
-        children: [new TextRun({ text: `GRAND TOTAL: ${grandTotal.toLocaleString()} KES`, bold: true, size: 32 })],
-        alignment: AlignmentType.RIGHT,
-        spacing: { before: 500 }
+        children: [
+            new TextRun({ text: `Gross Subtotal: ${subtotal.toLocaleString()} KES`, break: 1 }),
+            new TextRun({ text: `Less Advances: -${adv.toLocaleString()} KES`, break: 1, color: "FF0000" }),
+            new TextRun({ text: `Less Deductions: -${ded.toLocaleString()} KES`, break: 1, color: "FF0000" }),
+            new TextRun({ text: `FINAL BALANCE DUE: ${(subtotal - adv - ded).toLocaleString()} KES`, bold: true, size: 28, break: 1 })
+        ],
+        alignment: AlignmentType.RIGHT
     }));
 
     const doc = new Document({ sections: [{ children: docChildren }] });
     Packer.toBlob(doc).then(blob => {
-        saveAs(blob, `Grouped_Invoice_${Date.now()}.docx`);
-        moveTasksToHistory();
+        saveAs(blob, `Invoice_${Date.now()}.docx`);
+        moveTasksToHistory(); // Moves 'Done' to 'Paid' in Supabase
     });
 }
 
