@@ -91,13 +91,31 @@ th{background:#2c3e50;color:white}
                 <button class="btn btn-add" onclick="saveTask()" style="grid-column: span 1; background: #2ecc71;">+ Save Order</button>
             </div>
         </div>
+		<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px;">
+    <input type="text" id="clientInput" placeholder="Client Name">
+    <input type="text" id="detailInput" placeholder="Task Detail">
+    <select id="typeInput">
+        <option value="Pages">Pages</option>
+        <option value="Quiz">Quiz</option>
+        <option value="Midterm">Midterm</option>
+        <option value="PPT">PPT</option>
+    </select>
+    <input type="number" id="unitsInput" placeholder="Units" value="1">
+    <input type="datetime-local" id="deadlineInput">
+    
+    <div style="display:flex; flex-direction:column;">
+        <label style="font-size:10px; color:#666;">Alarm Lead (Hours)</label>
+        <input type="number" id="alertLeadInput" value="1" min="1">
+    </div>
 
+    <button class="btn btn-add" onclick="saveTask()" style="background:#2ecc71; color:white;">Save Order</button>
+</div>
         <h3>Pending Orders</h3>
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
-                        <th>Client</th><th>Detail</th><th>Type</th><th>Units</th><th>Payable</th><th>Status</th><th>Action</th>
+                        <th>Client</th><th>Detail</th><th>Type</th><th>Units</th><th>CPP</th><th>Payable</th><th>Time Remaining</th><th>Status</th><th>Action</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
@@ -600,59 +618,106 @@ async function exportToExcel() {
 async function exportToWord() {
     const tableBody = document.getElementById('doneTableBody');
     const rows = Array.from(tableBody.querySelectorAll('tr'));
-    if (rows.length < 1 || rows[0].innerText.includes("No completed orders")) return alert("No orders to export!");
+    
+    // Safety check to ensure there is data to export
+    if (rows.length < 1 || rows[0].innerText.includes("No completed orders")) {
+        return alert("No orders to export!");
+    }
 
     const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType } = docx;
     
-    // Get the adjustments from the screen
+    // 1. Capture the financial adjustments from the UI
     const adv = parseFloat(document.getElementById('adjPlus').value) || 0;
     const ded = parseFloat(document.getElementById('adjMinus').value) || 0;
 
     let subtotal = 0;
     const grouped = {};
+
+    // 2. Process table rows and group by Client
     rows.forEach(row => {
         const client = row.cells[0].innerText;
         const detail = row.cells[1].innerText;
         const payable = row.cells[2].innerText;
+        
+        // Convert currency string back to number for math
         const amt = parseFloat(payable.replace(/[^0-9.]/g, '')) || 0;
         subtotal += amt;
+
         if (!grouped[client]) grouped[client] = [];
         grouped[client].push({ detail, payable });
     });
 
+    const finalBalance = subtotal - adv - ded;
+
+    // 3. Build the Document Structure
     const docChildren = [
-        new Paragraph({ text: "WORK INVOICE BREAKDOWN", heading: "Heading1", alignment: AlignmentType.CENTER }),
-        new Paragraph({ text: "Date: " + new Date().toLocaleDateString() }),
-        new Paragraph({ text: "" })
+        new Paragraph({ 
+            text: "WORK INVOICE BREAKDOWN", 
+            heading: "Heading1", 
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 }
+        }),
+        new Paragraph({ 
+            children: [
+                new TextRun({ text: "Date: ", bold: true }),
+                new TextRun(new Date().toLocaleDateString('en-GB'))
+            ]
+        }),
+        new Paragraph({ text: "" }) // Spacer
     ];
 
+    // 4. Add Grouped Tables per Client
     for (const client in grouped) {
-        docChildren.push(new Paragraph({ children: [new TextRun({ text: client, bold: true, size: 24 })], spacing: { before: 200 } }));
+        docChildren.push(new Paragraph({ 
+            children: [new TextRun({ text: client, bold: true, size: 24, underline: {} })], 
+            spacing: { before: 300, after: 100 } 
+        }));
+
         const tableRows = grouped[client].map(item => new TableRow({
             children: [
-                new TableCell({ children: [new Paragraph(item.detail)] }),
-                new TableCell({ children: [new Paragraph(item.payable)] })
+                new TableCell({ 
+                    width: { size: 70, type: WidthType.PERCENTAGE },
+                    children: [new Paragraph(item.detail)] 
+                }),
+                new TableCell({ 
+                    width: { size: 30, type: WidthType.PERCENTAGE },
+                    children: [new Paragraph({ text: item.payable, alignment: AlignmentType.RIGHT })] 
+                })
             ]
         }));
-        docChildren.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows }));
+
+        docChildren.push(new Table({ 
+            width: { size: 100, type: WidthType.PERCENTAGE }, 
+            rows: tableRows 
+        }));
     }
 
-    // FINAL SUMMARY SECTION
-    docChildren.push(new Paragraph({ text: "" }));
+    // 5. FINAL SUMMARY SECTION (The Breakdown)
+    docChildren.push(new Paragraph({ text: "", spacing: { before: 400 } }));
     docChildren.push(new Paragraph({
         children: [
             new TextRun({ text: `Gross Subtotal: ${subtotal.toLocaleString()} KES`, break: 1 }),
             new TextRun({ text: `Less Advances: -${adv.toLocaleString()} KES`, break: 1, color: "FF0000" }),
             new TextRun({ text: `Less Deductions: -${ded.toLocaleString()} KES`, break: 1, color: "FF0000" }),
-            new TextRun({ text: `FINAL BALANCE DUE: ${(subtotal - adv - ded).toLocaleString()} KES`, bold: true, size: 28, break: 1 })
+            new TextRun({ 
+                text: `FINAL BALANCE DUE: ${finalBalance.toLocaleString()} KES`, 
+                bold: true, 
+                size: 28, 
+                break: 1 
+            })
         ],
         alignment: AlignmentType.RIGHT
     }));
 
+    // 6. Generate and Save File
     const doc = new Document({ sections: [{ children: docChildren }] });
     Packer.toBlob(doc).then(blob => {
-        saveAs(blob, `Invoice_${Date.now()}.docx`);
-        moveTasksToHistory(); // Moves 'Done' to 'Paid' in Supabase
+        saveAs(blob, `Invoice_${currentEmployerId || 'Export'}_${Date.now()}.docx`);
+        
+        // Optional: Move tasks to history after successful export
+        if (confirm("Invoice generated. Move these tasks to History?")) {
+            moveTasksToHistory();
+        }
     });
 }
 
