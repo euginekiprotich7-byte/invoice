@@ -216,20 +216,24 @@ let currentEmployerId=null;
 let currentEmployerRate=300;
 let alarmInterval;
 
-function showTab(tabId) {
-    document.querySelectorAll('.tab-content').forEach(section => {
-        section.style.display = 'none';
+async function showTab(tabId) {
+    // 1. Hide all pages
+    const pages = ['active-section', 'done-section', 'history-section'];
+    pages.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
     });
-    
-    document.getElementById(tabId).style.display = 'block';
 
-    // Trigger the correct render function based on the tab
+    // 2. Show the target page
+    const target = document.getElementById(tabId);
+    if (target) target.style.display = 'block';
+
+    // 3. Refresh Data specifically for that tab
+    // This ensures 'Completed' orders don't stay in 'Active' and vice-versa
     if (tabId === 'active-section') {
-        fetchTasks(); 
+        await fetchTasks(); // Loads Pending
     } else if (tabId === 'done-section') {
-        // FIX: Use the name actually in your code
-        const { data } = supabaseClient.from('tasks').select('*').eq('status', 'Done');
-        renderDoneTable(allTasks); 
+        await fetchTasks(); // We refresh all, then renderDoneTable filters them
     }
 }
 
@@ -395,25 +399,23 @@ function calculateCPP(type) {
 async function fetchTasks() {
     if (!currentEmployerId) return;
 
-    try {
-        const { data, error } = await supabaseClient
-            .from('tasks')
-            .select('*')
-            .eq('employer_id', currentEmployerId)
-            .order('created_at', { ascending: false });
+    const { data, error } = await supabaseClient
+        .from('tasks')
+        .select('*')
+        .eq('employer_id', currentEmployerId);
 
-        if (error) throw error;
-
-        // CRITICAL: This is the line that makes the Blue/Green boxes calculate!
-        updateDashboardTotals(data);
-
-        renderActive(data.filter(t => t.status === 'Pending'));
-        renderDoneTable(data.filter(t => t.status === 'Done'));
-        renderHistory(data.filter(t => t.status === 'Paid' || t.status === 'Cancelled'));
-        checkDeadlines(data.filter(t => t.status === 'Pending'));
-    } catch (err) {
-        console.error("Fetch error:", err.message);
+    if (error) {
+        console.error("Fetch error:", error.message);
+        return;
     }
+
+    // Update the Global variable
+    allTasks = data;
+
+    // Run both renderers so switching tabs is instant
+    renderActive(data);      // Filters for 'Pending'
+    renderDoneTable(data);   // Filters for 'Done'
+    updateStatusUI();        // Updates your dashboard totals
 }
 
 function renderActive(tasks){
@@ -441,7 +443,13 @@ function renderDoneTable(tasks) {
     if (!tableBody) return;
     tableBody.innerHTML = '';
 
+    // CRITICAL: Filter must check for 'Done' AND the current employer
     const doneTasks = tasks.filter(t => t.status === 'Done' && t.employer_id === currentEmployerId);
+
+    if (doneTasks.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">No completed orders found for this employer.</td></tr>';
+        return;
+    }
 
     doneTasks.forEach(task => {
         const row = `<tr>
@@ -452,8 +460,10 @@ function renderDoneTable(tasks) {
         tableBody.innerHTML += row;
     });
 
-    // Run the math for the adjustments section
-    calculateFinalPayable();
+    // Update the math for adjustments (Advances/Refunds)
+    if (typeof calculateFinalPayable === "function") {
+        calculateFinalPayable();
+    }
 }
 
 function renderHistory(tasks){
