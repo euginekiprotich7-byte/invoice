@@ -15,7 +15,7 @@
 <style>
 .tab-content {
     animation: fadeIn 0.3s ease-in-out;
-    min-height: 80vh; /* Ensures the page feels full-sized */
+    min-height: 80vh;
 }
 
 @keyframes fadeIn {
@@ -23,30 +23,216 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
-.sidebar button {
-    transition: all 0.3s ease;
-    flex: 1; /* Makes buttons equal width like a real mobile app menu */
-}
-body{font-family:Arial,sans-serif;background:#f4f7f6;margin:0;padding:20px}
-.container{max-width:1400px;margin:auto;background:#fff;padding:20px;border-radius:10px}
-.sidebar{display:flex;gap:10px;margin-bottom:20px}
-.sidebar button{padding:10px 20px;border:none;background:#2c3e50;color:#fff;cursor:pointer}
-.table-container{overflow-x:auto}
-table{width:100%;border-collapse:collapse}
-th,td{padding:10px;border:1px solid #ddd}
-th{background:#2c3e50;color:white}
-.btn{padding:8px 12px;border:none;cursor:pointer;border-radius:5px}
-.btn-add{background:#27ae60;color:white}
-.btn-done{background:#3498db;color:white}
-.online{background:#27ae60;color:white;padding:10px;position:fixed;bottom:20px;right:20px}
-.offline{background:#e74c3c;color:white;padding:10px;position:fixed;bottom:20px;right:20px}
-.employer-btn {
-    border-radius: 4px 0 0 4px !important; /* Rounds only the left side */
-    margin: 0 !important;
+/* Layout */
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f7f6;
+    margin: 0;
+    padding: 20px;
 }
 
-#employer-tabs div:hover span {
-    background: #c0392b !important; /* Darker red on hover */
+.container {
+    max-width: 1400px;
+    margin: auto;
+    background: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+
+/* Sidebar */
+.sidebar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.sidebar button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    background: #ecf0f1;
+    color: #2c3e50;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.sidebar button:hover {
+    background: #dfe6e9;
+}
+
+/* Tables */
+.table-container {
+    overflow-x: auto;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.03);
+    border-radius: 8px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 10px;
+    border: 1px solid #ddd;
+}
+
+th {
+    background: #2c3e50;
+    color: white;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+}
+
+tr {
+    transition: background 0.2s ease;
+}
+
+tr:hover {
+    background: #f8f9fa;
+}
+
+/* Buttons */
+.btn {
+    padding: 8px 14px;
+    border: none;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    opacity: 0.9;
+}
+
+.btn-add { background:#27ae60; color:white; }
+.btn-done { background:#3498db; color:white; }
+
+/* Status */
+.online, .offline {
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.online {
+    background: #d4edda;
+    color: #155724;
+}
+
+.offline {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Employer Cards */
+#employer-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.employer-card {
+    padding: 10px 16px;
+    border-radius: 20px;
+    background: #ecf0f1;
+    color: #2c3e50;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.25s ease;
+    border: 1px solid transparent;
+    min-width: 140px;
+}
+
+.employer-card strong {
+    display: block;
+    font-size: 14px;
+}
+
+.employer-card {
+    padding: 14px;
+    border-radius: 14px;
+    background: #ffffff;
+    border: 1px solid #eee;
+    cursor: pointer;
+    width: 180px;
+    transition: all 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.employer-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+
+.employer-card.active {
+    border-color: #27ae60;
+    box-shadow: 0 6px 18px rgba(39,174,96,0.2);
+}
+
+/* Content */
+.emp-name {
+    font-weight: bold;
+    font-size: 14px;
+    color: #2c3e50;
+}
+
+.emp-rate {
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+/* Stats */
+.emp-stats {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 12px;
+}
+
+.emp-stats .pending {
+    color: #e67e22;
+    font-weight: 600;
+}
+
+.emp-stats .done {
+    color: #27ae60;
+    font-weight: 600;
+}
+
+/* Inputs */
+input, select {
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    font-size: 13px;
+    transition: border 0.2s ease;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+/* Input group */
+.input-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.input-group input {
+    flex: 1;
+    min-width: 150px;
 }
 </style>
 </head>
@@ -61,14 +247,18 @@ th{background:#2c3e50;color:white}
 <div id="statusIndicator" class="online">ONLINE</div>
 
 <div class="container">
-    <h2>Ultimate Order Manager</h2>
-
-    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd;">
-        <input type="text" id="newEmployerName" placeholder="Employer Name">
-        <input type="number" id="employerRate" placeholder="Default Rate (e.g. 300)">
-        <button class="btn btn-add" onclick="saveEmployer()">Add Employer</button>
-        <div id="employer-tabs" style="margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap;"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <div>
+        <h2 style="margin:0;">Ultimate Order Manager</h2>
+        <small style="color:#777;">Manage your workflow efficiently</small>
     </div>
+</div>
+
+    <div class="input-group">
+    <input type="text" id="newEmployerName" placeholder="Employer Name">
+    <input type="number" id="employerRate" placeholder="Rate">
+    <button class="btn btn-add">+ Add</button>
+</div>
 
     <div style="display: flex; gap: 20px; margin-bottom: 20px;">
         <div style="flex: 1; background: #ebf5fb; border-left: 5px solid #3498db; padding: 20px; border-radius: 5px;">
@@ -165,8 +355,6 @@ th{background:#2c3e50;color:white}
     </div>
 </div>
 
-<audio id="dueAlarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
-
 <script>
 const SUPABASE_URL='https://xzxpwbkjhazvsaxxgqws.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6eHB3YmtqaGF6dnNheHhncXdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NDgzMjEsImV4cCI6MjA5MDAyNDMyMX0.RDfNx5pUUhm6dZKf_F1Ada3rH6-rVxdPnrYXcrwyZi0';
@@ -223,25 +411,72 @@ loadEmployers();
 }
 
 async function loadEmployers() {
-    // Ensure you are getting both 'data' and 'error'
-    const { data, error } = await supabaseClient
+    const { data: employers, error } = await supabaseClient
         .from('employers')
-        .select('*');
+        .select('*')
+        .order('employer_name', { ascending: true });
 
-    if (error) return;
+    if (error) {
+        console.error("Failed to load employers:", error.message);
+        return;
+    }
 
     const container = document.getElementById('employer-tabs');
     container.innerHTML = '';
 
-    data.forEach(emp => {
-        const btn = document.createElement('button');
-        // FIX: Check your Supabase column name. 
-        // If it shows 'undefined', try changing emp.name to emp.employer_name
-        btn.innerText = emp.name || emp.employer_name || "Unknown Employer"; 
-        
-        btn.onclick = () => selectEmployer(emp.id, emp.rate);
-        container.appendChild(btn);
+    for (const emp of employers) {
+        // 🔥 Fetch tasks per employer (for mini stats)
+        const { data: tasks } = await supabaseClient
+            .from('tasks')
+            .select('payable, status')
+            .eq('employer_id', emp.id);
+
+        const pending = tasks
+            ?.filter(t => t.status === 'Pending')
+            .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0) || 0;
+
+        const done = tasks
+            ?.filter(t => t.status === 'Done')
+            .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0) || 0;
+
+        const card = document.createElement('div');
+        card.className = 'employer-card';
+
+        card.innerHTML = `
+            <div class="emp-name">${emp.employer_name}</div>
+            <div class="emp-rate">KES ${emp.rate_per_unit}/unit</div>
+
+            <div class="emp-stats">
+                <span class="pending">P: ${pending.toLocaleString()}</span>
+                <span class="done">D: ${done.toLocaleString()}</span>
+            </div>
+        `;
+
+        card.onclick = () => {
+            currentEmployerId = emp.id;
+            currentEmployerRate = emp.rate_per_unit;
+
+            document.querySelectorAll('.employer-card')
+                .forEach(el => el.classList.remove('active'));
+
+            card.classList.add('active');
+
+            fetchTasks();
+        };
+
+        container.appendChild(card);
+    }
+}
+
+function highlightEmployer(id) {
+    document.querySelectorAll('#employer-tabs button').forEach(btn => {
+        btn.style.background = '#2c3e50';
     });
+
+    const active = Array.from(document.querySelectorAll('#employer-tabs button'))
+        .find(btn => btn.onclick.toString().includes(id));
+
+    if (active) active.style.background = '#27ae60';
 }
 
 function selectEmployer(id, rate) {
