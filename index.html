@@ -178,23 +178,17 @@ let currentEmployerRate=300;
 let alarmInterval;
 
 async function showTab(tabId) {
-    // 1. Hide all pages
     const pages = ['active-section', 'done-section', 'history-section'];
     pages.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
-
-    // 2. Show the target page
     const target = document.getElementById(tabId);
     if (target) target.style.display = 'block';
-
-    // 3. Refresh Data specifically for that tab
-    // This ensures 'Completed' orders don't stay in 'Active' and vice-versa
     if (tabId === 'active-section') {
-        await fetchTasks(); // Loads Pending
+        await fetchTasks(); 
     } else if (tabId === 'done-section') {
-        await fetchTasks(); // We refresh all, then renderDoneTable filters them
+        await fetchTasks(); 
     }
 }
 
@@ -491,27 +485,24 @@ async function editTask(id) {
 
 function renderEmployerTabs() {
     const container = document.getElementById('employer-tabs');
+    if (!container) return;
     container.innerHTML = '';
 
     employers.forEach(emp => {
         const wrapper = document.createElement('div');
-        wrapper.style.display = 'inline-flex';
-        wrapper.style.alignItems = 'center';
-        wrapper.style.margin = '2px';
+        wrapper.style.cssText = "display: inline-flex; margin: 5px; border-radius: 4px; overflow: hidden; border: 1px solid #2c3e50;";
 
+        // Main Button (Select/Edit)
         const btn = document.createElement('button');
-        btn.className = 'employer-btn';
         btn.innerText = `${emp.name} (${emp.rate})`;
-        btn.style.background = (currentEmployerId === emp.id) ? '#3498db' : '#2c3e50';
+        btn.style.cssText = `padding: 8px 12px; border: none; cursor: pointer; color: white; background: ${(currentEmployerId === emp.id) ? '#3498db' : '#2c3e50'};`;
         btn.onclick = () => selectEmployer(emp.id);
-        
-        // Add Edit on Double Click
         btn.ondblclick = () => editEmployer(emp.id, emp.name, emp.rate);
 
-        // Add Delete Button
-        const delBtn = document.createElement('span');
+        // Delete Button (The small X)
+        const delBtn = document.createElement('button');
         delBtn.innerHTML = '&times;';
-        delBtn.style.cssText = "background:#e74c3c; color:white; padding: 2px 6px; cursor:pointer; border-radius: 0 4px 4px 0; font-weight:bold; height: 100%; display: flex; align-items: center;";
+        delBtn.style.cssText = "padding: 8px 10px; border: none; cursor: pointer; background: #e74c3c; color: white; border-left: 1px solid #c0392b;";
         delBtn.onclick = (e) => {
             e.stopPropagation();
             deleteEmployer(emp.id, emp.name);
@@ -546,8 +537,8 @@ async function deleteEmployer(id, name) {
 
 // EDIT EMPLOYER
 async function editEmployer(id, oldName, oldRate) {
-    const newName = prompt("Edit Employer Name:", oldName);
-    const newRate = prompt("Edit Default Rate:", oldRate);
+    const newName = prompt("Enter new name for employer:", oldName);
+    const newRate = prompt("Enter new default rate:", oldRate);
 
     if (newName && newRate) {
         const { error } = await supabaseClient
@@ -641,9 +632,6 @@ function calculateFinalPayable() {
     
     return { subtotal, advances, deductibles, final };
 }
-
-
-let alarmInterval;
 
 function triggerAlarm(taskDetail) {
     const alarm = document.getElementById('dueAlarm');
