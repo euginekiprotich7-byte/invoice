@@ -541,45 +541,30 @@ async function saveTask() {
     const units = parseFloat(document.getElementById('unitsInput').value) || 0;
     const deadline = document.getElementById('deadlineInput').value;
 
-    // 1. Get the default employer rate
-    const emp = employers.find(e => e.id === currentEmployerId);
+    // FIX: Changed 'employers' to 'allEmployers' to match your global variable
+    const emp = allEmployers.find(e => e.id === currentEmployerId);
     let cpp = emp ? emp.rate : 0;
 
-    // 2. Price Override Logic (This sets the CPP based on the type selected)
-    if (type === "pages") {
-        cpp = 300;
-    } else if (type === "pages-urgent") {
-        cpp = 350;
-    } else if (type === "quiz") {
-        cpp = 1000;
-    } else if (type === "quiz-tech") {
-        cpp = 1500;
-    } else if (type === "midterm") {
-        cpp = 1500;
-    } else if (type === "PPT") {
-        cpp = 150;
-    } else if (type === "PPT-standard") {
-        cpp = 200;
-    } else if (type === "Technical-2000") {
-        cpp = 2000;
-    } else if (type === "Technical-2500") {
-        cpp = 2500;
-    } else if (type === "Infographic-1000") {
-        cpp = 1000;
-    } else if (type === "Infographic-1500") {
-        cpp = 1500;
-    }
+    // Price Overrides
+    if (type === "pages") cpp = 300;
+    else if (type === "pages-urgent") cpp = 350;
+    else if (type === "quiz") cpp = 1000;
+    else if (type === "quiz-tech") cpp = 1500;
+    else if (type === "midterm") cpp = 1500;
+    else if (type === "PPT") cpp = 150;
+    else if (type === "PPT-standard") cpp = 200;
+    else if (type === "Technical-2000") cpp = 2000;
+    else if (type === "Technical-2500") cpp = 2500;
+    else if (type === "Infographic-1000") cpp = 1000;
+    else if (type === "Infographic-1500") cpp = 1500;
 
-    // 3. Calculate final payable
     const payable = units * cpp;
 
-    // 4. Validation: Check if basics are missing
     if (!client || units <= 0 || !currentEmployerId) {
         alert("Please fill in Client, Units, and select an Employer!");
         return;
     }
 
-    // 5. Database Insert
     const { data: insertData, error: insertError } = await supabaseClient
         .from('tasks')
         .insert([{
@@ -597,11 +582,10 @@ async function saveTask() {
     if (insertError) {
         alert("Error saving task: " + insertError.message);
     } else {
-        // Clear inputs after success
         document.getElementById('clientInput').value = '';
         document.getElementById('detailInput').value = '';
         document.getElementById('unitsInput').value = '1';
-        fetchTasks(); // Refresh the table list
+        fetchTasks(); 
     }
 }
 
@@ -733,17 +717,44 @@ async function editTask(id) {
     document.getElementById('detailInput').value = task.task_detail;
     document.getElementById('typeInput').value = task.task_type;
     document.getElementById('unitsInput').value = task.units;
-    document.getElementById('deadlineInput').value = task.deadline;
+    
+    // FIX FOR DATE FORMAT:
+    // HTML datetime-local inputs ONLY accept 'YYYY-MM-DDTHH:MM'
+    if (task.deadline) {
+        const date = new Date(task.deadline);
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        const hh = String(date.getHours()).padStart(2, '0');
+        const min = String(date.getMinutes()).padStart(2, '0');
+        
+        document.getElementById('deadlineInput').value = `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+    }
+
     document.getElementById('alertLeadInput').value = task.alert_lead_hours || 1;
 
     // 3. Change the "Save" button to an "Update" button temporarily
-    const saveBtn = document.querySelector('.btn-add[onclick="saveTask()"]');
+    // Use the ID 'saveTaskBtn' if you added it, otherwise keep your selector
+    const saveBtn = document.querySelector('.btn-add'); 
+    
     if (saveBtn) {
         saveBtn.innerText = "Update Order";
         saveBtn.style.background = "#3498db";
+        
+        // Re-bind the click event
         saveBtn.onclick = async () => {
             // First delete the old record, then run the standard save
-            await supabaseClient.from('tasks').delete().eq('id', id);
+            const { error: delError } = await supabaseClient
+                .from('tasks')
+                .delete()
+                .eq('id', id);
+
+            if (delError) {
+                alert("Update failed: " + delError.message);
+                return;
+            }
+
+            // Run the save function to create the updated entry
             await saveTask();
             
             // Reset button back to normal
