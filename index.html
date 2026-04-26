@@ -290,11 +290,22 @@ input:focus, select:focus {
                 <input type="text" id="clientInput" placeholder="Client Name">
                 <input type="text" id="detailInput" placeholder="Task Detail">
                 <select id="typeInput">
-                    <option value="Pages">Pages</option>
-                    <option value="Quiz">Quiz</option>
-                    <option value="Midterm">Midterm</option>
-                    <option value="PPT">PPT</option>
-                </select>
+					<option value="Pages">Pages (Standard) @300</option>
+					<option value="Pages-urgent">Pages (urgent)@350</option>
+					<option value="Quiz">Quiz @1000</option>
+					<option value="Quiz-tech">Quiz tech @ 1500</option>
+					<option value="Midterm">Midterm @1500</option>
+					<option value="PPT">PPT @150</option>
+					<option value="PPT-standard">PPT Standard @200</option>
+					<optgroup label="Technical Services">
+						<option value="Technical-2000">Technical @ 2,000</option>
+						<option value="Technical-2500">Technical @ 2,500</option>
+					</optgroup>
+					<optgroup label="Design Services">
+						<option value="Infographic-1000">Infographic @ 1,000</option>
+						<option value="Infographic-1500">Infographic @ 1,500</option>
+					</optgroup>
+				</select>
                 <input type="number" id="unitsInput" placeholder="Units" value="1">
                 <input type="datetime-local" id="deadlineInput">
                 
@@ -529,9 +540,38 @@ async function saveTask() {
     const type = document.getElementById('typeInput').value;
     
     // This connects to the new HTML input you just added
-    const units = document.getElementById('unitsInput').value; 
-    const deadline = document.getElementById('deadlineInput').value;
-    const alertHours = document.getElementById('alertLeadInput').value || 1;
+    // Get selected type and employer rate
+const type = document.getElementById('typeInput').value;
+const emp = employers.find(e => e.id === currentEmployerId);
+let cpp = emp ? emp.rate : 0;
+
+// Price Override Logic for Technical and Infographics
+if (type === "pages") {
+	cpp = 300;
+}else if (type === "pages-urgent") {
+	cpp = 350;
+}else if (type === "quiz") {
+	cpp = 1000;
+}else if (type === "quiz--tech") {
+	cpp = 1500;
+}else if (type === "midterm") {
+	cpp = 1500;
+}else if (type === "PPT") {
+	cpp = 150;
+}else if (type === "PPT-standard") {
+	cpp = 200;
+}else if (type === "Technical-2000") {
+    cpp = 2000;
+} else if (type === "Technical-2500") {
+    cpp = 2500;
+} else if (type === "Infographic-1000") {
+    cpp = 1000;
+} else if (type === "Infographic-1500") {
+    cpp = 1500;
+}
+
+const units = parseFloat(document.getElementById('unitsInput').value) || 0;
+const payable = units * cpp;
 
     // Check if basics are missing
     if (!client || !units || !currentEmployerId) {
@@ -541,6 +581,7 @@ async function saveTask() {
 
     const cpp = calculateCPP(type);
     const payable = parseFloat(units) * cpp;
+	
 
     if (!client || !currentEmployerId) {
         alert("Please select an employer and enter a client name.");
