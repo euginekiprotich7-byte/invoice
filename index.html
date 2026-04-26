@@ -538,63 +538,55 @@ async function saveTask() {
     const client = document.getElementById('clientInput').value;
     const detail = document.getElementById('detailInput').value;
     const type = document.getElementById('typeInput').value;
-    
-    // This connects to the new HTML input you just added
-    // Get selected type and employer rate
-const emp = employers.find(e => e.id === currentEmployerId);
-let cpp = emp ? emp.rate : 0;
+    const units = parseFloat(document.getElementById('unitsInput').value) || 0;
+    const deadline = document.getElementById('deadlineInput').value;
 
-// Price Override Logic for Technical and Infographics
-if (type === "pages") {
-	cpp = 300;
-}else if (type === "pages-urgent") {
-	cpp = 350;
-}else if (type === "quiz") {
-	cpp = 1000;
-}else if (type === "quiz--tech") {
-	cpp = 1500;
-}else if (type === "midterm") {
-	cpp = 1500;
-}else if (type === "PPT") {
-	cpp = 150;
-}else if (type === "PPT-standard") {
-	cpp = 200;
-}else if (type === "Technical-2000") {
-    cpp = 2000;
-} else if (type === "Technical-2500") {
-    cpp = 2500;
-} else if (type === "Infographic-1000") {
-    cpp = 1000;
-} else if (type === "Infographic-1500") {
-    cpp = 1500;
-}
+    // 1. Get the default employer rate
+    const emp = employers.find(e => e.id === currentEmployerId);
+    let cpp = emp ? emp.rate : 0;
 
-const units = parseFloat(document.getElementById('unitsInput').value) || 0;
-const payable = units * cpp;
+    // 2. Price Override Logic (This sets the CPP based on the type selected)
+    if (type === "pages") {
+        cpp = 300;
+    } else if (type === "pages-urgent") {
+        cpp = 350;
+    } else if (type === "quiz") {
+        cpp = 1000;
+    } else if (type === "quiz-tech") {
+        cpp = 1500;
+    } else if (type === "midterm") {
+        cpp = 1500;
+    } else if (type === "PPT") {
+        cpp = 150;
+    } else if (type === "PPT-standard") {
+        cpp = 200;
+    } else if (type === "Technical-2000") {
+        cpp = 2000;
+    } else if (type === "Technical-2500") {
+        cpp = 2500;
+    } else if (type === "Infographic-1000") {
+        cpp = 1000;
+    } else if (type === "Infographic-1500") {
+        cpp = 1500;
+    }
 
-    // Check if basics are missing
-    if (!client || !units || !currentEmployerId) {
+    // 3. Calculate final payable
+    const payable = units * cpp;
+
+    // 4. Validation: Check if basics are missing
+    if (!client || units <= 0 || !currentEmployerId) {
         alert("Please fill in Client, Units, and select an Employer!");
         return;
     }
 
-    const cpp = calculateCPP(type);
-    const payable = parseFloat(units) * cpp;
-	
-
-    if (!client || !currentEmployerId) {
-        alert("Please select an employer and enter a client name.");
-        return;
-    }
-
-    // Use unique names for data/error to avoid redeclaration issues
+    // 5. Database Insert
     const { data: insertData, error: insertError } = await supabaseClient
         .from('tasks')
         .insert([{
             client_name: client,
             task_detail: detail,
             task_type: type,
-            units: parseFloat(units),
+            units: units,
             cpp: cpp,
             payable: payable,
             deadline: deadline,
@@ -608,7 +600,8 @@ const payable = units * cpp;
         // Clear inputs after success
         document.getElementById('clientInput').value = '';
         document.getElementById('detailInput').value = '';
-        fetchTasks(); // Refresh the list
+        document.getElementById('unitsInput').value = '1';
+        fetchTasks(); // Refresh the table list
     }
 }
 
