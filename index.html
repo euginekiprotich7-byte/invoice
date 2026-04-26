@@ -254,10 +254,16 @@ input:focus, select:focus {
     </div>
 </div>
 
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd;">
+    
     <div class="input-group">
-    <input type="text" id="newEmployerName" placeholder="Employer Name">
-    <input type="number" id="employerRate" placeholder="Rate">
-    <button class="btn btn-add">+ Add</button>
+        <input type="text" id="newEmployerName" placeholder="Employer Name">
+        <input type="number" id="employerRate" placeholder="Default Rate (e.g. 300)">
+        <button class="btn btn-add" onclick="saveEmployer()">+ Add</button>
+    </div>
+
+    <div id="employer-tabs"></div>
+
 </div>
 
     <div style="display: flex; gap: 20px; margin-bottom: 20px;">
