@@ -541,7 +541,6 @@ async function saveTask() {
     
     // This connects to the new HTML input you just added
     // Get selected type and employer rate
-const type = document.getElementById('typeInput').value;
 const emp = employers.find(e => e.id === currentEmployerId);
 let cpp = emp ? emp.rate : 0;
 
