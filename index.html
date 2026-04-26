@@ -489,34 +489,29 @@ function renderEmployerTabs() {
     container.innerHTML = '';
 
     employers.forEach(emp => {
+        // Create a wrapper to hold the name and the X together
         const wrapper = document.createElement('div');
-        // This styling ensures the name and the X stay together as one unit
-        wrapper.style.cssText = "display: inline-flex; margin: 5px; border-radius: 4px; overflow: hidden; border: 1px solid #2c3e50; transition: 0.2s;";
+        wrapper.style.cssText = "display: inline-flex; margin: 5px; border-radius: 4px; overflow: hidden; border: 1px solid #2c3e50;";
 
-        // 1. THE MAIN BUTTON (Select & Edit)
+        // THE MAIN BUTTON (Click to Select / Double-Click to Edit)
         const btn = document.createElement('button');
         btn.innerText = `${emp.name} (${emp.rate})`;
-        btn.style.cssText = `padding: 8px 12px; border: none; cursor: pointer; color: white; font-weight: bold; background: ${(currentEmployerId === emp.id) ? '#3498db' : '#2c3e50'};`;
+        btn.title = "Double-click to edit name or rate";
+        btn.style.cssText = `padding: 8px 12px; border: none; cursor: pointer; color: white; background: ${(currentEmployerId === emp.id) ? '#3498db' : '#2c3e50'};`;
         
         btn.onclick = () => selectEmployer(emp.id);
-        
-        // Double click to edit name/rate
         btn.ondblclick = () => editEmployer(emp.id, emp.name, emp.rate);
 
-        // 2. THE DELETE BUTTON (The X)
+        // THE DELETE BUTTON (The Red X)
         const delBtn = document.createElement('button');
         delBtn.innerHTML = '&times;';
         delBtn.title = "Delete Employer";
-        delBtn.style.cssText = "padding: 8px 12px; border: none; cursor: pointer; background: #e74c3c; color: white; border-left: 1px solid #c0392b; font-size: 16px;";
+        delBtn.style.cssText = "padding: 8px 10px; border: none; cursor: pointer; background: #e74c3c; color: white; border-left: 1px solid #c0392b; font-weight: bold;";
         
         delBtn.onclick = (e) => {
-            e.stopPropagation(); // Prevents the employer from being selected when you click delete
-            deleteEmployer(emp.id, emp.name);
+            e.stopPropagation(); // Prevents employer selection when deleting
+            deleteEmployerProfile(emp.id, emp.name);
         };
-
-        // Add hover effect for the delete button
-        delBtn.onmouseover = () => { delBtn.style.background = '#c0392b'; };
-        delBtn.onmouseout = () => { delBtn.style.background = '#e74c3c'; };
 
         wrapper.appendChild(btn);
         wrapper.appendChild(delBtn);
@@ -524,27 +519,24 @@ function renderEmployerTabs() {
     });
 }
 
-// DELETE EMPLOYER
-async function deleteEmployer(id, name) {
-    if (!confirm(`Are you sure you want to delete "${name}"? This will permanently remove all tasks associated with them.`)) return;
+// DELETE LOGIC
+async function deleteEmployerProfile(id, name) {
+    if (!confirm(`Are you sure you want to delete "${name}"? This will remove all their tasks.`)) return;
 
-    // First, remove their tasks to keep the database clean
+    // Delete tasks first
     await supabaseClient.from('tasks').delete().eq('employer_id', id);
     
-    // Then delete the employer
-    const { error } = await supabaseClient
-        .from('employers')
-        .delete()
-        .eq('id', id);
+    // Delete employer
+    const { error } = await supabaseClient.from('employers').delete().eq('id', id);
 
-    if (error) {
-        alert("Delete failed: " + error.message);
-    } else {
+    if (error) alert("Delete failed: " + error.message);
+    else {
         if (currentEmployerId === id) currentEmployerId = null;
-        await fetchEmployers(); // Refresh the tabs
+        await fetchEmployers(); 
     }
 }
 
+// EDIT LOGIC
 async function editEmployer(id, oldName, oldRate) {
     const newName = prompt("Edit Employer Name:", oldName);
     const newRate = prompt("Edit Default Rate (KES):", oldRate);
@@ -559,6 +551,7 @@ async function editEmployer(id, oldName, oldRate) {
         else await fetchEmployers();
     }
 }
+
 function renderHistory(tasks) {
     const body = document.getElementById('historyBody');
     if (!body) return;
