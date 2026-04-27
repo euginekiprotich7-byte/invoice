@@ -308,7 +308,11 @@ input:focus, select:focus {
 				</select>
                 <input type="number" id="unitsInput" placeholder="Units" value="1">
                 <input type="datetime-local" id="deadlineInput">
-                
+                <div style="display:flex; flex-direction:column;">
+				<label style="font-size:10px; color:#666;">Override CPP (Optional)</label>
+				<input type="number" id="customCppInput" placeholder="Enter custom price">
+			</div>
+				<input type="number" id="unitsInput" placeholder="Units" value="1">
                 <div style="display:flex; flex-direction:column;">
                     <label style="font-size:10px; color:#666;">Alarm Lead (Hours)</label>
                     <input type="number" id="alertLeadInput" value="1" min="1">
@@ -542,16 +546,16 @@ async function saveTask() {
     const units = parseFloat(document.getElementById('unitsInput').value) || 0;
     const deadline = document.getElementById('deadlineInput').value;
 
-    // FIX: Changed 'employers' to 'allEmployers' to match your global variable
+    // FIX: Changed 'emp.rate' to 'emp.rate_per_unit' to match your DB schema
     const emp = allEmployers.find(e => e.id === currentEmployerId);
-    let cpp = emp ? emp.rate : 0;
+    let cpp = emp ? emp.rate_per_unit : 0; 
 
-    // Price Overrides
-    if (type === "pages") cpp = 300;
-    else if (type === "pages-urgent") cpp = 350;
-    else if (type === "quiz") cpp = 1000;
-    else if (type === "quiz-tech") cpp = 1500;
-    else if (type === "midterm") cpp = 1500;
+    // Price Overrides - These MUST match your <select> values exactly
+    if (type === "Pages") cpp = 300;
+    else if (type === "Pages-urgent") cpp = 350;
+    else if (type === "Quiz") cpp = 1000;
+    else if (type === "Quiz-tech") cpp = 1500;
+    else if (type === "Midterm") cpp = 1500;
     else if (type === "PPT") cpp = 150;
     else if (type === "PPT-standard") cpp = 200;
     else if (type === "Technical-2000") cpp = 2000;
@@ -573,7 +577,7 @@ async function saveTask() {
             task_detail: detail,
             task_type: type,
             units: units,
-            cpp: cpp,
+            cpp: cpp, // This will now be correctly populated
             payable: payable,
             deadline: deadline,
             employer_id: currentEmployerId,
