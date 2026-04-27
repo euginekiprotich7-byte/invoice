@@ -286,37 +286,53 @@ input:focus, select:focus {
     <div id="active-section" class="tab-content">
         <div style="background: #fff; border: 1px solid #3498db; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
             <h3 style="margin-top:0">Register New Order</h3>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;">
-                <input type="text" id="clientInput" placeholder="Client Name">
-                <input type="text" id="detailInput" placeholder="Task Detail">
-                <select id="typeInput">
-					<option value="Pages">Pages (Standard) @300</option>
-					<option value="Pages-urgent">Pages (urgent)@350</option>
-					<option value="Quiz">Quiz @1000</option>
-					<option value="Quiz-tech">Quiz tech @ 1500</option>
-					<option value="Midterm">Midterm @1500</option>
-					<option value="PPT">PPT @150</option>
-					<option value="PPT-standard">PPT Standard @200</option>
-					<optgroup label="Technical Services">
-						<option value="Technical-2000">Technical @ 2,000</option>
-						<option value="Technical-2500">Technical @ 2,500</option>
-					</optgroup>
-					<optgroup label="Design Services">
-						<option value="Infographic-1000">Infographic @ 1,000</option>
-						<option value="Infographic-1500">Infographic @ 1,500</option>
-					</optgroup>
-				</select>
-                <input type="number" id="unitsInput" placeholder="Units" value="1">
-                <input type="datetime-local" id="deadlineInput">
-                <div style="display:flex; flex-direction:column;">
-				<label style="font-size:10px; color:#666;">Override CPP (Optional)</label>
-			</div>
-                    <label style="font-size:10px; color:#666;">Alarm Lead (Hours)</label>
-                    <input type="number" id="alertLeadInput" value="1" min="1">
-                </div>
-
-                <button class="btn btn-add" onclick="saveTask()" style="background:#2ecc71; color:white;">Save Order</button>
-            </div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; align-items: end;">
+    <div style="display:flex; flex-direction:column;">
+        <label style="font-size:10px; color:#666;">Client Name</label>
+        <input type="text" id="clientInput" placeholder="Client Name">
+    </div>
+    <div style="display:flex; flex-direction:column;">
+        <label style="font-size:10px; color:#666;">Task Detail</label>
+        <input type="text" id="detailInput" placeholder="Task Detail">
+    </div>
+    <div style="display:flex; flex-direction:column;">
+        <label style="font-size:10px; color:#666;">Service Type</label>
+        <select id="typeInput">
+            <option value="Pages">Pages (Standard) @300</option>
+            <option value="Pages-urgent">Pages (urgent)@350</option>
+            <option value="Quiz">Quiz @1000</option>
+            <option value="Quiz-tech">Quiz tech @ 1500</option>
+            <option value="Midterm">Midterm @1500</option>
+            <option value="PPT">PPT @150</option>
+            <option value="PPT-standard">PPT Standard @200</option>
+            <optgroup label="Technical Services">
+                <option value="Technical-2000">Technical @ 2,000</option>
+                <option value="Technical-2500">Technical @ 2,500</option>
+            </optgroup>
+            <optgroup label="Design Services">
+                <option value="Infographic-1000">Infographic @ 1,000</option>
+                <option value="Infographic-1500">Infographic @ 1,500</option>
+            </optgroup>
+        </select>
+    </div>
+    <div style="display:flex; flex-direction:column;">
+        <label style="font-size:10px; color:#666;">Units</label>
+        <input type="number" id="unitsInput" placeholder="Units" value="1">
+    </div>
+    <div style="display:flex; flex-direction:column;">
+        <label style="font-size:10px; color:#666;">Override CPP</label>
+        <input type="number" id="customCppInput" placeholder="Custom Price">
+    </div>
+    <div style="display:flex; flex-direction:column;">
+        <label style="font-size:10px; color:#666;">Deadline</label>
+        <input type="datetime-local" id="deadlineInput">
+    </div>
+    <div style="display:flex; flex-direction:column;">
+        <label style="font-size:10px; color:#666;">Alarm Lead (Hrs)</label>
+        <input type="number" id="alertLeadInput" value="1" min="1">
+    </div>
+    <button class="btn btn-add" onclick="saveTask()" style="background:#2ecc71; color:white; height: 38px;">Save Order</button>
+</div>
         </div>
 
         <h3>Pending Orders</h3>
@@ -542,12 +558,14 @@ async function saveTask() {
     const type = document.getElementById('typeInput').value;
     const units = parseFloat(document.getElementById('unitsInput').value) || 0;
     const deadline = document.getElementById('deadlineInput').value;
+    const customCpp = parseFloat(document.getElementById('customCppInput').value); // Manual Override
+    const alertLead = parseFloat(document.getElementById('alertLeadInput').value) || 1;
 
-    // FIX: Changed 'emp.rate' to 'emp.rate_per_unit' to match your DB schema
+    // 1. Initial price based on Employer default
     const emp = allEmployers.find(e => e.id === currentEmployerId);
     let cpp = emp ? emp.rate_per_unit : 0; 
 
-    // Price Overrides - These MUST match your <select> values exactly
+    // 2. Automatic logic for different types
     if (type === "Pages") cpp = 300;
     else if (type === "Pages-urgent") cpp = 350;
     else if (type === "Quiz") cpp = 1000;
@@ -560,6 +578,12 @@ async function saveTask() {
     else if (type === "Infographic-1000") cpp = 1000;
     else if (type === "Infographic-1500") cpp = 1500;
 
+    // 3. APPLY MANUAL OVERRIDE (If a value was typed in the new box)
+    if (!isNaN(customCpp) && customCpp > 0) {
+        cpp = customCpp;
+    }
+
+    // 4. Calculate Total Payable
     const payable = units * cpp;
 
     if (!client || units <= 0 || !currentEmployerId) {
@@ -574,18 +598,21 @@ async function saveTask() {
             task_detail: detail,
             task_type: type,
             units: units,
-            cpp: cpp, // This will now be correctly populated
+            cpp: cpp, 
             payable: payable,
             deadline: deadline,
             employer_id: currentEmployerId,
+            alert_lead_hours: alertLead,
             status: 'Pending'
         }]);
 
     if (insertError) {
         alert("Error saving task: " + insertError.message);
     } else {
+        // Reset form
         document.getElementById('clientInput').value = '';
         document.getElementById('detailInput').value = '';
+        document.getElementById('customCppInput').value = ''; // Reset override
         document.getElementById('unitsInput').value = '1';
         fetchTasks(); 
     }
