@@ -246,6 +246,13 @@ input:focus, select:focus {
 
 <div id="statusIndicator" class="online">ONLINE</div>
 
+<button id="installBtn" onclick="installApp()" style="display:none; position:fixed; bottom:16px; right:16px; z-index:9999; background:#27ae60; color:white; border:none; padding:12px 18px; border-radius:24px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.2); cursor:pointer;">⬇️ Install App</button>
+
+<div id="iosInstallBanner" style="display:none; position:fixed; bottom:0; left:0; width:100%; background:#2c3e50; color:white; padding:14px 18px; font-size:13px; z-index:9999; box-shadow:0 -2px 10px rgba(0,0,0,0.2);">
+    📲 Install this app: tap <strong>Share</strong> then <strong>"Add to Home Screen"</strong>.
+    <button onclick="document.getElementById('iosInstallBanner').style.display='none'" style="float:right; background:none; border:1px solid white; color:white; border-radius:4px; padding:2px 8px; cursor:pointer;">✕</button>
+</div>
+
 <div class="container">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
     <div>
@@ -1264,6 +1271,55 @@ setInterval(() => {
         }
     });
 }, 1000);
+</script>
+
+<!-- Offline cache, multi-device realtime sync, and the local alarm engine.
+     Loaded after the block above so they can safely wrap its functions. -->
+<script src="./offline.js"></script>
+<script src="./realtime.js"></script>
+<script src="./alarm-engine.js"></script>
+
+<script>
+/* PWA install (Android/Chrome/Desktop) + iOS "Add to Home Screen" hint,
+   since Safari never fires beforeinstallprompt. */
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.style.display = 'block';
+});
+
+async function installApp() {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    document.getElementById('installBtn').style.display = 'none';
+}
+
+window.addEventListener('appinstalled', () => {
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.style.display = 'none';
+});
+
+(function showIosInstallHintIfNeeded() {
+    const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+    const isStandalone = window.navigator.standalone === true ||
+        window.matchMedia('(display-mode: standalone)').matches;
+    if (isIos && !isStandalone) {
+        document.getElementById('iosInstallBanner').style.display = 'block';
+    }
+})();
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then((reg) => console.log('Service worker registered:', reg.scope))
+            .catch((err) => console.error('Service worker registration failed:', err));
+    });
+}
 </script>
 </body>
 </html>

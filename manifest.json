@@ -1,20 +1,27 @@
 {
-  "name": "Task Manager",
-  "short_name": "TaskMngr",
-  "start_url": "/index.html",
+  "name": "Invoice & Order Manager",
+  "short_name": "OrderMngr",
+  "description": "Track client orders, deadlines and invoices across all your devices, online or offline.",
+  "id": "/index.html",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#2c3e50",
   "theme_color": "#2c3e50",
+  "categories": ["business", "finance", "productivity"],
   "icons": [
     {
       "src": "icon.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icon.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
