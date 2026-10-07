@@ -233,7 +233,7 @@ function wrapFetchTasksForOffline() {
         const data = window.currentEmployerId ? all.filter(t => t.employer_id === window.currentEmployerId) : all;
         window.allTasks = data;
         if (typeof renderActive === 'function') renderActive(data.filter(t => t.status === 'Pending'));
-        if (typeof renderDoneTable === 'function') renderDoneTable(data.filter(t => t.status === 'Done'));
+        if (typeof renderDoneTable === 'function') renderDoneTable(data.filter(t => t.status === 'Done' || t.status === 'Refunded'));
         if (typeof renderHistory === 'function') renderHistory(data.filter(t => t.status === 'Paid' || t.status === 'Cancelled'));
         if (typeof updateDashboardTotals === 'function') updateDashboardTotals(data);
     };

@@ -378,20 +378,21 @@ input:focus, select:focus {
                 <label>Advances Received (-)
                     <input type="number" id="adjPlus" value="0" min="0" step="0.01" oninput="calculateFinalPayable()">
                 </label>
-                <label>Refunds (-)
-                    <input type="number" id="adjRefund" value="0" min="0" step="0.01" oninput="calculateFinalPayable()">
+                <label>Refund credits from History (-)
+                    <input type="number" id="adjRefund" value="0" readonly title="Refunds are added automatically when an invoice is marked Refunded in History.">
                 </label>
                 <label>Deductibles / Fines (-)
                     <input type="number" id="adjMinus" value="0" min="0" step="0.01" oninput="calculateFinalPayable()">
                 </label>
-                <label>Balance from Previous Invoices (+)
-                    <input type="number" id="adjPrevious" value="0" min="0" step="0.01" oninput="calculateFinalPayable()">
+                <label>Previous unpaid balance (+)
+                    <input type="number" id="adjPrevious" value="0" readonly title="Calculated automatically from unpaid invoices not yet carried forward.">
                 </label>
             </div>
             <div class="invoice-total-box">
                 <div><span>Current work subtotal</span><strong id="invoiceSubtotalDisplay">KES 0.00</strong></div>
                 <div><span>Previous balance</span><strong id="invoicePreviousDisplay">KES 0.00</strong></div>
                 <div><span>Less advances / refunds / deductions</span><strong id="invoiceAdjustmentsDisplay">KES 0.00</strong></div>
+                <div><span>Refund credit carried from History</span><strong id="invoiceRefundDisplay">KES 0.00</strong></div>
                 <div class="grand"><span>Balance to be Paid</span><strong id="finalTotalDisplay">KES 0.00</strong></div>
             </div>
             <div class="invoice-actions">
@@ -405,7 +406,7 @@ input:focus, select:focus {
         <div class="history-header">
             <div>
                 <h3>Invoices & Payment History</h3>
-                <p>Every generated invoice stays here until you change its payment status.</p>
+                <p>Generating an invoice records it as <b>UNPAID</b>. Use the buttons below only when the real payment, refund, or cancellation happens.</p>
             </div>
             <div id="historySummary" class="history-summary"></div>
         </div>
@@ -693,7 +694,7 @@ async function fetchTasks() {
 
     // Filter data strictly by status for each page
     const pendingTasks = data.filter(t => t.status === 'Pending');
-    const doneTasks = data.filter(t => t.status === 'Done');
+    const doneTasks = data.filter(t => t.status === 'Done' || t.status === 'Refunded');
     const historyTasks = data.filter(t => ['Invoiced','Paid','Cancelled','Canceled','Refunded'].includes(t.status));
 
     // Send the correct data to the correct table
@@ -752,6 +753,7 @@ function renderDoneTable(tasks) {
             <td>${task.task_detail || 'N/A'}</td>
             <td>${(parseFloat(task.payable) || 0).toLocaleString()} KES</td>
             <td>
+                <span class="status-pill ${task.status === 'Refunded' ? 'status-refunded' : 'status-unpaid'}">${task.status}</span>
                 <button class='btn' style="background:#e74c3c; color:white;" onclick="deleteTask('${task.id}')">Delete</button>
             </td>
         </tr>`;
