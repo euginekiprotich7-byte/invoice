@@ -44,6 +44,7 @@ async function checkDueOrdersLocally() {
 
     const now = Date.now();
     for (const task of tasks) {
+        if (typeof isAlarmSnoozed !== 'undefined' && isAlarmSnoozed) continue;
         if (!task.deadline || task.status !== 'Pending') continue;
         const deadline = new Date(task.deadline).getTime();
         const leadMs = (task.alert_lead_hours || 1) * 3600000;
@@ -51,11 +52,16 @@ async function checkDueOrdersLocally() {
 
         if (now >= deadline - leadMs && !alreadyFlagged) {
             const overdue = now >= deadline;
-            await fireSystemNotification(
-                overdue ? '🚨 ORDER OVERDUE' : '⏰ Order due soon',
-                `${task.client_name || ''}: ${task.task_detail || 'Task'}`.trim(),
-                'order-' + task.id
-            );
+            const label = `${task.client_name || ''}: ${task.task_detail || 'Task'}`.trim();
+            if (typeof triggerAlarm === 'function') {
+                triggerAlarm(label, overdue);
+            } else {
+                await fireSystemNotification(
+                    overdue ? '🚨 ORDER OVERDUE' : '⏰ Order due soon',
+                    label,
+                    'order-' + task.id
+                );
+            }
             sessionStorage.setItem('notified-' + task.id, '1');
         }
     }
@@ -89,7 +95,7 @@ async function registerPeriodicSync() {
    the one you set as a secret on the Edge Function, and this device
    has internet at the moment the push arrives. Set VAPID_PUBLIC_KEY
    to the public key you generated (see README) before relying on this. */
-const BH6AolgdLMaEptLsE7Mm7DEk9D-7THs_aYgzU0kCYdHeFuMGS_CDYz8Kzb0BzgJf-KcxpQgtgWN-RrAOB4JmFkY = ''; // <-- paste your VAPID public key here
+const VAPID_PUBLIC_KEY = ''; // Optional: set your Web Push public key here.
 
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);

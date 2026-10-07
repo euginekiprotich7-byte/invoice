@@ -9,12 +9,16 @@ function triggerAlarm(taskName) {
     // 1. Visual Alert with Pulsing Effect
     if (banner) {
         banner.innerHTML = `
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span>🚨 <b>${displayName}</b> IS DUE!</span>
-                <button onclick="stopAlarm()" style="background:white; color:red; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold;">DISMISS</button>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;max-width:1100px;margin:auto;">
+                <span>🚨 <b>${displayName}</b> — DEADLINE ALERT</span>
+                <div style="display:flex;gap:8px;">
+                    <button onclick="snoozeAlarm()" style="background:#fff3cd;color:#856404;border:none;padding:7px 11px;border-radius:6px;cursor:pointer;font-weight:bold;">SNOOZE 15 MIN</button>
+                    <button onclick="stopAlarm()" style="background:white;color:#c0392b;border:none;padding:7px 11px;border-radius:6px;cursor:pointer;font-weight:bold;">DISMISS</button>
+                </div>
             </div>`;
         banner.style.display = 'block';
-        banner.classList.add('pulse-animation'); // Assuming you have a CSS pulse keyframe
+        banner.classList.add('pulse-animation');
+        flashTitle();
     }
 
     // 2. Audio Alert
@@ -31,7 +35,8 @@ function triggerAlarm(taskName) {
         navigator.serviceWorker.ready.then(registration => {
             registration.showNotification('🚨 URGENT: DEADLINE REACHED', {
                 body: `The deadline for "${displayName}" has arrived.`,
-                icon: "https://cdn-icons-png.flaticon.com/512/1827/1827347.png",
+                icon: "./icon.png",
+                badge: "./icon.png",
                 tag: 'urgent-alarm',
                 renotify: true, // Make it pop up even if one is already there
                 requireInteraction: true,
@@ -68,27 +73,18 @@ window.addEventListener('click', () => {
 }, { once: true });
 
 function snoozeAlarm() {
-    stopAlarm(); // Hide banner and stop audio
-    
+    stopAlarm();
     window.isSnoozed = true;
-    let secondsLeft = 15 * 60; // 15 minutes in seconds
-    const display = document.getElementById('snoozeCountdown');
-    
-    display.innerText = `Snoozed: 15:00`;
-    
-    snoozeTimer = setInterval(() => {
-        secondsLeft--;
-        let mins = Math.floor(secondsLeft / 60);
-        let secs = secondsLeft % 60;
-        display.innerText = `Snoozed: ${mins}:${secs < 10 ? '0'+secs : secs}`;
-        
-        if (secondsLeft <= 0) {
-            clearInterval(snoozeTimer);
-            window.isSnoozed = false;
-            display.innerText = "";
-            console.log("Snooze ended, alarm re-enabled.");
-        }
-    }, 1000);
+    isAlarmSnoozed = true;
+    alarmSnoozeUntil = Date.now() + 15 * 60 * 1000;
+
+    if (window.snoozeTimer) clearTimeout(window.snoozeTimer);
+    window.snoozeTimer = setTimeout(() => {
+        Object.keys(sessionStorage).filter(k => k.startsWith('notified-')).forEach(k => sessionStorage.removeItem(k));
+        window.isSnoozed = false;
+        isAlarmSnoozed = false;
+        alarmSnoozeUntil = null;
+    }, 15 * 60 * 1000);
 }
 
 function stopAlarm() {
@@ -106,6 +102,8 @@ function stopAlarm() {
     }
 
     document.title = "Invoice Manager";
+    isAlarmSnoozed = false;
+    alarmSnoozeUntil = null;
     if (typeof titleInterval !== 'undefined') {
         clearInterval(titleInterval);
         titleInterval = null;

@@ -10,7 +10,7 @@
    ========================================================= */
 
 const DB_NAME = 'invoice-manager-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 function openAppDB() {
     return new Promise((resolve, reject) => {
@@ -20,6 +20,7 @@ function openAppDB() {
             if (!db.objectStoreNames.contains('tasks')) db.createObjectStore('tasks', { keyPath: 'id' });
             if (!db.objectStoreNames.contains('employers')) db.createObjectStore('employers', { keyPath: 'id' });
             if (!db.objectStoreNames.contains('pending_writes')) db.createObjectStore('pending_writes', { keyPath: 'localId', autoIncrement: true });
+            if (!db.objectStoreNames.contains('invoices')) db.createObjectStore('invoices', { keyPath: 'id' });
         };
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
@@ -83,12 +84,14 @@ function setSyncStatus(text, cls) {
 async function cacheFullSnapshot() {
     if (!navigator.onLine) return;
     try {
-        const [tasksRes, empRes] = await Promise.all([
+        const [tasksRes, empRes, invoicesRes] = await Promise.all([
             supabaseClient.from('tasks').select('*'),
-            supabaseClient.from('employers').select('*')
+            supabaseClient.from('employers').select('*'),
+            supabaseClient.from('invoices').select('*')
         ]);
         if (!tasksRes.error && tasksRes.data) await idbPutAll('tasks', tasksRes.data);
         if (!empRes.error && empRes.data) await idbPutAll('employers', empRes.data);
+        if (!invoicesRes.error && invoicesRes.data) await idbPutAll('invoices', invoicesRes.data);
     } catch (err) {
         console.warn('Snapshot cache skipped:', err.message);
     }

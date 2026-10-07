@@ -72,7 +72,7 @@ async function installApp() {
  * 3. VERSION & HEARTBEAT
  */
 function updateAppVersionUI() {
-    const version = "1.0.5"; 
+    const version = "1.1.0"; 
     const versionTag = document.getElementById('version-tag');
     if (versionTag) versionTag.innerText = `v${version}`;
 }

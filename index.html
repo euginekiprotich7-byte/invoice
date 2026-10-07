@@ -234,6 +234,8 @@ input:focus, select:focus {
     flex: 1;
     min-width: 150px;
 }
+
+.invoice-adjustments{background:linear-gradient(135deg,#f8fbff,#f5f7fa);padding:20px;border:1px solid #dfe6e9;border-radius:12px;margin-top:20px}.invoice-adjustment-head{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;margin-bottom:16px}.invoice-adjustment-head h4{margin:0 0 4px}.adjustment-hint{font-size:12px;color:#2980b9;background:#eaf5ff;padding:8px 10px;border-radius:20px}.adjustment-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px}.adjustment-grid label{font-size:12px;color:#566573;font-weight:600}.adjustment-grid input{width:100%;box-sizing:border-box;margin-top:6px}.invoice-total-box{margin-top:18px;border-top:1px solid #dfe6e9;padding-top:12px}.invoice-total-box>div{display:flex;justify-content:space-between;padding:6px 0}.invoice-total-box .grand{font-size:18px;border-top:2px solid #2c3e50;margin-top:6px;padding-top:12px}.invoice-actions{display:flex;gap:10px;margin-top:15px}.invoice-actions .btn{flex:1;padding:12px}.history-header{display:flex;justify-content:space-between;align-items:center;gap:15px}.history-header h3{margin-bottom:4px}.history-header p{margin-top:0;color:#7f8c8d}.history-summary{font-weight:700;color:#2c3e50}.history-filters{display:flex;gap:10px;margin:12px 0}.history-filters input{flex:1}.status-pill{display:inline-block;padding:5px 9px;border-radius:20px;font-size:11px;font-weight:700}.status-unpaid{background:#fff3cd;color:#856404}.status-paid{background:#d4edda;color:#155724}.status-refunded{background:#e8daef;color:#6c3483}.status-canceled{background:#f8d7da;color:#721c24}.invoice-action-group{display:flex;gap:5px;flex-wrap:wrap}.invoice-action-group .btn{font-size:11px;padding:6px 8px}@media(max-width:800px){.adjustment-grid{grid-template-columns:1fr 1fr}.invoice-adjustment-head,.history-header{flex-direction:column}.invoice-actions,.history-filters{flex-direction:column}}@media(max-width:520px){.adjustment-grid{grid-template-columns:1fr}.container{padding:12px}body{padding:8px}}
 </style>
 </head>
 <body>
@@ -364,31 +366,63 @@ input:focus, select:focus {
             </table>
         </div>
 
-        <div style="background: #fdf2f2; padding: 20px; border: 1px solid #e74c3c; border-radius: 8px; margin-top: 20px;">
-            <h4 style="margin-top:0">Invoice Adjustments</h4>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+        <div class="invoice-adjustments">
+            <div class="invoice-adjustment-head">
                 <div>
-                    <label style="display:block; font-size:12px; color:#666;">Advances Received (-)</label>
-                    <input type="number" id="adjPlus" value="0" oninput="calculateFinalPayable()" style="width:100%; padding:8px;">
+                    <h4>Invoice Adjustments</h4>
+                    <small>These values are saved to the invoice and will not need to be entered again.</small>
                 </div>
-                <div>
-                    <label style="display:block; font-size:12px; color:#666;">Deductibles / Fines (-)</label>
-                    <input type="number" id="adjMinus" value="0" oninput="calculateFinalPayable()" style="width:100%; padding:8px;">
-                </div>
+                <span id="previousBalanceHint" class="adjustment-hint">Previous outstanding: KES 0.00</span>
             </div>
-            <div style="margin-top: 15px; border-top: 2px solid #c0392b; padding-top: 10px; font-weight: bold; font-size: 1.2em;">
-                Balance to be Paid: <span id="finalTotalDisplay">0.00</span> KES
+            <div class="adjustment-grid">
+                <label>Advances Received (-)
+                    <input type="number" id="adjPlus" value="0" min="0" step="0.01" oninput="calculateFinalPayable()">
+                </label>
+                <label>Refunds (-)
+                    <input type="number" id="adjRefund" value="0" min="0" step="0.01" oninput="calculateFinalPayable()">
+                </label>
+                <label>Deductibles / Fines (-)
+                    <input type="number" id="adjMinus" value="0" min="0" step="0.01" oninput="calculateFinalPayable()">
+                </label>
+                <label>Balance from Previous Invoices (+)
+                    <input type="number" id="adjPrevious" value="0" min="0" step="0.01" oninput="calculateFinalPayable()">
+                </label>
+            </div>
+            <div class="invoice-total-box">
+                <div><span>Current work subtotal</span><strong id="invoiceSubtotalDisplay">KES 0.00</strong></div>
+                <div><span>Previous balance</span><strong id="invoicePreviousDisplay">KES 0.00</strong></div>
+                <div><span>Less advances / refunds / deductions</span><strong id="invoiceAdjustmentsDisplay">KES 0.00</strong></div>
+                <div class="grand"><span>Balance to be Paid</span><strong id="finalTotalDisplay">KES 0.00</strong></div>
+            </div>
+            <div class="invoice-actions">
+                <button class="btn" onclick="generateAndSaveInvoice('word')" style="background:#2c3e50;color:white;">📄 Generate & Save Word Invoice</button>
+                <button class="btn" onclick="generateAndSaveInvoice('excel')" style="background:#27ae60;color:white;">📊 Generate & Save Excel Invoice</button>
             </div>
         </div>
-        <button class="btn" onclick="exportToWord()" style="background:#2c3e50; color:white; margin-top:20px; width:100%; padding:15px;">📄 GENERATE WORD INVOICE</button>
     </div>
 
     <div id="history-section" class="tab-content" style="display:none">
-        <h3>Payment History & Archives</h3>
+        <div class="history-header">
+            <div>
+                <h3>Invoices & Payment History</h3>
+                <p>Every generated invoice stays here until you change its payment status.</p>
+            </div>
+            <div id="historySummary" class="history-summary"></div>
+        </div>
+        <div class="history-filters">
+            <input id="historySearch" type="search" placeholder="Search invoice, employer or client..." oninput="renderInvoiceHistory()">
+            <select id="historyStatusFilter" onchange="renderInvoiceHistory()">
+                <option value="ALL">All statuses</option>
+                <option value="Unpaid">Unpaid</option>
+                <option value="Paid">Paid</option>
+                <option value="Refunded">Refunded</option>
+                <option value="Canceled">Canceled</option>
+            </select>
+        </div>
         <div class="table-container">
             <table>
                 <thead>
-                    <tr><th>Client</th><th>Detail</th><th>Total Paid</th><th>Status</th></tr>
+                    <tr><th>Invoice</th><th>Date</th><th>Subtotal</th><th>Prev. Balance</th><th>Adjustments</th><th>Balance Due</th><th>Status</th><th>Actions</th></tr>
                 </thead>
                 <tbody id="historyBody"></tbody>
             </table>
@@ -660,7 +694,7 @@ async function fetchTasks() {
     // Filter data strictly by status for each page
     const pendingTasks = data.filter(t => t.status === 'Pending');
     const doneTasks = data.filter(t => t.status === 'Done');
-    const historyTasks = data.filter(t => t.status === 'Paid' || t.status === 'Cancelled');
+    const historyTasks = data.filter(t => ['Invoiced','Paid','Cancelled','Canceled','Refunded'].includes(t.status));
 
     // Send the correct data to the correct table
     renderActive(pendingTasks);
@@ -930,57 +964,6 @@ function checkDeadlines(tasks) {
     }
 }
 
-function calculateFinalPayable() {
-    const tableBody = document.getElementById('doneTableBody');
-    const rows = Array.from(tableBody.querySelectorAll('tr'));
-    
-    let subtotal = 0;
-    rows.forEach(row => {
-        // Only sum rows that aren't the empty "No orders" message
-        const val = row.cells[2]?.innerText.replace(/[^0-9.]/g, '');
-        subtotal += parseFloat(val) || 0;
-    });
-
-    // Inputs: Money you already received or penalties
-    const advances = parseFloat(document.getElementById('adjPlus').value) || 0;
-    const deductibles = parseFloat(document.getElementById('adjMinus').value) || 0;
-    
-    // Final = (Total Work) - (Money already paid) - (Deductions/Cancelled)
-    const final = subtotal - advances - deductibles;
-    
-    document.getElementById('finalTotalDisplay').innerText = final.toLocaleString('en-KE', { 
-        minimumFractionDigits: 2 
-    });
-    
-    return { subtotal, advances, deductibles, final };
-}
-
-function triggerAlarm(taskDetail) {
-    const alarm = document.getElementById('dueAlarm');
-    const banner = document.getElementById('alarmBanner');
-
-    if (alarm) {
-        alarm.loop = true;
-        alarm.play().catch(e => console.log("Playback blocked until you click somewhere on the page."));
-    }
-    
-    if (banner) {
-        banner.style.display = 'block';
-        banner.innerHTML = `⚠️ DEADLINE: ${taskDetail} ⚠️ <button onclick="stopAlarm()" style="margin-left:20px;">DISMISS</button>`;
-    }
-}
-
-function stopAlarm() {
-    const alarm = document.getElementById('dueAlarm');
-    const banner = document.getElementById('alarmBanner');
-    if (alarm) {
-        alarm.pause();
-        alarm.currentTime = 0;
-    }
-    if (banner) banner.style.display = 'none';
-}
-
-
 function notifyUser(task){
 if(Notification.permission==='granted'){
 new Notification('Task Due Soon',{body:task.task_detail});
@@ -996,188 +979,7 @@ async function markNotified(id) {
         .eq('id', id);
 }
 
-function generateExcelInvoice(){
-const table=document.getElementById('doneTableBody');
-let data=[];
-
-Array.from(table.rows).forEach(row=>{
-let rowData=[];
-Array.from(row.cells).forEach(cell=>{
-rowData.push(cell.innerText);
-});
-data.push(rowData);
-});
-
-const ws=XLSX.utils.aoa_to_sheet(data);
-const wb=XLSX.utils.book_new();
-XLSX.utils.book_append_sheet(wb,ws,'Invoice');
-XLSX.writeFile(wb,'invoice.xlsx');
-}
-
-async function exportToExcel() {
-    const tableBody = document.getElementById('doneTableBody');
-    const rows = Array.from(tableBody.querySelectorAll('tr:not([style*="font-weight: bold"])'));
-    if (rows.length === 0) return alert("No orders!");
-
-    const employerName = document.querySelector('#employer-tabs button[style*="background-color"]')?.innerText || "Employer";
-    
-    const grouped = {};
-    rows.forEach(row => {
-        const client = row.cells[0].innerText;
-        if (!grouped[client]) grouped[client] = [];
-        grouped[client].push([row.cells[1].innerText, parseFloat(row.cells[2].innerText.replace(/[^0-9.]/g, ''))]);
-    });
-
-    let data = [
-        ["INVOICE - " + employerName.toUpperCase()],
-        ["Date:", new Date().toLocaleDateString()],
-        [],
-        ["DETAILS", "AMOUNT (KES)"]
-    ];
-
-    let grandTotal = 0;
-    for (const client in grouped) {
-        data.push([client.toUpperCase(), ""]); // Client Header Row
-        grouped[client].forEach(task => {
-            data.push(task);
-            grandTotal += task[1];
-        });
-        data.push([]); // Empty spacer
-    }
-
-    data.push(["GRAND TOTAL", grandTotal]);
-
-    const ws = XLSX.utils.aoa_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Invoice");
-    XLSX.writeFile(wb, `Invoice_${employerName}.xlsx`);
-    
-    moveTasksToHistory();
-}
-
-async function exportToWord() {
-    const tableBody = document.getElementById('doneTableBody');
-    const rows = Array.from(tableBody.querySelectorAll('tr'));
-    
-    // Safety check to ensure there is data to export
-    if (rows.length < 1 || rows[0].innerText.includes("No completed orders")) {
-        return alert("No orders to export!");
-    }
-
-    const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, WidthType, AlignmentType } = docx;
-    
-    // 1. Capture the financial adjustments from the UI
-    const adv = parseFloat(document.getElementById('adjPlus').value) || 0;
-    const ded = parseFloat(document.getElementById('adjMinus').value) || 0;
-
-    let subtotal = 0;
-    const grouped = {};
-
-    // 2. Process table rows and group by Client
-    rows.forEach(row => {
-        const client = row.cells[0].innerText;
-        const detail = row.cells[1].innerText;
-        const payable = row.cells[2].innerText;
-        
-        // Convert currency string back to number for math
-        const amt = parseFloat(payable.replace(/[^0-9.]/g, '')) || 0;
-        subtotal += amt;
-
-        if (!grouped[client]) grouped[client] = [];
-        grouped[client].push({ detail, payable });
-    });
-
-    const finalBalance = subtotal - adv - ded;
-
-    // 3. Build the Document Structure
-    const docChildren = [
-        new Paragraph({ 
-            text: "WORK INVOICE BREAKDOWN", 
-            heading: "Heading1", 
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 200 }
-        }),
-        new Paragraph({ 
-            children: [
-                new TextRun({ text: "Date: ", bold: true }),
-                new TextRun(new Date().toLocaleDateString('en-GB'))
-            ]
-        }),
-        new Paragraph({ text: "" }) // Spacer
-    ];
-
-    // 4. Add Grouped Tables per Client
-    for (const client in grouped) {
-        docChildren.push(new Paragraph({ 
-            children: [new TextRun({ text: client, bold: true, size: 24, underline: {} })], 
-            spacing: { before: 300, after: 100 } 
-        }));
-
-        const tableRows = grouped[client].map(item => new TableRow({
-            children: [
-                new TableCell({ 
-                    width: { size: 70, type: WidthType.PERCENTAGE },
-                    children: [new Paragraph(item.detail)] 
-                }),
-                new TableCell({ 
-                    width: { size: 30, type: WidthType.PERCENTAGE },
-                    children: [new Paragraph({ text: item.payable, alignment: AlignmentType.RIGHT })] 
-                })
-            ]
-        }));
-
-        docChildren.push(new Table({ 
-            width: { size: 100, type: WidthType.PERCENTAGE }, 
-            rows: tableRows 
-        }));
-    }
-
-    // 5. FINAL SUMMARY SECTION (The Breakdown)
-    docChildren.push(new Paragraph({ text: "", spacing: { before: 400 } }));
-    docChildren.push(new Paragraph({
-        children: [
-            new TextRun({ text: `Gross Subtotal: ${subtotal.toLocaleString()} KES`, break: 1 }),
-            new TextRun({ text: `Less Advances: -${adv.toLocaleString()} KES`, break: 1, color: "FF0000" }),
-            new TextRun({ text: `Less Deductions: -${ded.toLocaleString()} KES`, break: 1, color: "FF0000" }),
-            new TextRun({ 
-                text: `FINAL BALANCE DUE: ${finalBalance.toLocaleString()} KES`, 
-                bold: true, 
-                size: 28, 
-                break: 1 
-            })
-        ],
-        alignment: AlignmentType.RIGHT
-    }));
-
-    // 6. Generate and Save File
-    const doc = new Document({ sections: [{ children: docChildren }] });
-    Packer.toBlob(doc).then(blob => {
-        saveAs(blob, `Invoice_${currentEmployerId || 'Export'}_${Date.now()}.docx`);
-        
-        // Optional: Move tasks to history after successful export
-        if (confirm("Invoice generated. Move these tasks to History?")) {
-            moveTasksToHistory();
-        }
-    });
-}
-
-async function moveTasksToHistory() {
-    if (!currentEmployerId) return;
-
-    // We change status to 'Paid' so they move to the History tab
-    const { error } = await supabaseClient
-        .from('tasks')
-        .update({ status: 'Paid' })
-        .eq('employer_id', currentEmployerId)
-        .eq('status', 'Done');
-
-    if (error) {
-        console.error("Error archiving tasks:", error.message);
-    } else {
-        alert("Invoice generated! Orders moved to History.");
-        fetchTasks(); // Refresh UI
-    }
-}
+/* Invoice generation, exports, payment status and history are handled by invoice-manager.js. */
 
 setInterval(fetchTasks,60000);
 
@@ -1277,6 +1079,8 @@ setInterval(() => {
      Loaded after the block above so they can safely wrap its functions. -->
 <script src="./offline.js"></script>
 <script src="./realtime.js"></script>
+<script src="./notifications.js"></script>
+<script src="./invoice-manager.js"></script>
 <script src="./alarm-engine.js"></script>
 
 <script>

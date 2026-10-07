@@ -11,7 +11,7 @@
       locally-stored dates.
    ========================================================= */
 
-const CACHE_NAME = 'inv-mgr-v5';
+const CACHE_NAME = 'inv-mgr-v6';
 const APP_SHELL = [
     './',
     './index.html',
@@ -19,6 +19,8 @@ const APP_SHELL = [
     './icon.png',
     './offline.js',
     './realtime.js',
+    './notifications.js',
+    './invoice-manager.js',
     './alarm-engine.js',
 ];
 
@@ -104,12 +106,13 @@ self.addEventListener('push', (event) => {
    --------------------------------------------------------- */
 function openCacheDB() {
     return new Promise((resolve, reject) => {
-        const req = indexedDB.open('invoice-manager-db', 1);
+        const req = indexedDB.open('invoice-manager-db', 2);
         req.onupgradeneeded = (e) => {
             const db = e.target.result;
             if (!db.objectStoreNames.contains('tasks')) db.createObjectStore('tasks', { keyPath: 'id' });
             if (!db.objectStoreNames.contains('employers')) db.createObjectStore('employers', { keyPath: 'id' });
             if (!db.objectStoreNames.contains('pending_writes')) db.createObjectStore('pending_writes', { keyPath: 'localId', autoIncrement: true });
+            if (!db.objectStoreNames.contains('invoices')) db.createObjectStore('invoices', { keyPath: 'id' });
         };
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
