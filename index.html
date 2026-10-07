@@ -13,229 +13,39 @@
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.json">
 <style>
-.tab-content {
-    animation: fadeIn 0.3s ease-in-out;
-    min-height: 80vh;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Layout */
-body {
-    font-family: Arial, sans-serif;
-    background: #f4f7f6;
-    margin: 0;
-    padding: 20px;
-}
-
-.container {
-    max-width: 1400px;
-    margin: auto;
-    background: #fff;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-}
-
-/* Sidebar */
-.sidebar {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.sidebar button {
-    flex: 1;
-    padding: 10px;
-    border: none;
-    border-radius: 8px;
-    background: #ecf0f1;
-    color: #2c3e50;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.sidebar button:hover {
-    background: #dfe6e9;
-}
-
-/* Tables */
-.table-container {
-    overflow-x: auto;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.03);
-    border-radius: 8px;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-th, td {
-    padding: 10px;
-    border: 1px solid #ddd;
-}
-
-th {
-    background: #2c3e50;
-    color: white;
-    font-size: 13px;
-    letter-spacing: 0.5px;
-}
-
-tr {
-    transition: background 0.2s ease;
-}
-
-tr:hover {
-    background: #f8f9fa;
-}
-
-/* Buttons */
-.btn {
-    padding: 8px 14px;
-    border: none;
-    cursor: pointer;
-    border-radius: 6px;
-    font-size: 13px;
-    transition: all 0.2s ease;
-}
-
-.btn:hover {
-    transform: translateY(-1px);
-    opacity: 0.9;
-}
-
-.btn-add { background:#27ae60; color:white; }
-.btn-done { background:#3498db; color:white; }
-
-/* Status */
-.online, .offline {
-    padding: 8px 14px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.online {
-    background: #d4edda;
-    color: #155724;
-}
-
-.offline {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-/* Employer Cards */
-#employer-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.employer-card {
-    padding: 10px 16px;
-    border-radius: 20px;
-    background: #ecf0f1;
-    color: #2c3e50;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 500;
-    transition: all 0.25s ease;
-    border: 1px solid transparent;
-    min-width: 140px;
-}
-
-.employer-card strong {
-    display: block;
-    font-size: 14px;
-}
-
-.employer-card {
-    padding: 14px;
-    border-radius: 14px;
-    background: #ffffff;
-    border: 1px solid #eee;
-    cursor: pointer;
-    width: 180px;
-    transition: all 0.25s ease;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.employer-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-}
-
-.employer-card.active {
-    border-color: #27ae60;
-    box-shadow: 0 6px 18px rgba(39,174,96,0.2);
-}
-
-/* Content */
-.emp-name {
-    font-weight: bold;
-    font-size: 14px;
-    color: #2c3e50;
-}
-
-.emp-rate {
-    font-size: 12px;
-    color: #7f8c8d;
-}
-
-/* Stats */
-.emp-stats {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 6px;
-    font-size: 12px;
-}
-
-.emp-stats .pending {
-    color: #e67e22;
-    font-weight: 600;
-}
-
-.emp-stats .done {
-    color: #27ae60;
-    font-weight: 600;
-}
-
-/* Inputs */
-input, select {
-    padding: 10px;
-    border-radius: 6px;
-    border: 1px solid #ddd;
-    font-size: 13px;
-    transition: border 0.2s ease;
-}
-
-input:focus, select:focus {
-    outline: none;
-    border-color: #3498db;
-}
-
-/* Input group */
-.input-group {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.input-group input {
-    flex: 1;
-    min-width: 150px;
-}
-
-.invoice-adjustments{background:linear-gradient(135deg,#f8fbff,#f5f7fa);padding:20px;border:1px solid #dfe6e9;border-radius:12px;margin-top:20px}.invoice-adjustment-head{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;margin-bottom:16px}.invoice-adjustment-head h4{margin:0 0 4px}.adjustment-hint{font-size:12px;color:#2980b9;background:#eaf5ff;padding:8px 10px;border-radius:20px}.adjustment-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px}.adjustment-grid label{font-size:12px;color:#566573;font-weight:600}.adjustment-grid input{width:100%;box-sizing:border-box;margin-top:6px}.invoice-total-box{margin-top:18px;border-top:1px solid #dfe6e9;padding-top:12px}.invoice-total-box>div{display:flex;justify-content:space-between;padding:6px 0}.invoice-total-box .grand{font-size:18px;border-top:2px solid #2c3e50;margin-top:6px;padding-top:12px}.invoice-actions{display:flex;gap:10px;margin-top:15px}.invoice-actions .btn{flex:1;padding:12px}.history-header{display:flex;justify-content:space-between;align-items:center;gap:15px}.history-header h3{margin-bottom:4px}.history-header p{margin-top:0;color:#7f8c8d}.history-summary{font-weight:700;color:#2c3e50}.history-filters{display:flex;gap:10px;margin:12px 0}.history-filters input{flex:1}.status-pill{display:inline-block;padding:5px 9px;border-radius:20px;font-size:11px;font-weight:700}.status-unpaid{background:#fff3cd;color:#856404}.status-paid{background:#d4edda;color:#155724}.status-refunded{background:#e8daef;color:#6c3483}.status-canceled{background:#f8d7da;color:#721c24}.invoice-action-group{display:flex;gap:5px;flex-wrap:wrap}.invoice-action-group .btn{font-size:11px;padding:6px 8px}@media(max-width:800px){.adjustment-grid{grid-template-columns:1fr 1fr}.invoice-adjustment-head,.history-header{flex-direction:column}.invoice-actions,.history-filters{flex-direction:column}}@media(max-width:520px){.adjustment-grid{grid-template-columns:1fr}.container{padding:12px}body{padding:8px}}
+.invoice-adjustments{background:#fff;border:1px solid #dfe6e9;border-radius:18px;margin-top:22px;overflow:hidden;box-shadow:0 8px 24px rgba(44,62,80,.08)}
+.invoice-adjustment-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:20px 22px;background:linear-gradient(135deg,#172b4d,#274c77);color:#fff}
+.invoice-adjustment-head h4{margin:0 0 5px;font-size:18px}.invoice-adjustment-head small{opacity:.82}
+.adjustment-hint{font-size:12px;color:#174a7c;background:#eaf5ff;padding:9px 12px;border-radius:20px;white-space:nowrap}
+.adjustment-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:14px;padding:20px 22px 10px}
+.adjustment-grid label{font-size:12px;color:#566573;font-weight:700}
+.adjustment-grid input{width:100%;box-sizing:border-box;margin-top:7px;padding:11px;border:1px solid #ccd6df;border-radius:9px;font-size:14px;background:#fff}
+.adjustment-grid input[readonly]{background:#f4f7fa;color:#34495e;font-weight:700}
+.invoice-total-box{margin:8px 22px 0;border-top:1px solid #e7ecef;padding:14px 0 4px}
+.invoice-total-box>div{display:flex;justify-content:space-between;align-items:center;padding:8px 0;color:#566573}
+.invoice-total-box .grand{font-size:20px;color:#172b4d;border-top:2px solid #172b4d;margin-top:7px;padding:14px 0 4px}
+.invoice-total-box .grand strong{font-size:24px}
+.invoice-actions{display:flex;gap:10px;padding:18px 22px 22px}.invoice-actions .btn{flex:1;padding:13px;border-radius:10px}
+.invoice-breakdown-note{margin:0 22px 18px;padding:10px 12px;background:#f7f9fb;border-left:4px solid #3498db;border-radius:6px;color:#5d6d7e;font-size:12px}
+.history-shell{margin-top:4px}
+.history-header{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:20px 22px;border-radius:16px;background:linear-gradient(135deg,#f8fbff,#eef4f9);border:1px solid #dce6ee}
+.history-header h3{margin:0 0 6px}.history-header p{margin:0;color:#66788a}
+.history-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;min-width:480px}
+.history-summary-card{padding:10px 12px;border-radius:10px;background:#fff;border:1px solid #e1e8ee;text-align:center}.history-summary-card small{display:block;color:#7b8794;font-size:10px;text-transform:uppercase;font-weight:700}.history-summary-card b{font-size:15px}
+.history-summary-card.unpaid b{color:#b7791f}.history-summary-card.paid b{color:#198754}.history-summary-card.refunded b{color:#7b3f98}.history-summary-card.canceled b{color:#c0392b}
+.history-filters{display:flex;gap:10px;margin:14px 0;flex-wrap:wrap}
+.history-filters input{flex:1;min-width:220px}.history-filters select{min-width:170px}
+.history-quick-filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.history-filter-btn{border:1px solid #d5dde5;background:#fff;color:#34495e;border-radius:20px;padding:8px 13px;cursor:pointer;font-weight:700;font-size:12px}
+.history-filter-btn.active{background:#172b4d;color:#fff;border-color:#172b4d}
+.status-pill{display:inline-block;padding:6px 10px;border-radius:20px;font-size:11px;font-weight:800;text-transform:uppercase}
+.status-unpaid{background:#fff3cd;color:#856404}.status-paid{background:#d4edda;color:#155724}.status-refunded{background:#e8daef;color:#6c3483}.status-canceled{background:#f8d7da;color:#721c24}
+.invoice-action-group{display:flex;gap:6px;flex-wrap:wrap}.invoice-action-group .btn{font-size:11px;padding:7px 9px;border-radius:7px}
+.invoice-action-group .btn:disabled{opacity:.45;cursor:not-allowed}
+.history-empty{text-align:center;padding:35px;color:#7f8c8d}
+.credit-row{background:#fff9f2!important}.credit-row td{color:#9a5b13}
+@media(max-width:900px){.adjustment-grid{grid-template-columns:1fr 1fr}.history-header{flex-direction:column;align-items:stretch}.history-summary{min-width:0;width:100%}}
+@media(max-width:600px){.adjustment-grid{grid-template-columns:1fr}.invoice-actions,.history-filters{flex-direction:column}.history-summary{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -369,64 +179,88 @@ input:focus, select:focus {
         <div class="invoice-adjustments">
             <div class="invoice-adjustment-head">
                 <div>
-                    <h4>Invoice Adjustments</h4>
-                    <small>These values are saved to the invoice and will not need to be entered again.</small>
+                    <h4>Invoice Financial Control</h4>
+                    <small>Enter an advance or deductible once. Refunds, cancellations and unpaid balances from History are carried automatically.</small>
                 </div>
-                <span id="previousBalanceHint" class="adjustment-hint">Previous outstanding: KES 0.00</span>
+                <span id="previousBalanceHint" class="adjustment-hint">Outstanding carried balance: KES 0.00</span>
             </div>
+
             <div class="adjustment-grid">
-                <label>Advances Received (-)
+                <label>Advance / Payment Received
                     <input type="number" id="adjPlus" value="0" min="0" step="0.01" oninput="calculateFinalPayable()">
                 </label>
-                <label>Refund credits from History (-)
-                    <input type="number" id="adjRefund" value="0" readonly title="Refunds are added automatically when an invoice is marked Refunded in History.">
+                <label>Refund Credit From History
+                    <input type="number" id="adjRefund" value="0" readonly>
                 </label>
-                <label>Deductibles / Fines (-)
+                <label>Deductibles / Fines
                     <input type="number" id="adjMinus" value="0" min="0" step="0.01" oninput="calculateFinalPayable()">
                 </label>
-                <label>Previous unpaid balance (+)
-                    <input type="number" id="adjPrevious" value="0" readonly title="Calculated automatically from unpaid invoices not yet carried forward.">
+                <label>Balance From Previous Invoices
+                    <input type="number" id="adjPrevious" value="0" readonly>
                 </label>
             </div>
-            <div class="invoice-total-box">
-                <div><span>Current work subtotal</span><strong id="invoiceSubtotalDisplay">KES 0.00</strong></div>
-                <div><span>Previous balance</span><strong id="invoicePreviousDisplay">KES 0.00</strong></div>
-                <div><span>Less advances / refunds / deductions</span><strong id="invoiceAdjustmentsDisplay">KES 0.00</strong></div>
-                <div><span>Refund credit carried from History</span><strong id="invoiceRefundDisplay">KES 0.00</strong></div>
-                <div class="grand"><span>Balance to be Paid</span><strong id="finalTotalDisplay">KES 0.00</strong></div>
+
+            <div class="invoice-breakdown-note">
+                <b>Calculation:</b> Current orders + previous unpaid balance − advances − refund credits − deductibles = <b>Balance Due</b>.
+                Generating this invoice keeps it <b>UNPAID</b> until you record payment in History.
             </div>
+
+            <div class="invoice-total-box">
+                <div><span>Current orders</span><strong id="invoiceSubtotalDisplay">KES 0.00</strong></div>
+                <div><span>Balance from previous invoices</span><strong id="invoicePreviousDisplay">KES 0.00</strong></div>
+                <div><span>Less advances</span><strong id="invoiceAdvanceDisplay">- KES 0.00</strong></div>
+                <div><span>Less refund credits</span><strong id="invoiceRefundDisplay">- KES 0.00</strong></div>
+                <div><span>Less deductibles</span><strong id="invoiceDeductibleDisplay">- KES 0.00</strong></div>
+                <div class="grand"><span>FINAL BALANCE DUE</span><strong id="finalTotalDisplay">KES 0.00</strong></div>
+            </div>
+
             <div class="invoice-actions">
-                <button class="btn" onclick="generateAndSaveInvoice('word')" style="background:#2c3e50;color:white;">📄 Generate & Save Word Invoice</button>
-                <button class="btn" onclick="generateAndSaveInvoice('excel')" style="background:#27ae60;color:white;">📊 Generate & Save Excel Invoice</button>
+                <button class="btn" onclick="generateAndSaveInvoice('word')" style="background:#172b4d;color:white;">📄 Generate & Save Word Invoice</button>
+                <button class="btn" onclick="generateAndSaveInvoice('excel')" style="background:#198754;color:white;">📊 Generate & Save Excel Invoice</button>
             </div>
         </div>
     </div>
 
     <div id="history-section" class="tab-content" style="display:none">
-        <div class="history-header">
-            <div>
-                <h3>Invoices & Payment History</h3>
-                <p>Generating an invoice records it as <b>UNPAID</b>. Use the buttons below only when the real payment, refund, or cancellation happens.</p>
+        <div class="history-shell">
+            <div class="history-header">
+                <div>
+                    <h3>Invoice & Payment Control</h3>
+                    <p>Invoices are <b>UNPAID</b> when generated. Use History to record what was actually paid, refunded or canceled.</p>
+                </div>
+                <div id="historySummary" class="history-summary"></div>
             </div>
-            <div id="historySummary" class="history-summary"></div>
-        </div>
-        <div class="history-filters">
-            <input id="historySearch" type="search" placeholder="Search invoice, employer or client..." oninput="renderInvoiceHistory()">
-            <select id="historyStatusFilter" onchange="renderInvoiceHistory()">
-                <option value="ALL">All statuses</option>
-                <option value="Unpaid">Unpaid</option>
-                <option value="Paid">Paid</option>
-                <option value="Refunded">Refunded</option>
-                <option value="Canceled">Canceled</option>
-            </select>
-        </div>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr><th>Invoice</th><th>Date</th><th>Subtotal</th><th>Prev. Balance</th><th>Adjustments</th><th>Balance Due</th><th>Status</th><th>Actions</th></tr>
-                </thead>
-                <tbody id="historyBody"></tbody>
-            </table>
+
+            <div class="history-filters">
+                <input id="historySearch" type="search" placeholder="Search invoice or employer..." oninput="renderInvoiceHistory()">
+                <select id="historyStatusFilter" onchange="renderInvoiceHistory()">
+                    <option value="ALL">All invoices</option>
+                    <option value="Unpaid">Unpaid</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Refunded">Refunded</option>
+                    <option value="Canceled">Canceled</option>
+                </select>
+            </div>
+
+            <div class="history-quick-filters">
+                <button class="history-filter-btn active" onclick="setHistoryFilter('ALL',this)">All</button>
+                <button class="history-filter-btn" onclick="setHistoryFilter('Unpaid',this)">🟠 Unpaid</button>
+                <button class="history-filter-btn" onclick="setHistoryFilter('Paid',this)">🟢 Paid</button>
+                <button class="history-filter-btn" onclick="setHistoryFilter('Refunded',this)">🟣 Refunded</button>
+                <button class="history-filter-btn" onclick="setHistoryFilter('Canceled',this)">🔴 Canceled</button>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Invoice</th><th>Date</th><th>Current Orders</th><th>Previous Balance</th>
+                            <th>Adjustments</th><th>Balance Due</th><th>Status</th><th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyBody"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
@@ -450,10 +284,10 @@ async function showTab(tabId) {
     });
     const target = document.getElementById(tabId);
     if (target) target.style.display = 'block';
-    if (tabId === 'active-section') {
-        await fetchTasks(); 
-    } else if (tabId === 'done-section') {
-        await fetchTasks(); 
+    if (tabId === 'active-section' || tabId === 'done-section') {
+        await fetchTasks();
+    } else if (tabId === 'history-section') {
+        if (typeof renderInvoiceHistory === 'function') await renderInvoiceHistory();
     }
 }
 
@@ -910,26 +744,12 @@ async function editEmployer(id, oldName, oldRate) {
 }
 
 function renderHistory(tasks) {
-    const body = document.getElementById('historyBody');
-    if (!body) return;
-    body.innerHTML = '';
-
-    if (tasks.length === 0) {
-        body.innerHTML = '<tr><td colspan="4" style="text-align:center;">No history records.</td></tr>';
+    /* History is an invoice ledger, not a task-status dump. */
+    if (typeof renderInvoiceHistory === 'function') {
+        renderInvoiceHistory();
         return;
     }
-
-    tasks.forEach(task => {
-        body.innerHTML += `
-        <tr>
-            <td>${task.client_name}</td>
-            <td>${task.task_detail}</td>
-            <td>${(parseFloat(task.payable) || 0).toLocaleString()} KES</td>
-            <td><strong>${task.status}</strong></td>
-        </tr>`;
-    });
 }
-
 async function markAsDone(id){
     const { error } = await supabaseClient
         .from('tasks')
