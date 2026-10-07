@@ -99,10 +99,20 @@ async function getDoneTasksForInvoice() {
 
 async function getOpenPreviousInvoices() {
     if (!currentEmployerId) return [];
+    // The authoritative balance is the latest open invoice in each carry-forward chain.
+    // Older invoices are history and must never be counted a second time.
     const {data,error} = await supabaseClient.from('invoices').select('*')
-        .eq('employer_id',String(currentEmployerId)).eq('status','Unpaid')
-        .is('carried_into_invoice_no',null).order('created_at',{ascending:true});
-    if(error) throw error; return data || [];
+        .eq('employer_id',String(currentEmployerId))
+        .order('created_at',{ascending:true});
+    if(error) throw error;
+    const invoices = data || [];
+    const referenced = new Set(
+        invoices.map(i => String(i.carried_into_invoice_no || '').trim()).filter(Boolean)
+    );
+    return invoices.filter(i =>
+        String(i.status || '').toLowerCase() === 'unpaid' &&
+        !referenced.has(String(i.invoice_no || '').trim())
+    );
 }
 
 async function getRefundCredits() {
