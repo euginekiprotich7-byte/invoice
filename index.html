@@ -13,40 +13,32 @@
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.json">
 <style>
-.invoice-adjustments{background:#fff;border:1px solid #dfe6e9;border-radius:18px;margin-top:22px;overflow:hidden;box-shadow:0 8px 24px rgba(44,62,80,.08)}
-.invoice-adjustment-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:20px 22px;background:linear-gradient(135deg,#172b4d,#274c77);color:#fff}
-.invoice-adjustment-head h4{margin:0 0 5px;font-size:18px}.invoice-adjustment-head small{opacity:.82}
-.adjustment-hint{font-size:12px;color:#174a7c;background:#eaf5ff;padding:9px 12px;border-radius:20px;white-space:nowrap}
-.adjustment-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:14px;padding:20px 22px 10px}
-.adjustment-grid label{font-size:12px;color:#566573;font-weight:700}
-.adjustment-grid input{width:100%;box-sizing:border-box;margin-top:7px;padding:11px;border:1px solid #ccd6df;border-radius:9px;font-size:14px;background:#fff}
-.adjustment-grid input[readonly]{background:#f4f7fa;color:#34495e;font-weight:700}
-.invoice-total-box{margin:8px 22px 0;border-top:1px solid #e7ecef;padding:14px 0 4px}
-.invoice-total-box>div{display:flex;justify-content:space-between;align-items:center;padding:8px 0;color:#566573}
-.invoice-total-box .grand{font-size:20px;color:#172b4d;border-top:2px solid #172b4d;margin-top:7px;padding:14px 0 4px}
-.invoice-total-box .grand strong{font-size:24px}
-.invoice-actions{display:flex;gap:10px;padding:18px 22px 22px}.invoice-actions .btn{flex:1;padding:13px;border-radius:10px}
-.invoice-breakdown-note{margin:0 22px 18px;padding:10px 12px;background:#f7f9fb;border-left:4px solid #3498db;border-radius:6px;color:#5d6d7e;font-size:12px}
-.history-shell{margin-top:4px}
-.history-header{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:20px 22px;border-radius:16px;background:linear-gradient(135deg,#f8fbff,#eef4f9);border:1px solid #dce6ee}
-.history-header h3{margin:0 0 6px}.history-header p{margin:0;color:#66788a}
-.history-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;min-width:480px}
-.history-summary-card{padding:10px 12px;border-radius:10px;background:#fff;border:1px solid #e1e8ee;text-align:center}.history-summary-card small{display:block;color:#7b8794;font-size:10px;text-transform:uppercase;font-weight:700}.history-summary-card b{font-size:15px}
-.history-summary-card.unpaid b{color:#b7791f}.history-summary-card.paid b{color:#198754}.history-summary-card.refunded b{color:#7b3f98}.history-summary-card.canceled b{color:#c0392b}
-.history-filters{display:flex;gap:10px;margin:14px 0;flex-wrap:wrap}
-.history-filters input{flex:1;min-width:220px}.history-filters select{min-width:170px}
-.history-quick-filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
-.history-filter-btn{border:1px solid #d5dde5;background:#fff;color:#34495e;border-radius:20px;padding:8px 13px;cursor:pointer;font-weight:700;font-size:12px}
-.history-filter-btn.active{background:#172b4d;color:#fff;border-color:#172b4d}
-.status-pill{display:inline-block;padding:6px 10px;border-radius:20px;font-size:11px;font-weight:800;text-transform:uppercase}
-.status-unpaid{background:#fff3cd;color:#856404}.status-paid{background:#d4edda;color:#155724}.status-refunded{background:#e8daef;color:#6c3483}.status-canceled{background:#f8d7da;color:#721c24}
-.invoice-action-group{display:flex;gap:6px;flex-wrap:wrap}.invoice-action-group .btn{font-size:11px;padding:7px 9px;border-radius:7px}
-.invoice-action-group .btn:disabled{opacity:.45;cursor:not-allowed}
-.history-empty{text-align:center;padding:35px;color:#7f8c8d}
-.credit-row{background:#fff9f2!important}.credit-row td{color:#9a5b13}
-@media(max-width:900px){.adjustment-grid{grid-template-columns:1fr 1fr}.history-header{flex-direction:column;align-items:stretch}.history-summary{min-width:0;width:100%}}
-@media(max-width:600px){.adjustment-grid{grid-template-columns:1fr}.invoice-actions,.history-filters{flex-direction:column}.history-summary{grid-template-columns:1fr 1fr}}
-</style>
+:root{--navy:#10243e;--blue:#2563eb;--cyan:#06b6d4;--green:#16a34a;--amber:#d97706;--red:#dc2626;--purple:#7c3aed;--ink:#172033;--muted:#64748b;--line:#e6ebf2;--soft:#f7f9fc}
+.invoice-adjustments{background:#fff;border:1px solid var(--line);border-radius:24px;margin-top:24px;overflow:hidden;box-shadow:0 18px 50px rgba(15,32,55,.09)}
+.invoice-adjustment-head{display:flex;justify-content:space-between;gap:24px;align-items:center;padding:26px 28px;background:linear-gradient(135deg,#0f2745 0%,#183d68 55%,#2563eb 100%);color:#fff}
+.invoice-adjustment-head h4{margin:0 0 6px;font-size:21px;letter-spacing:-.3px}.invoice-adjustment-head small{opacity:.82;font-size:12px;line-height:1.5}
+.adjustment-hint{font-size:12px;color:#0f3d69;background:#eef7ff;padding:10px 14px;border-radius:999px;white-space:nowrap;font-weight:800}
+.invoice-control-body{padding:24px 28px}
+.control-section-title{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:14px}.control-section-title h5{margin:0;font-size:15px;color:var(--ink)}.control-section-title span{font-size:11px;color:var(--muted)}
+.adjustment-grid{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.adjustment-card{padding:16px;background:var(--soft);border:1px solid var(--line);border-radius:16px}.adjustment-card label{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.adjustment-card input{width:100%;box-sizing:border-box;margin-top:9px;padding:13px 12px;border:1px solid #d7dee8;border-radius:11px;font-size:15px;background:#fff;color:var(--ink);outline:none}.adjustment-card input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.adjustment-card input[readonly]{background:#f0f4f8;color:#334155}
+.adjustment-card .field-help{font-size:10px;color:#8190a3;margin-top:7px;display:block}
+.manual-prev-row{display:flex;gap:12px;align-items:center;margin-top:10px}.manual-prev-row input{flex:1}
+.txn-panel{border:1px solid var(--line);border-radius:18px;padding:18px;background:#fbfcfe;margin-bottom:22px}.txn-row{display:grid;grid-template-columns:1fr 150px 115px 90px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.txn-row:last-child{border-bottom:0}.txn-row strong{font-size:13px;color:var(--ink)}.txn-row small{display:block;color:var(--muted);font-size:10px;margin-top:3px}.txn-amount{font-weight:800;text-align:right}.txn-empty{color:var(--muted);font-size:12px;padding:12px 0}
+.add-txn{display:flex;gap:10px;align-items:center;margin-top:12px}.add-txn input{max-width:180px;padding:11px;border:1px solid #d7dee8;border-radius:10px}.add-txn button{border:0;background:var(--navy);color:#fff;padding:11px 15px;border-radius:10px;font-weight:800;cursor:pointer}
+.invoice-breakdown-note{margin:0 0 20px;padding:13px 15px;background:#eff7ff;border:1px solid #d7ebff;border-radius:12px;color:#526579;font-size:12px}
+.invoice-total-box{border:1px solid var(--line);border-radius:18px;padding:17px 20px;background:#fff}.invoice-total-box>div{display:flex;justify-content:space-between;align-items:center;padding:9px 0;color:#536276;font-size:13px}.invoice-total-box .grand{font-size:15px;color:var(--navy);border-top:2px solid var(--navy);margin-top:8px;padding:17px 0 4px;font-weight:900}.invoice-total-box .grand strong{font-size:27px;color:var(--blue)}
+.invoice-actions{display:flex;gap:12px;padding:20px 0 0}.invoice-actions .btn{flex:1;padding:14px;border-radius:12px;font-weight:800;border:0;cursor:pointer}
+.history-shell{margin-top:4px}.history-header{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:26px 28px;border-radius:22px;background:linear-gradient(135deg,#f8fbff,#eef5ff);border:1px solid #dce8f5}.history-header h3{margin:0 0 7px;font-size:22px;color:var(--ink)}.history-header p{margin:0;color:#66788a;font-size:12px}
+.history-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;min-width:520px}.history-summary-card{padding:14px;border-radius:15px;background:#fff;border:1px solid var(--line);text-align:left;box-shadow:0 5px 16px rgba(15,32,55,.04)}.history-summary-card small{display:block;color:#8491a3;font-size:9px;text-transform:uppercase;font-weight:900;letter-spacing:.7px}.history-summary-card b{display:block;font-size:16px;margin-top:5px}.history-summary-card.unpaid b{color:var(--amber)}.history-summary-card.paid b{color:var(--green)}.history-summary-card.refunded b{color:var(--purple)}.history-summary-card.canceled b{color:var(--red)}
+.history-filters{display:flex;gap:10px;margin:18px 0;flex-wrap:wrap}.history-filters input{flex:1;min-width:240px}.history-filters select{min-width:180px}.history-quick-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}.history-filter-btn{border:1px solid #d8e0ea;background:#fff;color:#34495e;border-radius:999px;padding:9px 15px;cursor:pointer;font-weight:800;font-size:11px}.history-filter-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.status-pill{display:inline-block;padding:7px 11px;border-radius:999px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.5px}.status-unpaid{background:#fff4d6;color:#9a6500}.status-paid{background:#dcfce7;color:#166534}.status-refunded{background:#f0e7ff;color:#6d28d9}.status-canceled{background:#fee2e2;color:#991b1b}
+.invoice-action-group{display:flex;gap:6px;flex-wrap:wrap}.invoice-action-group .btn{font-size:10px;padding:8px 10px;border-radius:8px;border:0;font-weight:800;cursor:pointer}.invoice-action-group .btn:disabled{opacity:.4;cursor:not-allowed}.history-empty{text-align:center;padding:45px;color:#7f8c8d}.credit-row{background:#fff9f2!important}.credit-row td{color:#9a5b13}
+@media(max-width:1050px){.adjustment-grid{grid-template-columns:1fr 1fr}.history-header{flex-direction:column;align-items:stretch}.history-summary{min-width:0;width:100%}}
+@media(max-width:700px){.adjustment-grid{grid-template-columns:1fr}.invoice-actions,.history-filters{flex-direction:column}.history-summary{grid-template-columns:1fr 1fr}.txn-row{grid-template-columns:1fr 110px}.txn-row button{grid-column:2}.invoice-adjustment-head{flex-direction:column;align-items:flex-start}}
+.invoice-page-hero{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:25px 28px;margin-bottom:18px;border-radius:22px;background:linear-gradient(135deg,#fff,#f1f6ff);border:1px solid #dfe8f3}.invoice-page-hero h3{margin:4px 0 5px;font-size:24px;color:#10243e}.invoice-page-hero p{margin:0;color:#68788d;font-size:12px}.eyebrow{font-size:9px;letter-spacing:1.2px;font-weight:900;color:#2563eb}.invoice-hero-badge{background:#fff4d6;color:#946200;border:1px solid #f2d78a;border-radius:999px;padding:11px 15px;font-size:11px;font-weight:900;white-space:nowrap}</style>>
 </head>
 <body>
 
@@ -168,7 +160,10 @@
     </div>
 
     <div id="done-section" class="tab-content" style="display:none">
-        <h3>Ready for Invoicing</h3>
+        <div class="invoice-page-hero">
+            <div><span class="eyebrow">BILLING CONTROL</span><h3>Ready for Invoicing</h3><p>Build the invoice from completed orders. Financial transactions are saved separately and can be added more than once.</p></div>
+            <div class="invoice-hero-badge">INVOICE = UNPAID</div>
+        </div>
         <div class="table-container">
             <table>
                 <thead><tr><th>Client</th><th>Detail</th><th>Payable</th><th>Actions</th></tr></thead>
@@ -178,45 +173,43 @@
 
         <div class="invoice-adjustments">
             <div class="invoice-adjustment-head">
-                <div>
-                    <h4>Invoice Financial Control</h4>
-                    <small>Enter an advance or deductible once. Refunds, cancellations and unpaid balances from History are carried automatically.</small>
+                <div><span class="eyebrow">FINANCIAL CONTROL</span><h4>Invoice Builder</h4><small>Amounts entered here are saved. Add multiple advances without changing dates manually. Previous balance can be automatic, manual, or both.</small></div>
+                <span id="previousBalanceHint" class="adjustment-hint">Auto outstanding: KES 0.00</span>
+            </div>
+            <div class="invoice-control-body">
+                <div class="control-section-title"><h5>Previous Balance</h5><span>Automatic balance + optional manual balance</span></div>
+                <div class="adjustment-grid">
+                    <div class="adjustment-card"><label>Automatic Previous Balance</label><input type="number" id="adjPreviousAuto" value="0" readonly><span class="field-help">Calculated from unpaid invoices not yet carried forward.</span></div>
+                    <div class="adjustment-card"><label>Manual Previous Balance</label><input type="number" id="adjPreviousManual" value="0" min="0" step="0.01" oninput="calculateFinalPayable()"><span class="field-help">Add an amount the system does not know about.</span></div>
+                    <div class="adjustment-card"><label>Total Previous Balance</label><input type="number" id="adjPrevious" value="0" readonly><span class="field-help">Automatic + manual.</span></div>
                 </div>
-                <span id="previousBalanceHint" class="adjustment-hint">Outstanding carried balance: KES 0.00</span>
-            </div>
 
-            <div class="adjustment-grid">
-                <label>Advance / Payment Received
-                    <input type="number" id="adjPlus" value="0" min="0" step="0.01" oninput="calculateFinalPayable()">
-                </label>
-                <label>Refund Credit From History
-                    <input type="number" id="adjRefund" value="0" readonly>
-                </label>
-                <label>Deductibles / Fines
-                    <input type="number" id="adjMinus" value="0" min="0" step="0.01" oninput="calculateFinalPayable()">
-                </label>
-                <label>Balance From Previous Invoices
-                    <input type="number" id="adjPrevious" value="0" readonly>
-                </label>
-            </div>
+                <div class="control-section-title"><h5>Advances & Payments Received</h5><span>Each entry gets today's date automatically</span></div>
+                <div class="txn-panel">
+                    <div id="advanceLedger"></div>
+                    <div class="add-txn"><input type="number" id="newAdvanceAmount" min="0" step="0.01" placeholder="Amount (KES)"><button onclick="addPendingTransaction('advance')">＋ Add Advance</button></div>
+                </div>
 
-            <div class="invoice-breakdown-note">
-                <b>Calculation:</b> Current orders + previous unpaid balance − advances − refund credits − deductibles = <b>Balance Due</b>.
-                Generating this invoice keeps it <b>UNPAID</b> until you record payment in History.
-            </div>
+                <div class="control-section-title"><h5>Deductibles</h5><span>Multiple entries supported</span></div>
+                <div class="txn-panel">
+                    <div id="deductibleLedger"></div>
+                    <div class="add-txn"><input type="number" id="newDeductibleAmount" min="0" step="0.01" placeholder="Amount (KES)"><button onclick="addPendingTransaction('deductible')">＋ Add Deductible</button></div>
+                </div>
 
-            <div class="invoice-total-box">
-                <div><span>Current orders</span><strong id="invoiceSubtotalDisplay">KES 0.00</strong></div>
-                <div><span>Balance from previous invoices</span><strong id="invoicePreviousDisplay">KES 0.00</strong></div>
-                <div><span>Less advances</span><strong id="invoiceAdvanceDisplay">- KES 0.00</strong></div>
-                <div><span>Less refund credits</span><strong id="invoiceRefundDisplay">- KES 0.00</strong></div>
-                <div><span>Less deductibles</span><strong id="invoiceDeductibleDisplay">- KES 0.00</strong></div>
-                <div class="grand"><span>FINAL BALANCE DUE</span><strong id="finalTotalDisplay">KES 0.00</strong></div>
-            </div>
-
-            <div class="invoice-actions">
-                <button class="btn" onclick="generateAndSaveInvoice('word')" style="background:#172b4d;color:white;">📄 Generate & Save Word Invoice</button>
-                <button class="btn" onclick="generateAndSaveInvoice('excel')" style="background:#198754;color:white;">📊 Generate & Save Excel Invoice</button>
+                <div class="invoice-breakdown-note"><b>How this invoice is calculated:</b> Current completed orders + total previous balance − advances/payments − refund credits − deductibles = <b>Final Balance Due</b>. Generating the invoice never marks it paid.</div>
+                <div class="invoice-total-box">
+                    <div><span>Current completed orders</span><strong id="invoiceSubtotalDisplay">KES 0.00</strong></div>
+                    <div><span>Automatic previous balance</span><strong id="invoicePreviousAutoDisplay">KES 0.00</strong></div>
+                    <div><span>Manual previous balance</span><strong id="invoicePreviousManualDisplay">KES 0.00</strong></div>
+                    <div><span>Advances / payments received</span><strong id="invoiceAdvanceDisplay">- KES 0.00</strong></div>
+                    <div><span>Refund credits from History</span><strong id="invoiceRefundDisplay">- KES 0.00</strong></div>
+                    <div><span>Deductibles</span><strong id="invoiceDeductibleDisplay">- KES 0.00</strong></div>
+                    <div class="grand"><span>FINAL BALANCE DUE</span><strong id="finalTotalDisplay">KES 0.00</strong></div>
+                </div>
+                <div class="invoice-actions">
+                    <button class="btn" onclick="generateAndSaveInvoice('word')" style="background:#10243e;color:white;">📄 Generate Word Invoice</button>
+                    <button class="btn" onclick="generateAndSaveInvoice('excel')" style="background:#16803a;color:white;">📊 Generate Excel Invoice</button>
+                </div>
             </div>
         </div>
     </div>

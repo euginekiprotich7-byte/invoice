@@ -19,96 +19,132 @@ function esc(value) {
 }
 function amount(value) { return Math.max(0, Number(value) || 0); }
 
-function invoiceInputs() {
-    return {
-        advances: amount(document.getElementById('adjPlus')?.value),
-        deductibles: amount(document.getElementById('adjMinus')?.value)
-    };
+
+function amount(value) { return Math.max(0, Number(value) || 0); }
+let pendingAdjustmentCache = [];
+
+async function getPendingAdjustments() {
+    if (!currentEmployerId) return [];
+    const {data,error}=await supabaseClient.from('invoice_adjustments').select('*')
+        .eq('employer_id',String(currentEmployerId)).is('applied_invoice_no',null)
+        .in('type',['advance','payment','deductible']).order('created_at',{ascending:true});
+    if(error){
+        console.warn('Adjustment ledger unavailable:',error.message);
+        return [];
+    }
+    pendingAdjustmentCache=data||[];
+    return pendingAdjustmentCache;
 }
 
-/* Real current work only. Refund/cancellation/payment credits are not current work. */
+function invoiceInputs() {
+    const manualPrevious=amount(document.getElementById('adjPreviousManual')?.value);
+    const advances=pendingAdjustmentCache.filter(x=>['advance','payment'].includes(x.type))
+        .reduce((s,x)=>s+amount(x.amount),0);
+    const deductibles=pendingAdjustmentCache.filter(x=>x.type==='deductible')
+        .reduce((s,x)=>s+amount(x.amount),0);
+    return {advances,deductibles,manualPrevious};
+}
+
+async function addPendingTransaction(type){
+    if(!currentEmployerId){alert('Please select an employer first.');return;}
+    const id=type==='advance'?'newAdvanceAmount':'newDeductibleAmount';
+    const input=document.getElementById(id);
+    const value=amount(input?.value);
+    if(value<=0){alert('Enter an amount greater than zero.');return;}
+    const {data,error}=await supabaseClient.from('invoice_adjustments').insert([{
+        employer_id:String(currentEmployerId),
+        type,
+        amount:value,
+        note:type==='advance'?'Advance / payment received':'Deductible',
+        applied_invoice_no:null
+    }]).select().single();
+    if(error){alert('Could not save transaction: '+error.message);return;}
+    if(input)input.value='';
+    await loadInvoiceAdjustmentDefaults();
+}
+
+async function removePendingTransaction(id){
+    if(!confirm('Remove this pending transaction?'))return;
+    const {error}=await supabaseClient.from('invoice_adjustments').delete().eq('id',id).is('applied_invoice_no',null);
+    if(error){alert('Could not remove transaction: '+error.message);return;}
+    await loadInvoiceAdjustmentDefaults();
+}
+
+function renderAdjustmentLedgers(){
+    const adv=document.getElementById('advanceLedger'), ded=document.getElementById('deductibleLedger');
+    if(!adv||!ded)return;
+    const advances=pendingAdjustmentCache.filter(x=>['advance','payment'].includes(x.type));
+    const deductibles=pendingAdjustmentCache.filter(x=>x.type==='deductible');
+    const row=(x)=>`<div class="txn-row">
+        <div><strong>${x.type==='payment'?'Payment received':'Advance received'}</strong><small>${x.created_at?new Date(x.created_at).toLocaleString('en-GB'):'Today'}${x.note?' · '+esc(x.note):''}</small></div>
+        <div class="txn-amount">KES ${money(x.amount)}</div>
+        <span class="status-pill status-paid">Saved</span>
+        <button class="btn" onclick="removePendingTransaction('${x.id}')" style="background:#fee2e2;color:#991b1b;border:0;border-radius:8px;padding:7px 9px;">Remove</button>
+    </div>`;
+    adv.innerHTML=advances.length?advances.map(row).join(''):'<div class="txn-empty">No advances or payments waiting to be applied.</div>';
+    ded.innerHTML=deductibles.length?deductibles.map(x=>`<div class="txn-row">
+        <div><strong>Deductible</strong><small>${x.created_at?new Date(x.created_at).toLocaleString('en-GB'):'Today'}${x.note?' · '+esc(x.note):''}</small></div>
+        <div class="txn-amount">KES ${money(x.amount)}</div>
+        <span class="status-pill status-canceled">Saved</span>
+        <button class="btn" onclick="removePendingTransaction('${x.id}')" style="background:#fee2e2;color:#991b1b;border:0;border-radius:8px;padding:7px 9px;">Remove</button>
+    </div>`).join(''):'<div class="txn-empty">No deductibles waiting to be applied.</div>';
+}
+
 async function getDoneTasksForInvoice() {
     if (!currentEmployerId) return [];
     const {data,error} = await supabaseClient.from('tasks').select('*')
-        .eq('employer_id',currentEmployerId)
-        .eq('status','Done')
-        .order('created_at',{ascending:true});
-    if(error) throw error;
-    return data || [];
+        .eq('employer_id',currentEmployerId).eq('status','Done').order('created_at',{ascending:true});
+    if(error) throw error; return data || [];
 }
 
-/* Only unpaid invoices which have NOT already been rolled into another invoice. */
 async function getOpenPreviousInvoices() {
     if (!currentEmployerId) return [];
     const {data,error} = await supabaseClient.from('invoices').select('*')
-        .eq('employer_id',String(currentEmployerId))
-        .eq('status','Unpaid')
-        .eq('carried_forward',false)
-        .order('created_at',{ascending:true});
-    if(error) throw error;
-    return data || [];
+        .eq('employer_id',String(currentEmployerId)).eq('status','Unpaid')
+        .is('carried_into_invoice_no',null).order('created_at',{ascending:true});
+    if(error) throw error; return data || [];
 }
 
-/* Credits waiting to be applied. A credit has invoice_no NULL until consumed. */
 async function getRefundCredits() {
     if (!currentEmployerId) return [];
     const {data,error} = await supabaseClient.from('tasks').select('*')
-        .eq('employer_id',currentEmployerId)
-        .eq('status','Refunded')
-        .is('invoice_no',null)
+        .eq('employer_id',currentEmployerId).eq('status','Refunded').is('invoice_no',null)
         .order('created_at',{ascending:true});
-    if(error) throw error;
-    return data || [];
+    if(error) throw error; return data || [];
 }
 
 async function getInvoiceCalculation() {
-    const [tasks, previousInvoices, refundCredits] = await Promise.all([
-        getDoneTasksForInvoice(), getOpenPreviousInvoices(), getRefundCredits()
+    const [tasks, previousInvoices, refundCredits, pending] = await Promise.all([
+        getDoneTasksForInvoice(), getOpenPreviousInvoices(), getRefundCredits(), getPendingAdjustments()
     ]);
-    const input = invoiceInputs();
-
-    const subtotal = tasks.reduce((sum,t) => sum + amount(t.payable),0);
-    const previousBalance = previousInvoices.reduce((sum,i) => sum + amount(i.balance_due),0);
-    const refundCredit = refundCredits.reduce((sum,t) => sum + Math.abs(Number(t.payable)||0),0);
-
-    /* IMPORTANT: every adjustment is counted exactly once. */
-    const gross = subtotal + previousBalance;
-    const final = Math.max(0, gross - input.advances - refundCredit - input.deductibles);
-
-    return {
-        tasks, previousInvoices, refundCredits,
-        subtotal, previousBalance,
-        advances: input.advances,
-        refundCredit,
-        deductibles: input.deductibles,
-        gross, final
-    };
+    pendingAdjustmentCache=pending;
+    const input=invoiceInputs();
+    const subtotal=tasks.reduce((sum,t)=>sum+amount(t.payable),0);
+    const autoPrevious=previousInvoices.reduce((sum,i)=>sum+amount(i.balance_due),0);
+    const previousBalance=autoPrevious+input.manualPrevious;
+    const refundCredit=refundCredits.reduce((sum,t)=>sum+Math.abs(Number(t.payable)||0),0);
+    const gross=subtotal+previousBalance;
+    const final=Math.max(0,gross-input.advances-refundCredit-input.deductibles);
+    return {tasks,previousInvoices,refundCredits,pendingAdjustments:pending,subtotal,autoPrevious,manualPrevious:input.manualPrevious,previousBalance,
+        advances:input.advances,refundCredit,deductibles:input.deductibles,gross,final};
 }
 
-async function calculateFinalPayable() {
-    try {
-        const c = await getInvoiceCalculation();
+async function calculateFinalPayable(){
+    try{
+        const c=await getInvoiceCalculation();
         const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=`KES ${money(v)}`;};
-        set('invoiceSubtotalDisplay',c.subtotal);
-        set('invoicePreviousDisplay',c.previousBalance);
-        set('invoiceAdvanceDisplay',-c.advances);
-        set('invoiceRefundDisplay',-c.refundCredit);
-        set('invoiceDeductibleDisplay',-c.deductibles);
-        set('finalTotalDisplay',c.final);
-
-        const refund=document.getElementById('adjRefund');
-        if(refund) refund.value=c.refundCredit.toFixed(2);
-        const prev=document.getElementById('adjPrevious');
-        if(prev) prev.value=c.previousBalance.toFixed(2);
-        const hint=document.getElementById('previousBalanceHint');
-        if(hint) hint.textContent=`Outstanding carried balance: KES ${money(c.previousBalance)}`;
+        set('invoiceSubtotalDisplay',c.subtotal);set('invoicePreviousAutoDisplay',c.autoPrevious);
+        set('invoicePreviousManualDisplay',c.manualPrevious);set('invoicePreviousDisplay',c.previousBalance);
+        set('invoiceAdvanceDisplay',-c.advances);set('invoiceRefundDisplay',-c.refundCredit);
+        set('invoiceDeductibleDisplay',-c.deductibles);set('finalTotalDisplay',c.final);
+        const prev=document.getElementById('adjPreviousAuto');if(prev)prev.value=c.autoPrevious.toFixed(2);
+        const total=document.getElementById('adjPrevious');if(total)total.value=c.previousBalance.toFixed(2);
+        const hint=document.getElementById('previousBalanceHint');if(hint)hint.textContent=`Auto outstanding: KES ${money(c.autoPrevious)}`;
+        renderAdjustmentLedgers();
         return c;
-    } catch(e) {
-        console.error('Invoice calculation failed:',e);
-        return {tasks:[],previousInvoices:[],refundCredits:[],subtotal:0,previousBalance:0,advances:0,refundCredit:0,deductibles:0,gross:0,final:0};
-    }
+    }catch(e){console.error('Invoice calculation failed:',e);return {tasks:[],previousInvoices:[],refundCredits:[],pendingAdjustments:[],subtotal:0,autoPrevious:0,manualPrevious:0,previousBalance:0,advances:0,refundCredit:0,deductibles:0,gross:0,final:0};}
 }
-async function loadInvoiceAdjustmentDefaults(){ return calculateFinalPayable(); }
+async function loadInvoiceAdjustmentDefaults(){return calculateFinalPayable();}
 
 async function createInvoiceRecord() {
     if(!currentEmployerId){alert('Please select an employer first.');return null;}
@@ -116,7 +152,7 @@ async function createInvoiceRecord() {
     const calc=await getInvoiceCalculation();
 
     /* A credit or previous unpaid balance can itself justify a new invoice. */
-    if(!calc.tasks.length && !calc.previousInvoices.length && !calc.refundCredits.length){
+    if(!calc.tasks.length && !calc.previousInvoices.length && !calc.refundCredits.length && !calc.pendingAdjustments.length && calc.manualPrevious<=0){
         alert('There are no completed orders, previous unpaid balance, or refund credits ready for invoicing.');
         return null;
     }
@@ -130,6 +166,7 @@ async function createInvoiceRecord() {
         employer_name:employer?.employer_name||'Employer',
         subtotal:calc.subtotal,
         previous_balance:calc.previousBalance,
+        manual_previous_balance:calc.manualPrevious,
         advances:calc.advances,
         refunds:calc.refundCredit,
         deductibles:calc.deductibles,
@@ -168,11 +205,21 @@ async function createInvoiceRecord() {
         if(e){console.error('Previous-balance linkage error',e);}
     }
 
+    /* Consume saved advances/payments/deductibles exactly once. */
+    if(calc.pendingAdjustments.length){
+        const {error:e}=await supabaseClient.from('invoice_adjustments').update({
+            applied_invoice_no:invoiceNo
+        }).in('id',calc.pendingAdjustments.map(x=>x.id));
+        if(e){console.error('Adjustment consumption error',e);}
+    }
+
     return {invoice,tasks:calc.tasks,calc,employer};
 }
 
 function resetInvoiceAdjustments(){
-    ['adjPlus','adjMinus'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='0';});
+    const manual=document.getElementById('adjPreviousManual'); if(manual) manual.value='0';
+    const a=document.getElementById('newAdvanceAmount'); if(a) a.value='';
+    const d=document.getElementById('newDeductibleAmount'); if(d) d.value='';
     calculateFinalPayable();
 }
 
@@ -262,9 +309,18 @@ async function updateInvoiceStatus(id,status){
         const {error}=await supabaseClient.from('invoices').update({status:'Canceled'}).eq('id',id);
         if(error){alert('Could not cancel invoice: '+error.message);return;}
     }else if(status==='Paid'){
+        const paidAmount=amount(prompt(`Amount actually received for ${invoice.invoice_no}:`, value.toFixed(2)));
+        if(paidAmount<=0){alert('Enter the payment amount received.');return;}
+        if(paidAmount>value && !confirm(`You entered KES ${money(paidAmount)}, which is more than the invoice balance of KES ${money(value)}. Continue?`))return;
+        const {error:payError}=await supabaseClient.from('invoice_adjustments').insert([{
+            employer_id:String(invoice.employer_id), invoice_id:id, type:'payment',
+            amount:paidAmount, note:`Payment received for ${invoice.invoice_no}`,
+            applied_invoice_no:invoice.invoice_no
+        }]);
+        if(payError){alert('Payment could not be recorded: '+payError.message);return;}
         if(alreadyCarried && !(await createCredit(invoice,'Paid',value)))return;
 
-        const {error}=await supabaseClient.from('invoices').update({status:'Paid'}).eq('id',id);
+        const {error}=await supabaseClient.from('invoices').update({status:'Paid',paid_amount:paidAmount,paid_at:new Date().toISOString()}).eq('id',id);
         if(error){alert('Could not mark invoice paid: '+error.message);return;}
     }else{
         /* Re-opening a Paid/Refunded/Canceled invoice is intentionally explicit.
