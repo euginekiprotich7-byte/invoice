@@ -215,6 +215,195 @@ tr:hover td{background:#fbfcff!important}
 }
 </style>
 
+
+<style id="v7-polished-ui">
+/* =========================================================
+   V7 PROFESSIONAL ERP INTERFACE
+   Presentation-only layer: existing IDs and invoice workflows preserved.
+   ========================================================= */
+:root{
+  --v7-bg:#f3f6fb;
+  --v7-surface:#ffffff;
+  --v7-surface-alt:#f8faff;
+  --v7-border:#e4e9f1;
+  --v7-text:#162033;
+  --v7-muted:#728096;
+  --v7-brand:#315bd6;
+  --v7-brand-dark:#18357f;
+  --v7-green:#15966b;
+  --v7-orange:#d88917;
+  --v7-red:#d94a61;
+  --v7-purple:#7557d9;
+  --v7-shadow:0 10px 30px rgba(23,43,77,.07);
+  --v7-shadow-lg:0 20px 55px rgba(23,43,77,.10);
+  --v7-radius:20px;
+}
+
+body{background:var(--v7-bg)!important;color:var(--v7-text)!important}
+.container{max-width:1500px!important;width:min(1500px,calc(100% - 48px))!important;padding:24px 0 70px!important}
+
+/* App masthead */
+.container>div:first-child{
+  min-height:118px!important;padding:25px 30px!important;margin-bottom:20px!important;
+  border-radius:24px!important;background:linear-gradient(120deg,#112a57 0%,#204da1 58%,#3c67d8 100%)!important;
+  box-shadow:0 20px 50px rgba(24,59,127,.18)!important;
+}
+.container>div:first-child>div:first-child{position:relative;z-index:2}
+.container>div:first-child h2{font-size:28px!important;letter-spacing:-1px!important}
+.container>div:first-child h2:before{content:"OM"!important;width:42px!important;height:42px!important;border-radius:13px!important;font-size:11px!important}
+.container>div:first-child small{font-size:12px!important}
+.container>div:first-child:before{
+  content:"OPERATIONS  •  BILLING  •  ORDER CONTROL";position:absolute;right:28px;bottom:22px;
+  color:rgba(255,255,255,.68);font-size:9px;font-weight:900;letter-spacing:1.5px;z-index:2;
+}
+
+/* Employer workspace */
+.employer-hub{
+  background:var(--v7-surface)!important;border:1px solid var(--v7-border)!important;
+  border-radius:24px!important;box-shadow:var(--v7-shadow)!important;overflow:hidden!important;margin-bottom:18px!important;
+}
+.employer-hub-head{
+  display:flex!important;justify-content:space-between!important;align-items:center!important;gap:24px!important;
+  padding:25px 28px!important;background:linear-gradient(135deg,#f9fbff,#f0f5ff)!important;
+  border-bottom:1px solid var(--v7-border)!important;
+}
+.employer-hub-head .eyebrow{color:var(--v7-brand)!important;font-size:9px!important;letter-spacing:1.5px!important}
+.employer-hub-head h3{margin:4px 0 5px!important;font-size:21px!important;letter-spacing:-.4px!important}
+.employer-hub-head p{margin:0!important;color:var(--v7-muted)!important;font-size:12px!important;max-width:680px!important;line-height:1.55!important}
+.selected-employer-badge{
+  min-width:205px!important;min-height:52px!important;padding:10px 14px!important;border-radius:14px!important;
+  border:1px dashed #cbd5e1!important;background:#fff!important;color:#8793a5!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;text-align:left!important;
+  box-shadow:0 5px 15px rgba(30,55,95,.04)!important;font-size:11px!important;
+}
+.selected-employer-badge.has-selection{border-style:solid!important;border-color:#bfd0ff!important;background:#f7f9ff!important;color:var(--v7-brand-dark)!important}
+.selected-employer-badge .selected-dot{width:9px;height:9px;border-radius:50%;background:#22a66f;box-shadow:0 0 0 4px rgba(34,166,111,.12);margin-right:10px;flex:none}
+.selected-employer-badge b{display:block;font-size:12px!important;line-height:1.2}
+.selected-employer-badge small{display:block!important;margin-top:4px!important;color:var(--v7-muted)!important;font-size:9px!important}
+.employer-create-row{
+  display:grid!important;grid-template-columns:minmax(220px,1fr) 190px auto!important;gap:12px!important;
+  padding:20px 28px 12px!important;align-items:end!important;
+}
+.modern-field label{display:block!important;font-size:9px!important;font-weight:900!important;text-transform:uppercase!important;letter-spacing:.7px!important;color:#718097!important;margin-bottom:6px!important}
+.modern-field input{width:100%!important;min-height:44px!important;padding:0 13px!important;border:1px solid #d8e0eb!important;border-radius:12px!important;background:#fff!important;color:var(--v7-text)!important;outline:none!important}
+.input-with-prefix{display:flex!important;align-items:center!important;background:#fff!important;border:1px solid #d8e0eb!important;border-radius:12px!important;overflow:hidden!important}
+.input-with-prefix span{padding:0 0 0 12px!important;color:#7a8799!important;font-size:10px!important;font-weight:900!important}
+.input-with-prefix input{border:0!important;min-height:42px!important}
+.primary-action{min-height:44px!important;padding:0 18px!important;border:0!important;border-radius:12px!important;background:var(--v7-brand)!important;color:#fff!important;font-weight:900!important;box-shadow:0 8px 20px rgba(49,91,214,.2)!important;cursor:pointer!important}
+.primary-action:hover{transform:translateY(-1px)!important}
+.employer-search-row{display:flex!important;align-items:center!important;gap:12px!important;padding:8px 28px 16px!important}
+.search-box{display:flex!important;align-items:center!important;gap:9px!important;flex:1!important;min-height:43px!important;padding:0 13px!important;border:1px solid #dce3ed!important;background:#fbfcfe!important;border-radius:12px!important}
+.search-box span{font-size:20px!important;color:#8b97a8!important;line-height:1!important}
+.search-box input{border:0!important;outline:0!important;background:transparent!important;width:100%!important;min-height:39px!important;color:var(--v7-text)!important}
+.employer-count{font-size:10px!important;font-weight:900!important;color:#7b889a!important;white-space:nowrap!important}
+#employer-tabs{
+  display:grid!important;grid-template-columns:repeat(auto-fill,minmax(225px,1fr))!important;gap:12px!important;
+  padding:0 28px 28px!important;margin:0!important;border:0!important;
+}
+.employer-card{
+  min-height:126px!important;display:flex!important;flex-direction:column!important;justify-content:space-between!important;
+  padding:16px!important;border:1px solid #e0e6ef!important;border-radius:16px!important;background:#fff!important;
+  cursor:pointer!important;box-shadow:0 4px 14px rgba(28,49,80,.035)!important;transition:all .18s ease!important;
+  position:relative!important;overflow:hidden!important;
+}
+.employer-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:transparent;transition:.18s ease}
+.employer-card:hover{transform:translateY(-2px)!important;border-color:#cbd7f4!important;box-shadow:0 12px 25px rgba(36,66,125,.09)!important}
+.employer-card.active{border-color:#aebff1!important;background:linear-gradient(145deg,#f8faff,#eef3ff)!important;box-shadow:0 12px 26px rgba(49,91,214,.12)!important}
+.employer-card.active:before{background:var(--v7-brand)!important}
+.emp-name{font-weight:900!important;font-size:14px!important;color:var(--v7-text)!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.emp-rate{margin-top:5px!important;font-size:10px!important;color:var(--v7-muted)!important;font-weight:700!important}
+.emp-stats{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;margin-top:14px!important}
+.emp-stats span{padding:7px 8px!important;border-radius:9px!important;font-size:9px!important;font-weight:900!important}
+.emp-stats .pending{background:#fff7e6!important;color:#9a6500!important}
+.emp-stats .done{background:#eaf8f1!important;color:#187653!important}
+
+/* KPI strip */
+.container>div:nth-of-type(3){gap:14px!important;margin-bottom:18px!important}
+.container>div:nth-of-type(3)>div{min-height:94px!important;padding:17px 21px!important;border-radius:17px!important}
+.container>div:nth-of-type(3)>div:after{content:"";position:absolute;right:-24px;bottom:-38px;width:100px;height:100px;border-radius:50%;background:rgba(49,91,214,.045)}
+.container>div:nth-of-type(3)>div:nth-child(2):after{background:rgba(21,150,107,.05)}
+.container>div:nth-of-type(3) h4{margin:0 0 5px!important}
+.container>div:nth-of-type(3) div[id$="Total"]{font-size:27px!important;font-weight:950!important}
+
+/* Main navigation */
+.sidebar{
+  position:sticky!important;top:10px!important;z-index:50!important;display:grid!important;grid-template-columns:repeat(3,1fr)!important;
+  gap:5px!important;padding:5px!important;margin:0 0 20px!important;background:#e8edf6!important;border:1px solid #dce3ed!important;
+  border-radius:15px!important;box-shadow:0 8px 20px rgba(25,47,81,.06)!important;backdrop-filter:blur(10px)!important;
+}
+.sidebar button{min-height:44px!important;padding:11px 14px!important;border-radius:11px!important;font-size:11px!important;letter-spacing:.2px!important;color:#65748b!important}
+.sidebar button:first-child:before{content:"▦  "}.sidebar button:nth-child(2):before{content:"✓  "}.sidebar button:nth-child(3):before{content:"◷  "}
+.sidebar button:hover{color:var(--v7-brand)!important;background:#fff!important}
+.sidebar button.active,.sidebar button[aria-selected="true"]{background:#fff!important;color:var(--v7-brand)!important;box-shadow:0 5px 15px rgba(25,47,81,.09)!important}
+
+/* Active orders */
+#active-section>div:first-child{padding:24px 26px!important;border-radius:20px!important;box-shadow:var(--v7-shadow)!important}
+#active-section>div:first-child>div{gap:12px!important}
+#active-section h3{font-size:19px!important;margin-bottom:20px!important}
+#active-section input,#active-section select{min-height:45px!important;border-radius:11px!important;background:#fbfcfe!important}
+#active-section .btn-add{min-height:45px!important;border-radius:11px!important;font-size:11px!important}
+#active-section h3:after{content:"  Add the job details, pricing and deadline below.";font-size:10px;color:var(--v7-muted);font-weight:600;letter-spacing:0}
+.table-container{overflow:auto!important;border-radius:17px!important}
+#active-section h3:not(:first-child){margin-top:25px!important}
+
+/* Tables */
+table{box-shadow:var(--v7-shadow)!important;border-radius:17px!important;min-width:760px!important}
+th{height:44px!important;padding:11px 12px!important;background:#f6f8fc!important}
+td{height:48px!important}
+tbody tr:hover td{background:#f9fbff!important}
+
+/* Completed / invoice workspace */
+.invoice-page-hero{padding:24px 27px!important;border-radius:20px!important;background:linear-gradient(135deg,#fff,#f3f7ff)!important;box-shadow:var(--v7-shadow)!important}
+.invoice-page-hero h3{font-size:23px!important}
+.invoice-adjustments{border-radius:22px!important;box-shadow:var(--v7-shadow-lg)!important}
+.invoice-adjustment-head{padding:23px 27px!important}
+.invoice-control-body{padding:25px 27px!important}
+.adjustment-card{min-height:115px!important;background:#f8fafc!important}
+.txn-panel{background:#fbfcfe!important}
+.invoice-total-box{background:#fbfcfe!important;border-radius:18px!important}
+.invoice-total-box .grand{background:#f2f6ff!important;margin:8px -20px -17px!important;padding:17px 20px 19px!important;border-top:1px solid #dbe5ff!important}
+.invoice-total-box .grand strong{font-size:28px!important}
+.invoice-actions .btn{min-height:47px!important}
+
+/* History */
+.history-header{padding:25px 27px!important;border-radius:20px!important}
+.history-summary{gap:9px!important}
+.history-summary-card{border-radius:13px!important}
+.history-filters input,.history-filters select{min-height:44px!important}
+.history-quick-filters{margin-top:4px!important}
+.history-filter-btn{padding:9px 14px!important}
+
+/* Status / install controls */
+#statusIndicator{top:18px!important;right:22px!important;padding:7px 11px!important;font-size:8px!important;letter-spacing:.7px!important}
+#installBtn{background:var(--v7-brand)!important;box-shadow:0 12px 25px rgba(49,91,214,.2)!important}
+
+/* Responsive */
+@media(max-width:900px){
+  .container{width:min(100% - 26px,1500px)!important}
+  .employer-create-row{grid-template-columns:1fr 1fr!important}
+  .primary-action{grid-column:1/-1}
+  .employer-hub-head{align-items:flex-start!important;flex-direction:column!important}
+  .selected-employer-badge{width:100%!important;justify-content:flex-start!important}
+  .container>div:first-child:before{display:none}
+}
+@media(max-width:650px){
+  .container{width:calc(100% - 18px)!important;padding-top:10px!important}
+  .container>div:first-child{padding:20px!important;border-radius:19px!important;min-height:100px!important}
+  .container>div:first-child h2{font-size:22px!important}
+  .employer-create-row{grid-template-columns:1fr!important;padding:17px!important}
+  .employer-search-row{padding:6px 17px 14px!important}
+  #employer-tabs{grid-template-columns:1fr!important;padding:0 17px 18px!important}
+  .employer-hub-head{padding:20px 17px!important}
+  .sidebar{grid-template-columns:1fr!important;position:relative!important;top:auto!important}
+  .sidebar button{min-height:40px!important}
+  .invoice-adjustment-head,.invoice-control-body{padding-left:18px!important;padding-right:18px!important}
+  .adjustment-grid{grid-template-columns:1fr!important}
+  .history-header{padding:20px 18px!important}
+  .history-summary{grid-template-columns:1fr 1fr!important;min-width:0!important}
+  .history-filters{flex-direction:column!important}
+}
+</style>
+
 </head>
 <body>
 
@@ -236,8 +425,8 @@ tr:hover td{background:#fbfcff!important}
 <div class="container">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
     <div>
-        <h2 style="margin:0;">Ultimate Order Manager</h2>
-        <small style="color:#777;">Manage your workflow efficiently</small>
+        <h2 style="margin:0;">Order System Manager</h2>
+        <small style="color:#777;">A professional workspace for orders, invoicing, payments and account history.</small>
     </div>
 </div>
 
@@ -539,7 +728,7 @@ async function loadEmployers() {
             .reduce((sum, t) => sum + (parseFloat(t.payable) || 0), 0) || 0;
 
         const card = document.createElement('div');
-        card.className = 'employer-card';
+        card.className = 'employer-card' + (String(emp.id) === String(currentEmployerId) ? ' active' : '');
         card.dataset.name = String(emp.employer_name || '').toLowerCase();
 
         card.innerHTML = `
