@@ -91,7 +91,7 @@ function renderAdjustmentLedgers(){
 async function getDoneTasksForInvoice() {
     if (!currentEmployerId) return [];
     const {data,error} = await supabaseClient.from('tasks').select('*')
-        .eq('employer_id',currentEmployerId).eq('status','Done').order('created_at',{ascending:true});
+        .eq('employer_id',currentEmployerId).eq('status','Done').neq('task_type','Adjustment').order('created_at',{ascending:true});
     if(error) throw error; return data || [];
 }
 
@@ -116,7 +116,7 @@ async function getOpenPreviousInvoices() {
 async function getRefundCredits() {
     if (!currentEmployerId) return [];
     const {data,error} = await supabaseClient.from('tasks').select('*')
-        .eq('employer_id',currentEmployerId).eq('status','Refunded').is('invoice_no',null)
+        .eq('employer_id',currentEmployerId).eq('task_type','Adjustment').lt('payable',0).is('invoice_no',null)
         .order('created_at',{ascending:true});
     if(error) throw error; return data || [];
 }
@@ -268,7 +268,9 @@ async function createCredit(invoice,type,amountValue){
         units:1,
         cpp:-value,
         payable:-value,
-        status:'Refunded',
+        // Use the known-valid task status. Credit identity is carried by task_type + negative payable,
+        // so this insert does not depend on a database-specific 'Refunded' task status.
+        status:'Done',
         notified:true,
         invoice_no:null
     }]);
