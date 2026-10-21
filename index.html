@@ -651,6 +651,11 @@ let allTasks = [];
 let currentEmployerId=null;
 let currentEmployerRate=300;
 let alarmInterval;
+let editingTaskId = null;
+// Keep module scripts (offline.js / realtime.js) in sync with this page's lexical state.
+Object.defineProperty(window, 'currentEmployerId', { configurable: true, get: () => currentEmployerId, set: value => { currentEmployerId = value; } });
+Object.defineProperty(window, 'currentEmployerRate', { configurable: true, get: () => currentEmployerRate, set: value => { currentEmployerRate = value; } });
+Object.defineProperty(window, 'allTasks', { configurable: true, get: () => allTasks, set: value => { allTasks = value; } });
 
 async function showTab(tabId) {
     const pages = ['active-section', 'done-section', 'history-section'];
@@ -710,6 +715,7 @@ async function loadEmployers() {
 
     allEmployers = employers || [];
     const container = document.getElementById('employer-tabs');
+    if (!container) return;
     container.innerHTML = '';
 
     for (const emp of employers) {
@@ -866,35 +872,32 @@ async function saveTask() {
     // 4. Calculate Total Payable
     const payable = units * cpp;
 
-    if (!client || units <= 0 || !currentEmployerId) {
-        alert("Please fill in Client, Units, and select an Employer!");
+    if (!client.trim() || !detail.trim() || !deadline || units <= 0 || !currentEmployerId) {
+        alert("Please fill in Client, Task Detail, a valid Units value, Deadline, and select an Employer!");
         return;
     }
 
-    const { data: insertData, error: insertError } = await supabaseClient
-        .from('tasks')
-        .insert([{
-            client_name: client,
-            task_detail: detail,
-            task_type: type,
-            units: units,
-            cpp: cpp, 
-            payable: payable,
-            deadline: deadline,
-            employer_id: currentEmployerId,
-            alert_lead_hours: alertLead,
-            status: 'Pending'
-        }]);
+    const taskPayload = {
+        client_name: client.trim(), task_detail: detail.trim(), task_type: type,
+        units, cpp, payable, deadline, employer_id: currentEmployerId,
+        alert_lead_hours: alertLead, notified: false
+    };
+    const request = editingTaskId
+        ? supabaseClient.from('tasks').update(taskPayload).eq('id', editingTaskId)
+        : supabaseClient.from('tasks').insert([{ ...taskPayload, status: 'Pending' }]);
+    const { error: saveError } = await request;
 
-    if (insertError) {
-        alert("Error saving task: " + insertError.message);
+    if (saveError) {
+        alert((editingTaskId ? 'Error updating order: ' : 'Error saving task: ') + saveError.message);
     } else {
-        // Reset form
+        editingTaskId = null;
         document.getElementById('clientInput').value = '';
         document.getElementById('detailInput').value = '';
-        document.getElementById('customCppInput').value = ''; // Reset override
+        document.getElementById('customCppInput').value = '';
         document.getElementById('unitsInput').value = '1';
-        fetchTasks(); 
+        const saveBtn = document.querySelector('.btn-add');
+        if (saveBtn) { saveBtn.innerText = 'Save Order'; saveBtn.style.background = ''; saveBtn.onclick = saveTask; }
+        await fetchTasks();
     }
 }
 
@@ -960,13 +963,10 @@ function renderActive(tasks) {
             <td>${task.units}</td>
             <td>${task.cpp}</td>
             <td>${task.payable}</td>
-            <td class="time-countdown" data-deadline="${task.deadline}">Calculating...</td>
+            <td class="time-countdown"
+                data-deadline="${task.deadline || ''}"
+                data-alarm-lead="${task.alert_lead_hours ?? 1}">Calculating...</td>
             <td>${task.status}</td>
-			<td class="time-countdown" 
-				data-deadline="${task.deadline}" 
-				data-alarm-lead="${task.alert_lead || 0}"> 
-				Calculating...
-			</td>
             <td>
                 <div style="display: flex; gap: 5px;">
                     <button class='btn btn-done' onclick="markAsDone('${task.id}')">Done</button>
@@ -1046,37 +1046,15 @@ async function editTask(id) {
 
     document.getElementById('alertLeadInput').value = task.alert_lead_hours || 1;
 
-    // 3. Change the "Save" button to an "Update" button temporarily
-    // Use the ID 'saveTaskBtn' if you added it, otherwise keep your selector
-    const saveBtn = document.querySelector('.btn-add'); 
-    
+    // Save edits in place. Deleting first could permanently lose the order if the insert failed.
+    editingTaskId = id;
+    const saveBtn = document.querySelector('.btn-add');
     if (saveBtn) {
-        saveBtn.innerText = "Update Order";
-        saveBtn.style.background = "#3498db";
-        
-        // Re-bind the click event
-        saveBtn.onclick = async () => {
-            // First delete the old record, then run the standard save
-            const { error: delError } = await supabaseClient
-                .from('tasks')
-                .delete()
-                .eq('id', id);
-
-            if (delError) {
-                alert("Update failed: " + delError.message);
-                return;
-            }
-
-            // Run the save function to create the updated entry
-            await saveTask();
-            
-            // Reset button back to normal
-            saveBtn.innerText = "Save Order";
-            saveBtn.style.background = "#2ecc71";
-            saveBtn.onclick = saveTask;
-        };
+        saveBtn.innerText = 'Update Order';
+        saveBtn.style.background = '#3498db';
+        saveBtn.onclick = saveTask;
     }
-    
+
     // Scroll up to the form
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -1086,19 +1064,19 @@ function renderEmployerTabs() {
     if (!container) return;
     container.innerHTML = '';
 
-    employers.forEach(emp => {
+    (allEmployers || []).forEach(emp => {
         // Create a wrapper to hold the name and the X together
         const wrapper = document.createElement('div');
         wrapper.style.cssText = "display: inline-flex; margin: 5px; border-radius: 4px; overflow: hidden; border: 1px solid #2c3e50;";
 
         // THE MAIN BUTTON (Click to Select / Double-Click to Edit)
         const btn = document.createElement('button');
-        btn.innerText = `${emp.name} (${emp.rate})`;
+        btn.innerText = `${emp.employer_name} (${emp.rate_per_unit})`;
         btn.title = "Double-click to edit name or rate";
         btn.style.cssText = `padding: 8px 12px; border: none; cursor: pointer; color: white; background: ${(currentEmployerId === emp.id) ? '#3498db' : '#2c3e50'};`;
         
-        btn.onclick = () => selectEmployer(emp.id);
-        btn.ondblclick = () => editEmployer(emp.id, emp.name, emp.rate);
+        btn.onclick = () => selectEmployer(emp.id, emp.rate_per_unit);
+        btn.ondblclick = () => editEmployer(emp.id, emp.employer_name, emp.rate_per_unit);
 
         // THE DELETE BUTTON (The Red X)
         const delBtn = document.createElement('button');
@@ -1121,16 +1099,15 @@ function renderEmployerTabs() {
 async function deleteEmployerProfile(id, name) {
     if (!confirm(`Are you sure you want to delete "${name}"? This will remove all their tasks.`)) return;
 
-    // Delete tasks first
-    await supabaseClient.from('tasks').delete().eq('employer_id', id);
-    
-    // Delete employer
+    // Delete tasks first; abort if this fails so the UI never reports a partial deletion as success.
+    const { error: taskDeleteError } = await supabaseClient.from('tasks').delete().eq('employer_id', id);
+    if (taskDeleteError) { alert('Could not delete employer tasks: ' + taskDeleteError.message); return; }
     const { error } = await supabaseClient.from('employers').delete().eq('id', id);
-
-    if (error) alert("Delete failed: " + error.message);
+    if (error) alert('Delete failed: ' + error.message);
     else {
-        if (currentEmployerId === id) currentEmployerId = null;
-        await fetchEmployers(); 
+        if (String(currentEmployerId) === String(id)) currentEmployerId = null;
+        await loadEmployers();
+        await fetchTasks();
     }
 }
 
@@ -1142,11 +1119,11 @@ async function editEmployer(id, oldName, oldRate) {
     if (newName && newRate) {
         const { error } = await supabaseClient
             .from('employers')
-            .update({ name: newName, rate: parseFloat(newRate) })
+            .update({ employer_name: newName.trim(), rate_per_unit: parseFloat(newRate) })
             .eq('id', id);
 
         if (error) alert("Update failed: " + error.message);
-        else await fetchEmployers();
+        else await loadEmployers();
     }
 }
 

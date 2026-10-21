@@ -107,9 +107,12 @@ async function flushPendingWrites() {
     for (const item of queue) {
         try {
             const q = supabaseClient.from(item.table);
-            if (item.method === 'insert') await q.insert([item.payload]);
-            else if (item.method === 'update') await q.update(item.payload).eq('id', item.match.id);
-            else if (item.method === 'delete') await q.delete().eq('id', item.match.id);
+            let result;
+            if (item.method === 'insert') result = await q.insert([item.payload]);
+            else if (item.method === 'update') result = await q.update(item.payload).eq('id', item.match.id);
+            else if (item.method === 'delete') result = await q.delete().eq('id', item.match.id);
+            else throw new Error(`Unsupported queued write method: ${item.method}`);
+            if (result?.error) throw result.error;
             await idbClearQueueItem(item.localId);
         } catch (err) {
             console.error('Failed to replay a queued write, will retry later:', err);
@@ -117,6 +120,8 @@ async function flushPendingWrites() {
         }
     }
 
+    const remaining = await idbGetQueue();
+    if (remaining.length) { setSyncStatus(`SYNC PAUSED - ${remaining.length} change(s) still pending`, 'offline'); return; }
     await cacheFullSnapshot();
     if (typeof loadEmployers === 'function') await loadEmployers();
     if (typeof fetchTasks === 'function') await fetchTasks();

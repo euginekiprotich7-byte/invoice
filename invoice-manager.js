@@ -19,8 +19,6 @@ function esc(value) {
 }
 function amount(value) { return Math.max(0, Number(value) || 0); }
 
-
-function amount(value) { return Math.max(0, Number(value) || 0); }
 let pendingAdjustmentCache = [];
 
 async function getPendingAdjustments() {
@@ -29,8 +27,8 @@ async function getPendingAdjustments() {
         .eq('employer_id',String(currentEmployerId)).is('applied_invoice_no',null)
         .in('type',['advance','payment','deductible']).order('created_at',{ascending:true});
     if(error){
-        console.warn('Adjustment ledger unavailable:',error.message);
-        return [];
+        console.error('Adjustment ledger unavailable:',error.message);
+        throw new Error('Could not load invoice adjustments. Check the Supabase invoice migration and permissions: ' + error.message);
     }
     pendingAdjustmentCache=data||[];
     return pendingAdjustmentCache;
@@ -152,14 +150,16 @@ async function calculateFinalPayable(){
         const hint=document.getElementById('previousBalanceHint');if(hint)hint.textContent=`Auto outstanding: KES ${money(c.autoPrevious)}`;
         renderAdjustmentLedgers();
         return c;
-    }catch(e){console.error('Invoice calculation failed:',e);return {tasks:[],previousInvoices:[],refundCredits:[],pendingAdjustments:[],subtotal:0,autoPrevious:0,manualPrevious:0,previousBalance:0,advances:0,refundCredit:0,deductibles:0,gross:0,final:0};}
+    }catch(e){console.error('Invoice calculation failed:',e);const hint=document.getElementById('previousBalanceHint');if(hint)hint.textContent='Calculation failed: '+e.message;return null;}
 }
 async function loadInvoiceAdjustmentDefaults(){return calculateFinalPayable();}
 
 async function createInvoiceRecord() {
     if(!currentEmployerId){alert('Please select an employer first.');return null;}
 
-    const calc=await getInvoiceCalculation();
+    let calc;
+    try { calc=await getInvoiceCalculation(); } catch (err) { alert('Invoice calculation failed: '+err.message); return null; }
+    if (!calc) { alert('Invoice calculation failed. Check the console and Supabase configuration.'); return null; }
 
     /* A credit or previous unpaid balance can itself justify a new invoice. */
     if(!calc.tasks.length && !calc.previousInvoices.length && !calc.refundCredits.length && !calc.pendingAdjustments.length && calc.manualPrevious<=0){
