@@ -18,6 +18,15 @@ function esc(value) {
     return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
 }
 function amount(value) { return Math.max(0, Number(value) || 0); }
+function round2(value) { return Math.round(((Number(value) || 0) + Number.EPSILON) * 100) / 100; }
+/* What is still owed on an invoice after any part payments. This - not the full balance_due -
+   is what carries forward into the next invoice as "previous balance". */
+function invoiceOutstanding(inv) {
+    return Math.max(0, round2(amount(inv && inv.balance_due) - amount(inv && inv.paid_amount)));
+}
+const isOpenStatus = (s) => String(s || '').toLowerCase() === 'unpaid';
+/* True once this invoice's balance has been added into a newer invoice. */
+const isAbsorbed = (inv) => !!(inv && (String(inv.carried_into_invoice_no || '').trim() || inv.carried_forward));
 
 let pendingAdjustmentCache = [];
 
@@ -98,18 +107,17 @@ async function getDoneTasksForInvoice() {
 async function getOpenPreviousInvoices() {
     if (!currentEmployerId) return [];
     // The authoritative balance is the latest open invoice in each carry-forward chain.
-    // Older invoices are history and must never be counted a second time.
+    // An invoice whose balance was already carried into a newer invoice is history:
+    // it must never be counted a second time (the newer invoice already contains it).
     const {data,error} = await supabaseClient.from('invoices').select('*')
         .eq('employer_id',String(currentEmployerId))
         .order('created_at',{ascending:true});
     if(error) throw error;
     const invoices = data || [];
-    const referenced = new Set(
-        invoices.map(i => String(i.carried_into_invoice_no || '').trim()).filter(Boolean)
-    );
     return invoices.filter(i =>
-        String(i.status || '').toLowerCase() === 'unpaid' &&
-        !referenced.has(String(i.invoice_no || '').trim())
+        isOpenStatus(i.status) &&
+        invoiceOutstanding(i) > 0 &&
+        !isAbsorbed(i)
     );
 }
 
@@ -128,7 +136,7 @@ async function getInvoiceCalculation() {
     pendingAdjustmentCache=pending;
     const input=invoiceInputs();
     const subtotal=tasks.reduce((sum,t)=>sum+amount(t.payable),0);
-    const autoPrevious=previousInvoices.reduce((sum,i)=>sum+amount(i.balance_due),0);
+    const autoPrevious=previousInvoices.reduce((sum,i)=>sum+invoiceOutstanding(i),0);
     const previousBalance=autoPrevious+input.manualPrevious;
     const refundCredit=refundCredits.reduce((sum,t)=>sum+Math.abs(Number(t.payable)||0),0);
     const gross=subtotal+previousBalance;
@@ -260,7 +268,7 @@ async function createCredit(invoice,type,amountValue){
     if(value<=0)return true;
 
     const labels={Refunded:'Refund credit',Canceled:'Cancellation credit',Paid:'Payment credit'};
-    const {error}=await supabaseClient.from('tasks').insert([{
+    const {data:creditRow,error}=await supabaseClient.from('tasks').insert([{
         employer_id:String(invoice.employer_id),
         client_name:invoice.employer_name||labels[type],
         task_detail:`${labels[type]} from ${invoice.invoice_no}`,
@@ -273,9 +281,12 @@ async function createCredit(invoice,type,amountValue){
         status:'Done',
         notified:true,
         invoice_no:null
-    }]);
+    }]).select('id').single();
     if(error){alert(`${labels[type]} could not be recorded: ${error.message}`);return false;}
-    return true;
+    return (creditRow && creditRow.id) || true;
+}
+async function undoCredit(creditId){
+    if(creditId && creditId!==true) await supabaseClient.from('tasks').delete().eq('id',creditId);
 }
 
 async function updateInvoiceStatus(id,status){
@@ -295,10 +306,10 @@ async function updateInvoiceStatus(id,status){
         Refunded:`Record a REFUND for ${invoice.invoice_no}? The refund amount will automatically become a credit on the next invoice.`,
         Canceled:`CANCEL ${invoice.invoice_no}? Its amount will automatically be removed from future billing.`
     };
-    if(!confirm(questions[status]))return;
+    if(status!=='Paid' && !confirm(questions[status]))return;
 
     const alreadyCarried=!!invoice.carried_into_invoice_no || !!invoice.carried_forward;
-    const value=amount(invoice.balance_due);
+    const value=invoiceOutstanding(invoice);   // only the part still owed is carried / credited
 
     if(status==='Refunded'){
         if(invoice.refund_recorded){alert('This invoice is already recorded as refunded.');return;}
@@ -320,20 +331,72 @@ async function updateInvoiceStatus(id,status){
 
         const {error}=await supabaseClient.from('invoices').update({status:'Canceled'}).eq('id',id);
         if(error){alert('Could not cancel invoice: '+error.message);return;}
+
+        /* Earlier unpaid invoices that were carried into this one are owed again. */
+        if(!alreadyCarried){
+            const {error:restoreError}=await supabaseClient.from('invoices')
+                .update({carried_forward:false,carried_into_invoice_no:null})
+                .eq('carried_into_invoice_no',invoice.invoice_no);
+            if(restoreError)alert('The invoice was canceled, but earlier unpaid balances could not be restored: '+restoreError.message);
+        }
     }else if(status==='Paid'){
-        const paidAmount=amount(prompt(`Amount actually received for ${invoice.invoice_no}:`, value.toFixed(2)));
-        if(paidAmount<=0){alert('Enter the payment amount received.');return;}
-        if(paidAmount>value && !confirm(`You entered KES ${money(paidAmount)}, which is more than the invoice balance of KES ${money(value)}. Continue?`))return;
+        const outstanding=value;
+        if(outstanding<=0){alert('This invoice has no balance left to pay.');return;}
+        const already=amount(invoice.paid_amount);
+        const raw=prompt(
+            `Amount received for ${invoice.invoice_no}\n`+
+            `Balance due: KES ${money(outstanding)}`+(already>0?` (KES ${money(already)} already paid)`:'')+`\n\n`+
+            `Enter less than the balance for a PART payment - the remainder stays unpaid and is added to your next invoice as previous balance.`,
+            outstanding.toFixed(2));
+        if(raw===null)return;
+        const paidNow=amount(String(raw).replace(/,/g,''));
+        if(paidNow<=0){alert('Enter the payment amount received.');return;}
+
+        const applied=Math.min(paidNow,outstanding);          // goes against THIS invoice
+        const excess=round2(paidNow-applied);                 // anything above the balance
+        const remaining=round2(outstanding-applied);          // still owed after this payment
+
+        const summary=remaining>0
+            ? `Record KES ${money(applied)} received?\n\nKES ${money(remaining)} will stay UNPAID and be carried forward to the next invoice.`
+            : excess>0
+                ? `Record KES ${money(paidNow)} received?\n\nThe invoice will be fully PAID, and the extra KES ${money(excess)} will be saved as an advance on your next invoice.`
+                : `Mark ${invoice.invoice_no} as fully PAID (KES ${money(applied)})?`;
+        if(!confirm(summary))return;
+
+        /* 1) If this invoice's balance was already included in a later invoice, credit only what was just paid. */
+        let creditId=true;
+        if(alreadyCarried){
+            creditId=await createCredit(invoice,'Paid',applied);
+            if(!creditId)return;
+        }
+
+        /* 2) Update the invoice itself: fully paid, or still unpaid with the part payment remembered. */
+        const {error}=await supabaseClient.from('invoices').update({
+            status:remaining>0?'Unpaid':'Paid',
+            paid_amount:round2(already+applied),
+            paid_at:new Date().toISOString()
+        }).eq('id',id);
+        if(error){
+            await undoCredit(creditId);
+            alert('Could not record the payment: '+error.message);return;
+        }
+
+        /* 3) Payment log (for your records). The invoice row above is what drives the balance. */
         const {error:payError}=await supabaseClient.from('invoice_adjustments').insert([{
             employer_id:String(invoice.employer_id), invoice_id:id, type:'payment',
-            amount:paidAmount, note:`Payment received for ${invoice.invoice_no}`,
-            applied_invoice_no:invoice.invoice_no
+            amount:applied, applied_invoice_no:invoice.invoice_no,
+            note:remaining>0?`Part payment for ${invoice.invoice_no}`:`Payment received for ${invoice.invoice_no}`
         }]);
-        if(payError){alert('Payment could not be recorded: '+payError.message);return;}
-        if(alreadyCarried && !(await createCredit(invoice,'Paid',value)))return;
+        if(payError)console.error('Payment log entry failed (balance is still correct):',payError.message);
 
-        const {error}=await supabaseClient.from('invoices').update({status:'Paid',paid_amount:paidAmount,paid_at:new Date().toISOString()}).eq('id',id);
-        if(error){alert('Could not mark invoice paid: '+error.message);return;}
+        /* 4) Overpayment becomes an advance that the next invoice will deduct. */
+        if(excess>0){
+            const {error:exError}=await supabaseClient.from('invoice_adjustments').insert([{
+                employer_id:String(invoice.employer_id), type:'advance', amount:excess,
+                note:`Overpayment on ${invoice.invoice_no}`, applied_invoice_no:null
+            }]);
+            if(exError)alert(`The invoice is paid, but the extra KES ${money(excess)} could not be saved as an advance: ${exError.message}\nAdd it manually as an advance.`);
+        }
     }else{
         /* Re-opening a Paid/Refunded/Canceled invoice is intentionally explicit.
            No automatic deletion of a previously created credit is attempted. */
@@ -344,6 +407,23 @@ async function updateInvoiceStatus(id,status){
     await fetchTasks();
     await renderInvoiceHistory();
     await calculateFinalPayable();
+}
+
+/* Invoices closed as "Paid" by the old code even though less than the full amount was received.
+   Re-open them so the unpaid remainder shows up and carries forward. */
+async function reopenShortPaid(id){
+    const {data:invoice,error:readError}=await supabaseClient.from('invoices').select('*').eq('id',id).single();
+    if(readError||!invoice){alert('Invoice could not be found.');return;}
+    const owed=invoiceOutstanding(invoice);
+    if(String(invoice.status)!=='Paid'||owed<=0){alert('This invoice has no unpaid balance.');return;}
+    const carried=!!invoice.carried_into_invoice_no||!!invoice.carried_forward;
+    const note=carried
+        ?`\n\nNote: this invoice was already carried into ${invoice.carried_into_invoice_no||'a later invoice'} when it was closed, so the later invoice may be short by KES ${money(owed)}. Add that amount as "Previous balance (manual)" on your next invoice.`
+        :'\n\nIt will be added to your next invoice as previous balance.';
+    if(!confirm(`${invoice.invoice_no} was marked Paid but only KES ${money(invoice.paid_amount)} of KES ${money(invoice.balance_due)} was received.\n\nRe-open the unpaid KES ${money(owed)}?${note}`))return;
+    const {error}=await supabaseClient.from('invoices').update({status:'Unpaid'}).eq('id',id);
+    if(error){alert('Could not re-open the invoice: '+error.message);return;}
+    await fetchTasks(); await renderInvoiceHistory(); await calculateFinalPayable();
 }
 
 function setHistoryFilter(status,button){
@@ -375,14 +455,19 @@ async function renderInvoiceHistory(){
     body.innerHTML=filtered.length?filtered.map(inv=>{
         const adjustments=amount(inv.advances)+amount(inv.refunds)+amount(inv.deductibles);
         const locked=inv.status==='Paid'||inv.status==='Refunded'||inv.status==='Canceled'||inv.status==='Cancelled';
+        const paidSoFar=amount(inv.paid_amount), owed=invoiceOutstanding(inv);
+        const partPaid=isOpenStatus(inv.status)&&paidSoFar>0&&owed>0;
+        const shortPaid=inv.status==='Paid'&&paidSoFar>0&&owed>0;
         return `<tr>
             <td><strong>${esc(inv.invoice_no)}</strong>${inv.carried_into_invoice_no?`<div style="font-size:10px;color:#7f8c8d;">Carried into ${esc(inv.carried_into_invoice_no)}</div>`:''}</td>
             <td>${inv.created_at?new Date(inv.created_at).toLocaleDateString('en-GB'):'-'}</td>
             <td>KES ${money(inv.subtotal)}</td>
             <td>KES ${money(inv.previous_balance)}</td>
             <td>-KES ${money(adjustments)}</td>
-            <td><strong>KES ${money(inv.balance_due)}</strong></td>
-            <td><span class="status-pill ${invoiceStatusClass(inv.status)}">${esc(inv.status==='Cancelled'?'Canceled':inv.status)}</span></td>
+            <td><strong>KES ${money(inv.balance_due)}</strong>${partPaid||shortPaid?`<div style="font-size:11px;color:#9a6500;">Paid KES ${money(paidSoFar)} &middot; Owing KES ${money(owed)}</div>`:''}</td>
+            <td><span class="status-pill ${invoiceStatusClass(inv.status)}">${isOpenStatus(inv.status)&&isAbsorbed(inv)?'Carried forward':partPaid?'Part paid':esc(inv.status==='Cancelled'?'Canceled':inv.status)}</span>
+                ${shortPaid?`<div style="font-size:11px;color:#991b1b;margin-top:4px;">Short paid by KES ${money(owed)}</div>
+                <button class="btn" onclick="reopenShortPaid('${inv.id}')" style="background:#f39c12;color:#fff;margin-top:4px;">Re-open balance</button>`:''}</td>
             <td><div class="invoice-action-group">
                 <button class="btn" onclick="updateInvoiceStatus('${inv.id}','Paid')" ${locked?'disabled':''} style="background:#198754;color:#fff;">✓ Paid</button>
                 <button class="btn" onclick="updateInvoiceStatus('${inv.id}','Unpaid')" ${inv.status==='Unpaid'?'disabled':''} style="background:#f39c12;color:#fff;">↺ Unpaid</button>
@@ -395,7 +480,7 @@ async function renderInvoiceHistory(){
     const sum=(filter)=>invoiceHistoryCache.filter(filter).reduce((s,i)=>s+amount(i.balance_due),0);
     const summary=document.getElementById('historySummary');
     if(summary)summary.innerHTML=`
-        <div class="history-summary-card unpaid"><small>Unpaid</small><b>KES ${money(sum(i=>i.status==='Unpaid'))}</b></div>
+        <div class="history-summary-card unpaid"><small>Unpaid</small><b>KES ${money(invoiceHistoryCache.filter(i=>i.status==='Unpaid'&&!isAbsorbed(i)).reduce((t,i)=>t+invoiceOutstanding(i),0))}</b></div>
         <div class="history-summary-card paid"><small>Paid</small><b>KES ${money(sum(i=>i.status==='Paid'))}</b></div>
         <div class="history-summary-card refunded"><small>Refunded</small><b>KES ${money(sum(i=>i.status==='Refunded'))}</b></div>
         <div class="history-summary-card canceled"><small>Canceled</small><b>KES ${money(sum(i=>['Canceled','Cancelled'].includes(i.status)))}</b></div>`;
