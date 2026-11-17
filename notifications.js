@@ -9,11 +9,11 @@ function triggerAlarm(taskName) {
     // 1. Visual Alert with Pulsing Effect
     if (banner) {
         banner.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;max-width:1100px;margin:auto;">
+            <div class="alarm-row">
                 <span>🚨 <b>${displayName}</b> — DEADLINE ALERT</span>
                 <div style="display:flex;gap:8px;">
-                    <button onclick="snoozeAlarm()" style="background:#fff3cd;color:#856404;border:none;padding:7px 11px;border-radius:6px;cursor:pointer;font-weight:bold;">SNOOZE 15 MIN</button>
-                    <button onclick="stopAlarm()" style="background:white;color:#c0392b;border:none;padding:7px 11px;border-radius:6px;cursor:pointer;font-weight:bold;">DISMISS</button>
+                    <button class="alarm-btn snooze" onclick="snoozeAlarm()">SNOOZE 15 MIN</button>
+                    <button class="alarm-btn stop" onclick="stopAlarm()">DISMISS</button>
                 </div>
             </div>`;
         banner.style.display = 'block';

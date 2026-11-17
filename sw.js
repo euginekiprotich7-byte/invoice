@@ -11,7 +11,7 @@
       locally-stored dates.
    ========================================================= */
 
-const CACHE_NAME = 'inv-mgr-v9';
+const CACHE_NAME = 'inv-mgr-v10';
 const APP_SHELL = [
     './',
     './index.html',
@@ -21,6 +21,8 @@ const APP_SHELL = [
     './realtime.js',
     './notifications.js',
     './invoice-manager.js',
+    './invoice-export.js',
+    './styles.css',
     './alarm-engine.js',
 ];
 

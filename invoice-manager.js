@@ -86,14 +86,14 @@ function renderAdjustmentLedgers(){
         <div><strong>${x.type==='payment'?'Payment received':'Advance received'}</strong><small>${x.created_at?new Date(x.created_at).toLocaleString('en-GB'):'Today'}${x.note?' · '+esc(x.note):''}</small></div>
         <div class="txn-amount">KES ${money(x.amount)}</div>
         <span class="status-pill status-paid">Saved</span>
-        <button class="btn" onclick="removePendingTransaction('${x.id}')" style="background:#fee2e2;color:#991b1b;border:0;border-radius:8px;padding:7px 9px;">Remove</button>
+        <button class="btn btn-sm btn-ghost-danger" onclick="removePendingTransaction('${x.id}')">Remove</button>
     </div>`;
     adv.innerHTML=advances.length?advances.map(row).join(''):'<div class="txn-empty">No advances or payments waiting to be applied.</div>';
     ded.innerHTML=deductibles.length?deductibles.map(x=>`<div class="txn-row">
         <div><strong>Deductible</strong><small>${x.created_at?new Date(x.created_at).toLocaleString('en-GB'):'Today'}${x.note?' · '+esc(x.note):''}</small></div>
         <div class="txn-amount">KES ${money(x.amount)}</div>
         <span class="status-pill status-canceled">Saved</span>
-        <button class="btn" onclick="removePendingTransaction('${x.id}')" style="background:#fee2e2;color:#991b1b;border:0;border-radius:8px;padding:7px 9px;">Remove</button>
+        <button class="btn btn-sm btn-ghost-danger" onclick="removePendingTransaction('${x.id}')">Remove</button>
     </div>`).join(''):'<div class="txn-empty">No deductibles waiting to be applied.</div>';
 }
 
@@ -245,13 +245,51 @@ async function generateAndSaveInvoice(format='word'){
     try{
         const result=await createInvoiceRecord();
         if(!result)return;
-        if(format==='excel')await exportSavedInvoiceExcel(result.invoice,result.tasks,result.calc,result.employer);
-        else await exportSavedInvoiceWord(result.invoice,result.tasks,result.calc,result.employer);
+        const model=buildInvoiceModel(result.invoice,{
+            orders:result.tasks,credits:result.calc.refundCredits,adjustments:result.calc.pendingAdjustments
+        },result.employer?.employer_name||result.invoice.employer_name,result.calc.previousInvoices);
+        try{
+            if(format==='excel')OMInvoiceExport.exportExcel(model);
+            else await OMInvoiceExport.exportWord(model);
+        }catch(exportErr){
+            console.error(exportErr);
+            alert('The invoice was saved, but the file could not be created: '+exportErr.message+'\n\nOpen History and use the download buttons to try again.');
+        }
         resetInvoiceAdjustments();
         await fetchTasks();
         await renderInvoiceHistory();
-        alert(`Invoice ${result.invoice.invoice_no} generated successfully.\n\nSTATUS: UNPAID\n\nUse History when the customer actually pays, requests a refund, or the invoice is canceled.`);
+        alert(`Invoice ${result.invoice.invoice_no} generated successfully.\n\nSTATUS: UNPAID\n\nOpen History to see its orders, change or cancel an order, or record a payment.`);
     }catch(err){console.error(err);alert('Invoice generation failed: '+err.message);}
+}
+
+/* ---------- one description of an invoice, used by Word, Excel and the History detail ---------- */
+const isCancelledStatus=(s)=>/^cancel/i.test(String(s||''));
+const dateLabel=(v)=>v?new Date(v).toLocaleDateString('en-GB'):'today';
+
+function buildInvoiceModel(inv,detail,employerName,absorbedInvoices){
+    const d=detail||{orders:[],credits:[],adjustments:[]};
+    const orders=(d.orders||[]).slice().sort((a,b)=>String(a.completed_at||a.created_at||'').localeCompare(String(b.completed_at||b.created_at||'')));
+    const adv=(d.adjustments||[]).filter(x=>['advance','payment'].includes(x.type));
+    const ded=(d.adjustments||[]).filter(x=>x.type==='deductible');
+    const live=orders.filter(t=>!isCancelledStatus(t.status)&&t.task_type!=='Adjustment');
+    const subtotal=round2(live.reduce((n,t)=>n+amount(t.payable),0));
+    const absorbed=(absorbedInvoices||invoiceHistoryCache.filter(i=>i.carried_into_invoice_no===inv.invoice_no))
+        .map(i=>({label:`Balance of ${i.invoice_no}`,amount:invoiceOutstanding(i)}));
+    const manual=amount(inv.manual_previous_balance);
+    let previousItems=absorbed.slice();
+    if(manual>0)previousItems.push({label:'Manual previous balance',amount:manual});
+    /* Only itemise when the lines really add up to the stored previous balance. */
+    if(Math.abs(previousItems.reduce((n,x)=>n+x.amount,0)-amount(inv.previous_balance))>0.01)previousItems=[];
+    return {
+        invoice_no:inv.invoice_no,status:inv.status==='Cancelled'?'Canceled':inv.status,
+        employer:employerName||inv.employer_name||'Employer',date:inv.created_at||new Date().toISOString(),
+        orders,subtotal,previous:amount(inv.previous_balance),advances:amount(inv.advances),
+        refunds:amount(inv.refunds),deductibles:amount(inv.deductibles),final:amount(inv.balance_due),
+        paid:amount(inv.paid_amount),previousItems,
+        advanceItems:adv.map(x=>({label:(x.type==='payment'?'Payment received ':'Advance received ')+dateLabel(x.created_at),amount:amount(x.amount)})),
+        deductibleItems:ded.map(x=>({label:'Deductible '+dateLabel(x.created_at),amount:amount(x.amount)})),
+        creditItems:(d.credits||[]).map(t=>({label:t.task_detail||'Credit',amount:Math.abs(Number(t.payable)||0)}))
+    };
 }
 
 function invoiceStatusClass(status){
@@ -267,7 +305,7 @@ async function createCredit(invoice,type,amountValue){
     const value=amount(amountValue);
     if(value<=0)return true;
 
-    const labels={Refunded:'Refund credit',Canceled:'Cancellation credit',Paid:'Payment credit'};
+    const labels={Refunded:'Refund credit',Canceled:'Cancellation credit',Paid:'Payment credit',Adjusted:'Invoice correction credit'};
     const {data:creditRow,error}=await supabaseClient.from('tasks').insert([{
         employer_id:String(invoice.employer_id),
         client_name:invoice.employer_name||labels[type],
@@ -434,9 +472,89 @@ function setHistoryFilter(status,button){
     renderInvoiceHistory();
 }
 
+/* ---------------- History: open an invoice to see / change its orders ---------------- */
+const expandedInvoices=new Set();
+let editingOrder=null;        // {taskId}
+let editDraft={};
+let detailCache={};           // invoice_no -> {orders, credits, adjustments}
+
+async function loadInvoiceDetails(nos){
+    detailCache={};
+    if(!nos.length)return;
+    const [t,a]=await Promise.all([
+        supabaseClient.from('tasks').select('*').in('invoice_no',nos).order('created_at',{ascending:true}),
+        supabaseClient.from('invoice_adjustments').select('*').in('applied_invoice_no',nos).is('invoice_id',null)
+    ]);
+    nos.forEach(n=>{detailCache[n]={orders:[],credits:[],adjustments:[]};});
+    (t.data||[]).forEach(x=>{const d=detailCache[x.invoice_no];if(!d)return;(x.task_type==='Adjustment'?d.credits:d.orders).push(x);});
+    (a.data||[]).forEach(x=>{const d=detailCache[x.applied_invoice_no];if(d)d.adjustments.push(x);});
+}
+
+function toggleInvoiceDetail(id){
+    if(expandedInvoices.has(id)){expandedInvoices.delete(id);if(editingOrder)editingOrder=null;}
+    else expandedInvoices.add(id);
+    renderInvoiceHistory();
+}
+
+const invoiceIsLocked=(inv)=>['Refunded','Canceled','Cancelled'].includes(inv.status);
+
+function renderInvoiceDetail(inv){
+    const d=detailCache[inv.invoice_no]||{orders:[],credits:[],adjustments:[]};
+    const locked=invoiceIsLocked(inv);
+    const orders=d.orders.slice().sort((a,b)=>String(a.completed_at||a.created_at||'').localeCompare(String(b.completed_at||b.created_at||'')));
+    const live=orders.filter(t=>!isCancelledStatus(t.status));
+    const subtotal=round2(live.reduce((n,t)=>n+amount(t.payable),0));
+    const units=live.reduce((n,t)=>n+(Number(t.units)||0),0);
+    const rows=orders.length?orders.map((t,i)=>{
+        const cancelled=isCancelledStatus(t.status);
+        if(editingOrder&&editingOrder.taskId===t.id){
+            const dr=editDraft;
+            return `<tr class="editing">
+                <td>${i+1}</td>
+                <td>${esc(t.client_name||'-')}</td>
+                <td><input id="eoDetail" value="${esc(dr.detail)}" oninput="editDraft.detail=this.value"></td>
+                <td><span class="chip">${esc(t.task_type||'-')}</span></td>
+                <td>${t.completed_at?new Date(t.completed_at).toLocaleDateString('en-GB'):'—'}</td>
+                <td><input id="eoUnits" type="number" min="0" step="any" value="${esc(dr.units)}" oninput="editDraft.units=this.value"></td>
+                <td><input id="eoCpp" type="number" min="0" step="any" value="${esc(dr.cpp)}" oninput="editDraft.cpp=this.value"></td>
+                <td class="num">${money((Number(dr.units)||0)*(Number(dr.cpp)||0))}</td>
+                <td><div class="btn-row"><button class="btn btn-sm btn-success" onclick="saveOrderEdit('${inv.id}','${t.id}')">Save</button>
+                <button class="btn btn-sm btn-ghost" onclick="cancelOrderEdit()">Discard</button></div></td></tr>`;
+        }
+        const actions=locked?'<span class="muted small">Read only</span>':cancelled
+            ?`<div class="btn-row"><button class="btn btn-sm btn-success" onclick="restoreInvoiceOrder('${inv.id}','${t.id}')">Restore</button></div>`
+            :`<div class="btn-row">
+                <button class="btn btn-sm btn-warn" onclick="startOrderEdit('${t.id}')">Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="cancelInvoiceOrder('${inv.id}','${t.id}')">Cancel</button>
+                <button class="btn btn-sm btn-ghost" title="Take it off this invoice and send it back to Completed" onclick="removeOrderFromInvoice('${inv.id}','${t.id}')">Remove</button></div>`;
+        return `<tr class="${cancelled?'is-cancelled':''}">
+            <td>${i+1}</td><td>${esc(t.client_name||'-')}</td><td>${esc(t.task_detail||'-')}</td>
+            <td><span class="chip">${esc(t.task_type||'-')}</span></td>
+            <td>${t.completed_at?new Date(t.completed_at).toLocaleDateString('en-GB'):'—'}</td>
+            <td class="num">${esc(t.units)}</td><td class="num">${money(t.cpp)}</td><td class="num">${money(t.payable)}</td>
+            <td>${cancelled?'<span class="status-pill status-canceled">Cancelled</span> ':''}${actions}</td></tr>`;
+    }).join(''):'<tr><td colspan="9" class="history-empty">No orders are linked to this invoice (it may only carry a previous balance).</td></tr>';
+    const note=locked?`<div class="detail-note">This invoice is ${esc(inv.status==='Cancelled'?'Canceled':inv.status)}, so its orders can no longer be changed.</div>`
+        :isAbsorbed(inv)?`<div class="detail-note">This invoice's balance was already carried into <b>${esc(inv.carried_into_invoice_no||'a later invoice')}</b>. If you change an order, the difference is applied to your next invoice as a credit automatically.</div>`:'';
+    return `<tr class="invoice-detail"><td colspan="8"><div class="detail-box">
+        <div class="detail-head"><div><h4>Orders in ${esc(inv.invoice_no)}</h4><small>${live.length} billed · ${orders.length-live.length} cancelled</small></div>
+            <div class="btn-row"><button class="btn btn-sm btn-dark" onclick="downloadInvoice('${inv.id}','word')">📄 Word</button>
+            <button class="btn btn-sm btn-success" onclick="downloadInvoice('${inv.id}','excel')">📊 Excel</button></div></div>
+        ${note}
+        <div style="overflow-x:auto"><table class="detail-table"><thead><tr><th>#</th><th>Client</th><th>Detail</th><th>Type</th><th>Date done</th><th class="num">Pages</th><th class="num">CPP</th><th class="num">Payable</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
+        <div class="detail-foot"><div class="detail-sums"><span>Orders: <b>KES ${money(subtotal)}</b></span><span>Pages: <b>${units}</b></span>
+            <span>Previous: <b>KES ${money(inv.previous_balance)}</b></span><span>Adjustments: <b>−KES ${money(amount(inv.advances)+amount(inv.refunds)+amount(inv.deductibles))}</b></span></div>
+            <div><b>Balance due: KES ${money(inv.balance_due)}</b></div></div>
+    </div></td></tr>`;
+}
+
 async function renderInvoiceHistory(){
     const body=document.getElementById('historyBody');
-    if(!body||!currentEmployerId)return;
+    if(!body)return;
+    if(!currentEmployerId){
+        body.innerHTML='<tr><td colspan="8" class="history-empty">Pick an employer to see their invoices.</td></tr>';
+        return;
+    }
 
     const {data,error}=await supabaseClient.from('invoices').select('*')
         .eq('employer_id',String(currentEmployerId)).order('created_at',{ascending:false});
@@ -452,39 +570,158 @@ async function renderInvoiceHistory(){
             (status==='ALL'||inv.status===status||(status==='Canceled'&&inv.status==='Cancelled'));
     });
 
+    const open=filtered.filter(i=>expandedInvoices.has(i.id));
+    try{await loadInvoiceDetails(open.map(i=>i.invoice_no));}catch(e){console.error('Invoice detail load failed',e);}
+
     body.innerHTML=filtered.length?filtered.map(inv=>{
         const adjustments=amount(inv.advances)+amount(inv.refunds)+amount(inv.deductibles);
-        const locked=inv.status==='Paid'||inv.status==='Refunded'||inv.status==='Canceled'||inv.status==='Cancelled';
+        const locked=invoiceIsLocked(inv);
         const paidSoFar=amount(inv.paid_amount), owed=invoiceOutstanding(inv);
         const partPaid=isOpenStatus(inv.status)&&paidSoFar>0&&owed>0;
         const shortPaid=inv.status==='Paid'&&paidSoFar>0&&owed>0;
-        return `<tr>
-            <td><strong>${esc(inv.invoice_no)}</strong>${inv.carried_into_invoice_no?`<div style="font-size:10px;color:#7f8c8d;">Carried into ${esc(inv.carried_into_invoice_no)}</div>`:''}</td>
+        const isOpen=expandedInvoices.has(inv.id);
+        const row=`<tr class="invoice-row ${isOpen?'open':''}" onclick="toggleInvoiceDetail('${inv.id}')">
+            <td><span class="chev">▶</span><strong>${esc(inv.invoice_no)}</strong>
+                <div class="view-hint">${isOpen?'Hide orders':'View orders'}</div>
+                ${inv.carried_into_invoice_no?`<div class="muted small">Carried into ${esc(inv.carried_into_invoice_no)}</div>`:''}</td>
             <td>${inv.created_at?new Date(inv.created_at).toLocaleDateString('en-GB'):'-'}</td>
-            <td>KES ${money(inv.subtotal)}</td>
-            <td>KES ${money(inv.previous_balance)}</td>
-            <td>-KES ${money(adjustments)}</td>
-            <td><strong>KES ${money(inv.balance_due)}</strong>${partPaid||shortPaid?`<div style="font-size:11px;color:#9a6500;">Paid KES ${money(paidSoFar)} &middot; Owing KES ${money(owed)}</div>`:''}</td>
+            <td class="num">KES ${money(inv.subtotal)}</td>
+            <td class="num">KES ${money(inv.previous_balance)}</td>
+            <td class="num">−KES ${money(adjustments)}</td>
+            <td class="num"><strong>KES ${money(inv.balance_due)}</strong>${partPaid||shortPaid?`<div class="small" style="color:#9a5b00">Paid ${money(paidSoFar)} · Owing ${money(owed)}</div>`:''}</td>
             <td><span class="status-pill ${invoiceStatusClass(inv.status)}">${isOpenStatus(inv.status)&&isAbsorbed(inv)?'Carried forward':partPaid?'Part paid':esc(inv.status==='Cancelled'?'Canceled':inv.status)}</span>
-                ${shortPaid?`<div style="font-size:11px;color:#991b1b;margin-top:4px;">Short paid by KES ${money(owed)}</div>
-                <button class="btn" onclick="reopenShortPaid('${inv.id}')" style="background:#f39c12;color:#fff;margin-top:4px;">Re-open balance</button>`:''}</td>
-            <td><div class="invoice-action-group">
-                <button class="btn" onclick="updateInvoiceStatus('${inv.id}','Paid')" ${locked?'disabled':''} style="background:#198754;color:#fff;">✓ Paid</button>
-                <button class="btn" onclick="updateInvoiceStatus('${inv.id}','Unpaid')" ${inv.status==='Unpaid'?'disabled':''} style="background:#f39c12;color:#fff;">↺ Unpaid</button>
-                <button class="btn" onclick="updateInvoiceStatus('${inv.id}','Refunded')" ${locked?'disabled':''} style="background:#7b3f98;color:#fff;">↩ Refund</button>
-                <button class="btn" onclick="updateInvoiceStatus('${inv.id}','Canceled')" ${locked?'disabled':''} style="background:#c0392b;color:#fff;">✕ Cancel</button>
+                ${shortPaid?`<div class="small" style="color:#a82a2b;margin-top:4px">Short paid by KES ${money(owed)}</div>
+                <button class="btn btn-sm btn-warn" onclick="event.stopPropagation();reopenShortPaid('${inv.id}')" style="margin-top:4px">Re-open balance</button>`:''}</td>
+            <td onclick="event.stopPropagation()"><div class="invoice-action-group">
+                <button class="btn btn-sm btn-success" onclick="updateInvoiceStatus('${inv.id}','Paid')" ${locked?'disabled':''}>✓ Paid</button>
+                <button class="btn btn-sm btn-warn" onclick="updateInvoiceStatus('${inv.id}','Unpaid')" ${inv.status==='Unpaid'?'disabled':''}>↺ Unpaid</button>
+                <button class="btn btn-sm btn-purple" onclick="updateInvoiceStatus('${inv.id}','Refunded')" ${locked?'disabled':''}>↩ Refund</button>
+                <button class="btn btn-sm btn-danger" onclick="updateInvoiceStatus('${inv.id}','Canceled')" ${locked?'disabled':''}>✕ Cancel</button>
             </div></td>
         </tr>`;
+        return row+(isOpen?renderInvoiceDetail(inv):'');
     }).join(''):'<tr><td colspan="8" class="history-empty">No invoices match this filter.</td></tr>';
 
     const sum=(filter)=>invoiceHistoryCache.filter(filter).reduce((s,i)=>s+amount(i.balance_due),0);
+    const unpaidList=invoiceHistoryCache.filter(i=>i.status==='Unpaid'&&!isAbsorbed(i));
+    const unpaidTotal=unpaidList.reduce((t,i)=>t+invoiceOutstanding(i),0);
     const summary=document.getElementById('historySummary');
     if(summary)summary.innerHTML=`
-        <div class="history-summary-card unpaid"><small>Unpaid</small><b>KES ${money(invoiceHistoryCache.filter(i=>i.status==='Unpaid'&&!isAbsorbed(i)).reduce((t,i)=>t+invoiceOutstanding(i),0))}</b></div>
+        <div class="history-summary-card unpaid"><small>Unpaid</small><b>KES ${money(unpaidTotal)}</b></div>
         <div class="history-summary-card paid"><small>Paid</small><b>KES ${money(sum(i=>i.status==='Paid'))}</b></div>
         <div class="history-summary-card refunded"><small>Refunded</small><b>KES ${money(sum(i=>i.status==='Refunded'))}</b></div>
         <div class="history-summary-card canceled"><small>Canceled</small><b>KES ${money(sum(i=>['Canceled','Cancelled'].includes(i.status)))}</b></div>`;
+    const setText=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+    setText('unpaidTotal',money(unpaidTotal));
+    setText('unpaidCountNote',`KES · ${unpaidList.length} invoice${unpaidList.length===1?'':'s'}`);
+    setText('countHistory',invoiceHistoryCache.length);
     await calculateFinalPayable();
+}
+
+/* ---------------- changing orders after an invoice was made ---------------- */
+function startOrderEdit(taskId){
+    const t=Object.values(detailCache).flatMap(d=>d.orders).find(x=>x.id===taskId);
+    if(!t)return;
+    editingOrder={taskId};
+    editDraft={detail:t.task_detail||'',units:t.units,cpp:t.cpp};
+    renderInvoiceHistory();
+}
+function cancelOrderEdit(){editingOrder=null;editDraft={};renderInvoiceHistory();}
+
+async function setTaskStatus(id,status){
+    let r=await supabaseClient.from('tasks').update({status}).eq('id',id);
+    if(r.error&&status==='Canceled'){ r=await supabaseClient.from('tasks').update({status:'Cancelled'}).eq('id',id); }
+    return r;
+}
+
+async function saveOrderEdit(invoiceId,taskId){
+    const units=Number(editDraft.units), cpp=Number(editDraft.cpp), detail=String(editDraft.detail||'').trim();
+    if(!detail){alert('The order detail cannot be empty.');return;}
+    if(!(units>0)){alert('Pages / units must be more than zero. To drop the order, use Cancel.');return;}
+    if(!(cpp>=0)){alert('Enter a valid CPP (rate).');return;}
+    const {error}=await supabaseClient.from('tasks').update({task_detail:detail,units,cpp,payable:round2(units*cpp)}).eq('id',taskId);
+    if(error){alert('Could not save the order: '+error.message);return;}
+    editingOrder=null;editDraft={};
+    await afterOrderChange(invoiceId,'Order updated.');
+}
+async function cancelInvoiceOrder(invoiceId,taskId){
+    if(!confirm('Cancel this order? It is kept on the invoice for your records but no longer billed, and the invoice total goes down.'))return;
+    const {error}=await setTaskStatus(taskId,'Canceled');
+    if(error){alert('Could not cancel the order: '+error.message);return;}
+    await afterOrderChange(invoiceId,'Order cancelled.');
+}
+async function restoreInvoiceOrder(invoiceId,taskId){
+    const {error}=await supabaseClient.from('tasks').update({status:'Invoiced'}).eq('id',taskId);
+    if(error){alert('Could not restore the order: '+error.message);return;}
+    await afterOrderChange(invoiceId,'Order restored.');
+}
+async function removeOrderFromInvoice(invoiceId,taskId){
+    if(!confirm('Take this order off the invoice and send it back to Completed? It will be billed on your next invoice instead.'))return;
+    const {error}=await supabaseClient.from('tasks').update({status:'Done',invoice_no:null}).eq('id',taskId);
+    if(error){alert('Could not remove the order: '+error.message);return;}
+    await afterOrderChange(invoiceId,'Order moved back to Completed.');
+}
+
+async function afterOrderChange(invoiceId){
+    const msg=await recalcInvoice(invoiceId);
+    await fetchTasks();
+    await renderInvoiceHistory();
+    if(msg)alert(msg);
+}
+
+/* Re-adds up the invoice from its live orders, keeps the money records consistent,
+   and returns a message when something else had to be adjusted. */
+async function recalcInvoice(invoiceId){
+    const {data:inv,error}=await supabaseClient.from('invoices').select('*').eq('id',invoiceId).single();
+    if(error||!inv)return 'Invoice could not be reloaded.';
+    const {data:orders,error:oe}=await supabaseClient.from('tasks').select('*').eq('invoice_no',inv.invoice_no).neq('task_type','Adjustment');
+    if(oe)return 'Could not read the invoice orders: '+oe.message;
+
+    const subtotal=round2((orders||[]).filter(t=>!isCancelledStatus(t.status)).reduce((n,t)=>n+amount(t.payable),0));
+    const oldDue=amount(inv.balance_due);
+    const newDue=Math.max(0,round2(subtotal+amount(inv.previous_balance)-amount(inv.advances)-amount(inv.refunds)-amount(inv.deductibles)));
+    const rawPaid=amount(inv.paid_amount);
+    const paid=(inv.status==='Paid'&&rawPaid===0)?oldDue:rawPaid;       // very old "Paid" rows stored no amount
+    const oldOutstanding=Math.max(0,round2(oldDue-paid));
+
+    const patch={subtotal,balance_due:newDue};
+    const notes=[];
+    let excess=0, newPaid=paid;
+    if(newDue<paid){ excess=round2(paid-newDue); newPaid=newDue; patch.paid_amount=newDue; if(inv.status==='Unpaid')patch.status='Paid'; }
+    else if(inv.status==='Paid'&&newDue>paid+0.004){ patch.status='Unpaid'; patch.paid_amount=paid; notes.push(`The invoice now has KES ${money(round2(newDue-paid))} unpaid, so it was re-opened as Unpaid.`); }
+    const newOutstanding=Math.max(0,round2(newDue-newPaid));
+
+    const {error:ue}=await supabaseClient.from('invoices').update(patch).eq('id',invoiceId);
+    if(ue)return 'The order was changed but the invoice total could not be updated: '+ue.message;
+
+    if(excess>0){
+        const {error:ae}=await supabaseClient.from('invoice_adjustments').insert([{
+            employer_id:String(inv.employer_id),type:'advance',amount:excess,applied_invoice_no:null,
+            note:`Overpayment after changing ${inv.invoice_no}`}]);
+        notes.push(ae?`KES ${money(excess)} was paid above the new total - add it manually as an advance (${ae.message}).`
+            :`KES ${money(excess)} was already paid above the new total and has been saved as an advance for your next invoice.`);
+    }
+    if(isAbsorbed(inv)){
+        const diff=round2(oldOutstanding-newOutstanding);
+        if(diff>0){
+            const ok=await createCredit(inv,'Adjusted',diff);
+            notes.push(ok?`This invoice's balance was already carried into a later invoice, so a credit of KES ${money(diff)} will be taken off your next invoice.`
+                :`Add KES ${money(diff)} as a deductible on your next invoice.`);
+        }else if(diff<0){
+            notes.push(`This invoice's balance was already carried into a later invoice and is now KES ${money(-diff)} higher. Add that amount as "Previous balance (manual)" on your next invoice.`);
+        }
+    }
+    return notes.join('\n\n');
+}
+
+async function downloadInvoice(id,format){
+    try{
+        const inv=invoiceHistoryCache.find(i=>i.id===id);
+        if(!inv)return;
+        await loadInvoiceDetails([inv.invoice_no]);
+        const model=buildInvoiceModel(inv,detailCache[inv.invoice_no],inv.employer_name);
+        if(format==='excel')OMInvoiceExport.exportExcel(model);else await OMInvoiceExport.exportWord(model);
+    }catch(e){console.error(e);alert('Could not create the file: '+e.message);}
 }
 
 /* Compatibility names used by the existing application. */
@@ -500,55 +737,3 @@ window.renderDoneTable=function(tasks){
 };
 
 document.addEventListener('DOMContentLoaded',()=>setTimeout(loadInvoiceAdjustmentDefaults,500));
-
-async function exportSavedInvoiceExcel(invoice,tasks,calc,employer){
-    const rows=[
-        ['INVOICE',invoice.invoice_no],
-        ['Employer',employer?.employer_name||invoice.employer_name||'Employer'],
-        ['Date',new Date(invoice.created_at||Date.now()).toLocaleDateString('en-GB')],
-        ['STATUS',invoice.status],[],
-        ['Client','Detail','Units','CPP','Payable']
-    ];
-    tasks.forEach(t=>rows.push([t.client_name||'-',t.task_detail||'-',t.units||'-',Number(t.cpp)||0,Number(t.payable)||0]));
-    rows.push([],
-        ['Current Orders','','','',calc.subtotal],
-        ['Previous Unpaid Balance','','','',calc.previousBalance],
-        ['Less Advances','','','',-calc.advances],
-        ['Less Refund Credits','','','',-calc.refundCredit],
-        ['Less Deductibles','','','',-calc.deductibles],
-        ['FINAL BALANCE DUE','','','',calc.final]
-    );
-    const ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,'Invoice');
-    XLSX.writeFile(wb,`Invoice_${invoice.invoice_no}.xlsx`);
-}
-
-async function exportSavedInvoiceWord(invoice,tasks,calc,employer){
-    const {Document,Packer,Paragraph,Table,TableRow,TableCell,TextRun,WidthType,AlignmentType}=docx;
-    const grouped={};
-    tasks.forEach(t=>{const c=t.client_name||'Client';if(!grouped[c])grouped[c]=[];grouped[c].push(t);});
-    const children=[
-        new Paragraph({text:'INVOICE',heading:'Heading1',alignment:AlignmentType.CENTER}),
-        new Paragraph({children:[new TextRun({text:'Invoice #: ',bold:true}),new TextRun(invoice.invoice_no),new TextRun({text:`    Date: ${new Date(invoice.created_at||Date.now()).toLocaleDateString('en-GB')}`})]}),
-        new Paragraph({children:[new TextRun({text:'Billed To: ',bold:true}),new TextRun(employer?.employer_name||invoice.employer_name||'Employer')]}),
-        new Paragraph({children:[new TextRun({text:`STATUS: ${invoice.status}`,bold:true})]})
-    ];
-    for(const [client,clientTasks] of Object.entries(grouped)){
-        children.push(new Paragraph({children:[new TextRun({text:client,bold:true,underline:{}})]}));
-        children.push(new Table({width:{size:100,type:WidthType.PERCENTAGE},rows:clientTasks.map(t=>new TableRow({children:[
-            new TableCell({children:[new Paragraph(t.task_detail||'-')],width:{size:70,type:WidthType.PERCENTAGE}}),
-            new TableCell({children:[new Paragraph({text:`KES ${money(t.payable)}`,alignment:AlignmentType.RIGHT})],width:{size:30,type:WidthType.PERCENTAGE}})
-        ]}))}));
-    }
-    children.push(new Paragraph({text:''}));
-    children.push(new Paragraph({alignment:AlignmentType.RIGHT,children:[
-        new TextRun({text:`Current Orders: KES ${money(calc.subtotal)}`,break:1}),
-        new TextRun({text:`Previous Unpaid Balance: +KES ${money(calc.previousBalance)}`,break:1}),
-        new TextRun({text:`Less Advances: -KES ${money(calc.advances)}`,break:1}),
-        new TextRun({text:`Less Refund Credits: -KES ${money(calc.refundCredit)}`,break:1}),
-        new TextRun({text:`Less Deductibles: -KES ${money(calc.deductibles)}`,break:1}),
-        new TextRun({text:`FINAL BALANCE DUE: KES ${money(calc.final)}`,bold:true,size:28,break:1})
-    ]}));
-    const doc=new Document({sections:[{children}]});
-    saveAs(await Packer.toBlob(doc),`Invoice_${invoice.invoice_no}.docx`);
-}

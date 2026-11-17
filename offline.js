@@ -109,7 +109,18 @@ async function flushPendingWrites() {
             const q = supabaseClient.from(item.table);
             let result;
             if (item.method === 'insert') result = await q.insert([item.payload]);
-            else if (item.method === 'update') result = await q.update(item.payload).eq('id', item.match.id);
+            else if (item.method === 'update') {
+                result = await q.update(item.payload).eq('id', item.match.id);
+                /* A column the database doesn't have yet (e.g. completed_at before the migration)
+                   must not jam the whole queue: drop it and retry once. */
+                const m = result?.error && /column .*?(\w+).*(does not exist|schema cache)|Could not find the '(\w+)' column/i.exec(result.error.message || '');
+                if (m) {
+                    const col = m[3] || m[1];
+                    const { [col]: _drop, ...rest } = item.payload;
+                    if (Object.keys(rest).length) result = await q.update(rest).eq('id', item.match.id);
+                    else result = { error: null };
+                }
+            }
             else if (item.method === 'delete') result = await q.delete().eq('id', item.match.id);
             else throw new Error(`Unsupported queued write method: ${item.method}`);
             if (result?.error) throw result.error;
@@ -191,8 +202,8 @@ async function offlineSaveEmployer() {
 }
 
 async function offlineMarkAsDone(id) {
-    await idbQueueWrite({ table: 'tasks', method: 'update', match: { id }, payload: { status: 'Done' } });
-    await patchCache('tasks', id, { status: 'Done' });
+    await idbQueueWrite({ table: 'tasks', method: 'update', match: { id }, payload: { status: 'Done', completed_at: new Date().toISOString() } });
+    await patchCache('tasks', id, { status: 'Done', completed_at: new Date().toISOString() });
     setSyncStatus('OFFLINE - Change saved locally', 'offline');
     if (typeof fetchTasks === 'function') await fetchTasks();
 }
